@@ -11,26 +11,26 @@ import type { ExportOptions, ExportResult } from '../types/index.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
-import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
-import Delete from 'vue-material-design-icons/Delete.vue'
 import EditorPanel from './EditorPanel.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import EditorTopBar from './EditorTopBar.vue'
+import SelectionToolbar from './SelectionToolbar.vue'
 import TextOverlay from './TextOverlay.vue'
+import { useAmbient } from '../composables/useAmbient.ts'
+import { useEditorShortcuts } from '../composables/useEditorShortcuts.ts'
+import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
 import { renderScene, renderToCanvas, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
-import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW, translateAnnotation } from '../editor/state.ts'
+import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { fitContain } from '../utils/geometry.ts'
 import { canvasToBlob, loadImage } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
-import { ambientBackdrop, ambientColor } from '../utils/theme.ts'
 
 const props = defineProps<{
 	/** Image to edit: Blob, File or URL */
@@ -47,8 +47,6 @@ const emit = defineEmits<{
 }>()
 
 const canvasLabel = t('Image editor')
-const duplicateLabel = t('Duplicate')
-const deleteLabel = t('Delete')
 
 const context = createEditorContext()
 const container = useTemplateRef<HTMLDivElement>('container')
@@ -56,10 +54,7 @@ const loaded = ref(false)
 const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
-// Dominant image color tinting the chrome, as an "r, g, b" triplet
-const ambient = ref('88, 86, 112')
-// Tiny blurred copy of the image, the wallpaper behind the editor card
-const backdrop = ref('')
+const { ambient, backdrop } = useAmbient(orientedCanvas)
 
 interface TextEdit {
 	sceneX: number
@@ -226,8 +221,6 @@ function refreshOrientedCanvas(): void {
 		return
 	}
 	orientedCanvas.value = orientImage(sourceImage, context.state.value)
-	ambient.value = ambientColor(orientedCanvas.value)
-	backdrop.value = ambientBackdrop(orientedCanvas.value)
 }
 
 /**
@@ -421,88 +414,20 @@ function onDeleteSelection(): void {
 	})
 }
 
-// Arrow-key nudges preview live and commit once on key release, so
-// holding a key stays a single undo step
-let nudging = false
-
-const NUDGE_KEYS: Record<string, [number, number]> = {
-	ArrowLeft: [-1, 0],
-	ArrowRight: [1, 0],
-	ArrowUp: [0, -1],
-	ArrowDown: [0, 1],
-}
-
-/**
- * Move the selected annotation with the arrow keys.
- *
- * @param event the keyboard event
- */
-function nudgeSelection(event: KeyboardEvent): void {
-	const id = context.selectedId.value
-	const direction = NUDGE_KEYS[event.key]
-	if (id === null || direction === undefined) {
-		return
-	}
-	event.preventDefault()
-	const step = event.shiftKey ? 10 : 1
-	const state = context.state.value
-	nudging = true
-	context.preview({
-		...state,
-		annotations: state.annotations.map((annotation) => annotation.id === id
-			? translateAnnotation(annotation, direction[0] * step, direction[1] * step)
-			: annotation),
-	})
-}
-
-/**
- *
- * @param event
- */
-function onKeyup(event: KeyboardEvent): void {
-	if (nudging && event.key in NUDGE_KEYS) {
-		nudging = false
-		context.commit(context.state.value)
-	}
-}
-
-/**
- * Keyboard shortcuts: undo/redo, delete, nudge and escape.
- *
- * @param event the keyboard event
- */
-function onKeydown(event: KeyboardEvent): void {
-	if (textEdit.value !== null) {
-		return
-	}
-	const meta = event.ctrlKey || event.metaKey
-	if (meta && !event.shiftKey && event.key.toLowerCase() === 'z') {
-		event.preventDefault()
-		context.undo()
-		return
-	}
-	if ((meta && event.shiftKey && event.key.toLowerCase() === 'z')
-		|| (meta && event.key.toLowerCase() === 'y')) {
-		event.preventDefault()
-		context.redo()
-		return
-	}
-	if (event.key in NUDGE_KEYS && context.selectedId.value !== null) {
-		nudgeSelection(event)
-		return
-	}
-	if ((event.key === 'Delete' || event.key === 'Backspace') && context.selectedId.value !== null) {
-		event.preventDefault()
-		onDeleteSelection()
-	} else if (event.key === 'Escape') {
+useEditorShortcuts({
+	context,
+	isTextEditing: () => textEdit.value !== null,
+	onDelete: onDeleteSelection,
+	onEscape: () => {
 		if (context.selectedId.value !== null) {
 			context.selectedId.value = null
 			renderView()
 		} else if (context.activeMode.value === 'annotate' && context.activeTool.value !== 'select') {
 			context.activeTool.value = 'select'
 		}
-	}
-}
+	},
+})
+useWheelControls(container, context)
 
 /**
  * Export the edited image.
@@ -542,26 +467,6 @@ watch(
 watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.state, (state) => emit('change', structuredClone(state)))
 
-/**
- * Ctrl/cmd + wheel zooms the view, a plain wheel pans it while zoomed.
- *
- * @param event the wheel event
- */
-function onWheel(event: WheelEvent): void {
-	if (event.ctrlKey || event.metaKey) {
-		event.preventDefault()
-		const next = context.viewZoom.value * (event.deltaY < 0 ? 1.1 : 1 / 1.1)
-		context.viewZoom.value = next < 1.05 ? 1 : Math.min(4, next)
-		if (context.viewZoom.value === 1) {
-			context.viewPan.value = { x: 0, y: 0 }
-		}
-	} else if (context.viewZoom.value > 1) {
-		event.preventDefault()
-		const pan = context.viewPan.value
-		context.viewPan.value = { x: pan.x - event.deltaX, y: pan.y - event.deltaY }
-	}
-}
-
 onMounted(() => {
 	stage = new Konva.Stage({ container: container.value!, width: 1, height: 1 })
 	resizeObserver = new ResizeObserver(() => {
@@ -569,16 +474,10 @@ onMounted(() => {
 		containerSize.value = { width: clientWidth, height: clientHeight }
 	})
 	resizeObserver.observe(container.value!)
-	window.addEventListener('keydown', onKeydown)
-	window.addEventListener('keyup', onKeyup)
-	container.value!.addEventListener('wheel', onWheel, { passive: false })
 	load()
 })
 
 onBeforeUnmount(() => {
-	window.removeEventListener('keydown', onKeydown)
-	window.removeEventListener('keyup', onKeyup)
-	container.value?.removeEventListener('wheel', onWheel)
 	resizeObserver?.disconnect()
 	detachTool?.()
 	cropOverlay?.destroy()
@@ -617,35 +516,11 @@ defineExpose({ exportImage })
 					:initial="textEdit.value"
 					@confirm="confirmTextEdit"
 					@cancel="textEdit = null" />
-				<div
+				<SelectionToolbar
 					v-if="selectionBox !== null"
-					class="image-editor__selection-toolbar"
-					data-test="selection-toolbar"
-					:style="{
-						insetInlineStart: `${selectionBox.x + selectionBox.width / 2}px`,
-						insetBlockStart: `${Math.max(4, selectionBox.y - 48)}px`,
-					}">
-					<NcButton
-						data-test="duplicate"
-						:aria-label="duplicateLabel"
-						:title="duplicateLabel"
-						variant="tertiary"
-						@click="onDuplicateSelection">
-						<template #icon>
-							<ContentCopy :size="18" />
-						</template>
-					</NcButton>
-					<NcButton
-						data-test="delete"
-						:aria-label="deleteLabel"
-						:title="deleteLabel"
-						variant="tertiary"
-						@click="onDeleteSelection">
-						<template #icon>
-							<Delete :size="18" />
-						</template>
-					</NcButton>
-				</div>
+					:box="selectionBox"
+					@duplicate="onDuplicateSelection"
+					@delete="onDeleteSelection" />
 			</div>
 
 			<EditorTopBar
@@ -768,17 +643,5 @@ defineExpose({ exportImage })
 		margin: auto;
 	}
 
-	&__selection-toolbar {
-		position: absolute;
-		display: flex;
-		gap: 2px;
-		padding: 2px;
-		transform: translateX(-50%);
-		border-radius: var(--border-radius-pill, 100px);
-		background: var(--editor-glass);
-		backdrop-filter: blur(16px) saturate(1.4);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-		z-index: 1;
-	}
 }
 </style>

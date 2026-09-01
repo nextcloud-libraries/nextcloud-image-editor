@@ -21,6 +21,10 @@ import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import RotateLeft from 'vue-material-design-icons/RotateLeft.vue'
 import RotateRight from 'vue-material-design-icons/RotateRight.vue'
 import WhiteBalanceSunny from 'vue-material-design-icons/WhiteBalanceSunny.vue'
+import EditorSlider from './base/EditorSlider.vue'
+import GlassSurface from './base/GlassSurface.vue'
+import IconTab from './base/IconTab.vue'
+import PresetChip from './base/PresetChip.vue'
 import { useEditorContext } from '../editor/context.ts'
 import { presetThumbnail } from '../editor/render.ts'
 import { t } from '../utils/l10n.ts'
@@ -107,13 +111,21 @@ const presetPreviews = computed(() => {
 
 const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow'].includes(context.activeTool.value))
 
+const adjustDisplay = computed(() => {
+	const value = context.state.value.adjustments[activeAdjustment.value]
+	return value > 0 ? `+${value}` : `${value}`
+})
+
+const cropDisplay = computed(() => activeCropControl.value === 'rotation'
+	? `${context.state.value.fineRotation}°`
+	: `×${context.state.value.zoom.toFixed(2)}`)
+
 /**
  * Live-preview the active adjustment while the slider is dragged.
  *
- * @param event the range input event
+ * @param value the new adjustment value
  */
-function onAdjustInput(event: Event) {
-	const value = Number((event.target as HTMLInputElement).value)
+function onAdjustInput(value: number) {
 	const state = context.state.value
 	context.preview({
 		...state,
@@ -124,10 +136,9 @@ function onAdjustInput(event: Event) {
 /**
  * Live-preview fine rotation or zoom while the slider is dragged.
  *
- * @param event the range input event
+ * @param value the new transform value
  */
-function onTransformInput(event: Event) {
-	const value = Number((event.target as HTMLInputElement).value)
+function onTransformInput(value: number) {
 	context.preview(activeCropControl.value === 'rotation'
 		? { ...context.state.value, fineRotation: value }
 		: { ...context.state.value, zoom: value })
@@ -153,24 +164,22 @@ function setPreset(preset: FilterPreset) {
 <template>
 	<!-- Filter mode gets a vertical preview strip, everything else the
 		bottom control card -->
-	<div v-if="context.activeMode.value === 'filter'" class="editor-strip">
-		<button
+	<GlassSurface
+		v-if="context.activeMode.value === 'filter'"
+		variant="strip"
+		class="editor-strip">
+		<PresetChip
 			v-for="preset in presetPreviews"
 			:key="preset.id"
-			type="button"
-			class="editor-strip__chip"
-			:class="{ 'editor-strip__chip--active': context.state.value.preset === preset.id }"
-			:data-test="`preset-${preset.id}`"
+			:url="preset.url"
+			:label="preset.label"
+			:active="context.state.value.preset === preset.id"
 			:disabled="!loaded"
-			:aria-pressed="context.state.value.preset === preset.id"
-			:title="preset.label"
-			@click="setPreset(preset.id)">
-			<img :src="preset.url" :alt="preset.label">
-			<span>{{ preset.label }}</span>
-		</button>
-	</div>
+			:data-test="`preset-${preset.id}`"
+			@click="setPreset(preset.id)" />
+	</GlassSurface>
 
-	<div v-else class="editor-card">
+	<GlassSurface v-else variant="card" class="editor-card">
 		<!-- Crop -->
 		<template v-if="context.activeMode.value === 'crop'">
 			<div class="editor-card__tabs">
@@ -245,70 +254,57 @@ function setPreset(preset: FilterPreset) {
 					{{ labels.applyCrop }}
 				</NcButton>
 			</div>
-			<div class="editor-card__slider">
-				<input
-					v-if="activeCropControl === 'rotation'"
-					:value="context.state.value.fineRotation"
-					data-test="fine-rotation"
-					:disabled="!loaded"
-					:aria-label="labels.rotation"
-					type="range"
-					min="-45"
-					max="45"
-					step="1"
-					@input="onTransformInput"
-					@change="onSliderCommit">
-				<input
-					v-else
-					:value="context.state.value.zoom"
-					data-test="zoom"
-					:disabled="!loaded"
-					:aria-label="labels.scale"
-					type="range"
-					min="1"
-					max="3"
-					step="0.05"
-					@input="onTransformInput"
-					@change="onSliderCommit">
-				<output>{{
-					activeCropControl === 'rotation'
-						? `${context.state.value.fineRotation}°`
-						: `×${context.state.value.zoom.toFixed(2)}`
-				}}</output>
-			</div>
+			<EditorSlider
+				v-if="activeCropControl === 'rotation'"
+				:value="context.state.value.fineRotation"
+				:min="-45"
+				:max="45"
+				:step="1"
+				:aria-label="labels.rotation"
+				:display="cropDisplay"
+				data-test="fine-rotation"
+				:disabled="!loaded"
+				@input="onTransformInput"
+				@commit="onSliderCommit" />
+			<EditorSlider
+				v-else
+				:value="context.state.value.zoom"
+				:min="1"
+				:max="3"
+				:step="0.05"
+				:aria-label="labels.scale"
+				:display="cropDisplay"
+				data-test="zoom"
+				:disabled="!loaded"
+				@input="onTransformInput"
+				@commit="onSliderCommit" />
 		</template>
 
 		<!-- Adjust -->
 		<template v-else-if="context.activeMode.value === 'finetune'">
 			<div class="editor-card__tabs">
-				<button
+				<IconTab
 					v-for="adjustment in adjustments"
 					:key="adjustment.id"
-					type="button"
-					class="editor-card__tab"
-					:class="{ 'editor-card__tab--active': activeAdjustment === adjustment.id }"
-					:data-test="`tab-${adjustment.id}`"
+					:label="adjustment.label"
+					:active="activeAdjustment === adjustment.id"
 					:disabled="!loaded"
-					:aria-pressed="activeAdjustment === adjustment.id"
+					:data-test="`tab-${adjustment.id}`"
 					@click="activeAdjustment = adjustment.id">
 					<component :is="adjustment.icon" :size="20" />
-					<span>{{ adjustment.label }}</span>
-				</button>
+				</IconTab>
 			</div>
-			<div class="editor-card__slider">
-				<input
-					:value="context.state.value.adjustments[activeAdjustment]"
-					:data-test="`adjust-${activeAdjustment}`"
-					:disabled="!loaded"
-					:aria-label="adjustments.find((entry) => entry.id === activeAdjustment)!.label"
-					type="range"
-					min="-100"
-					max="100"
-					step="1"
-					@input="onAdjustInput"
-					@change="onSliderCommit">
-				<output>{{ context.state.value.adjustments[activeAdjustment] > 0 ? '+' : '' }}{{ context.state.value.adjustments[activeAdjustment] }}</output>
-			</div>
+			<EditorSlider
+				:value="context.state.value.adjustments[activeAdjustment]"
+				:min="-100"
+				:max="100"
+				:step="1"
+				:aria-label="adjustments.find((entry) => entry.id === activeAdjustment)!.label"
+				:display="adjustDisplay"
+				:data-test="`adjust-${activeAdjustment}`"
+				:disabled="!loaded"
+				@input="onAdjustInput"
+				@commit="onSliderCommit" />
 		</template>
 
 		<!-- Annotate -->
@@ -336,26 +332,24 @@ function setPreset(preset: FilterPreset) {
 					<input v-model="context.drawColor.value" type="color">
 				</label>
 			</div>
-			<div v-if="showStrokeOptions" class="editor-card__slider">
-				<input
-					v-model.number="context.strokeWidth.value"
-					:aria-label="labels.strokeWidth"
-					type="range"
-					min="1"
-					max="32"
-					step="1">
-				<output>{{ context.strokeWidth.value }}</output>
-			</div>
-			<div v-else-if="context.activeTool.value === 'text'" class="editor-card__slider">
-				<input
-					v-model.number="context.fontSize.value"
-					:aria-label="labels.fontSize"
-					type="range"
-					min="8"
-					max="128"
-					step="1">
-				<output>{{ context.fontSize.value }}</output>
-			</div>
+			<EditorSlider
+				v-if="showStrokeOptions"
+				:value="context.strokeWidth.value"
+				:min="1"
+				:max="32"
+				:step="1"
+				:aria-label="labels.strokeWidth"
+				@input="context.strokeWidth.value = $event"
+				@commit="() => {}" />
+			<EditorSlider
+				v-else-if="context.activeTool.value === 'text'"
+				:value="context.fontSize.value"
+				:min="8"
+				:max="128"
+				:step="1"
+				:aria-label="labels.fontSize"
+				@input="context.fontSize.value = $event"
+				@commit="() => {}" />
 		</template>
 
 		<!-- Sticker -->
@@ -390,19 +384,11 @@ function setPreset(preset: FilterPreset) {
 				{{ labels.blur }}
 			</NcButton>
 		</div>
-	</div>
+	</GlassSurface>
 </template>
 
 <style scoped lang="scss">
-%glass {
-	background: var(--editor-glass, rgba(22, 22, 26, 0.65));
-	backdrop-filter: blur(24px) saturate(1.4);
-	border: 1px solid rgba(255, 255, 255, 0.09);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-}
-
 .editor-card {
-	@extend %glass;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -410,7 +396,6 @@ function setPreset(preset: FilterPreset) {
 	min-width: 420px;
 	max-width: min(680px, 90%);
 	padding: calc(var(--default-grid-baseline) * 3) calc(var(--default-grid-baseline) * 5);
-	border-radius: 20px;
 
 	&__tabs {
 		display: flex;
@@ -418,41 +403,6 @@ function setPreset(preset: FilterPreset) {
 		justify-content: center;
 		flex-wrap: wrap;
 		gap: calc(var(--default-grid-baseline) * 2);
-	}
-
-	// Icon-above-label adjustment tab, reference style
-	&__tab {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 4px;
-		min-width: 64px;
-		padding: calc(var(--default-grid-baseline) * 2) var(--default-grid-baseline);
-		border: none;
-		border-radius: var(--border-radius-large, 12px);
-		background: transparent;
-		color: var(--color-main-text);
-		font-size: 11px;
-		cursor: pointer;
-		transition: background-color 0.12s ease, color 0.12s ease;
-
-		&:hover:not(:disabled) {
-			background-color: rgba(255, 255, 255, 0.07);
-		}
-
-		&--active {
-			background-color: rgba(255, 255, 255, 0.1);
-		}
-
-		&:focus-visible {
-			outline: 2px solid var(--color-primary-element);
-			outline-offset: 2px;
-		}
-
-		&:disabled {
-			opacity: 0.5;
-			cursor: default;
-		}
 	}
 
 	&__divider {
@@ -468,104 +418,14 @@ function setPreset(preset: FilterPreset) {
 		font-size: 12px;
 		opacity: 0.9;
 	}
-
-	// Thin line slider with a round thumb and the value to its right
-	&__slider {
-		display: flex;
-		align-items: center;
-		gap: calc(var(--default-grid-baseline) * 3);
-		width: 100%;
-
-		input[type='range'] {
-			appearance: none;
-			flex: 1;
-			height: 20px;
-			margin: 0;
-			background: linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)) center / 100% 2px no-repeat;
-			cursor: ew-resize;
-
-			&::-webkit-slider-thumb {
-				appearance: none;
-				width: 14px;
-				height: 14px;
-				border-radius: 50%;
-				background: #fff;
-				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-			}
-
-			&::-moz-range-thumb {
-				width: 14px;
-				height: 14px;
-				border: none;
-				border-radius: 50%;
-				background: #fff;
-				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-			}
-
-			&:focus-visible {
-				outline: 2px solid var(--color-primary-element);
-				outline-offset: 2px;
-			}
-		}
-
-		output {
-			min-width: 44px;
-			text-align: end;
-			font-size: 13px;
-			font-variant-numeric: tabular-nums;
-		}
-	}
 }
 
-// Vertical preset strip on the right, the reference's layer-strip style
 .editor-strip {
-	@extend %glass;
 	display: flex;
 	flex-direction: column;
 	gap: calc(var(--default-grid-baseline) * 2);
 	padding: calc(var(--default-grid-baseline) * 2);
-	border-radius: 16px;
 	overflow-y: auto;
 	max-height: 100%;
-
-	&__chip {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 2px;
-		padding: 0;
-		border: none;
-		background: transparent;
-		color: var(--color-main-text);
-		font-size: 10px;
-		cursor: pointer;
-
-		img {
-			width: 64px;
-			aspect-ratio: 4 / 3;
-			object-fit: cover;
-			border-radius: 10px;
-			box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
-			transition: box-shadow 0.12s ease, transform 0.12s ease;
-		}
-
-		&:hover img {
-			transform: scale(1.03);
-		}
-
-		&--active img,
-		&:focus-visible img {
-			box-shadow: 0 0 0 2px var(--color-primary-element);
-		}
-
-		&:focus-visible {
-			outline: none;
-		}
-
-		&:disabled {
-			opacity: 0.5;
-			cursor: default;
-		}
-	}
 }
 </style>
