@@ -495,55 +495,57 @@ defineExpose({ exportImage })
 			'--editor-ambient': ambient,
 			'--editor-backdrop': backdrop ? `url(${backdrop})` : 'none',
 		}">
-		<div class="image-editor__frame">
-			<div class="image-editor__viewport">
-				<div
-					ref="container"
-					class="image-editor__canvas"
-					:style="{ cursor: canvasCursor }"
-					role="img"
-					:aria-label="label ?? canvasLabel" />
-				<NcLoadingIcon
-					v-if="!loaded && !errored"
-					class="image-editor__loading"
-					:size="44" />
-				<TextOverlay
-					v-if="textEdit !== null"
-					:x="textEdit.screenX"
-					:y="textEdit.screenY"
-					:font-size="textEdit.screenFontSize"
-					:color="textEdit.color"
-					:initial="textEdit.value"
-					@confirm="confirmTextEdit"
-					@cancel="textEdit = null" />
-				<SelectionToolbar
-					v-if="selectionBox !== null"
-					:box="selectionBox"
-					@duplicate="onDuplicateSelection"
-					@delete="onDeleteSelection" />
+		<div class="image-editor__shell">
+			<div class="image-editor__frame">
+				<div class="image-editor__viewport">
+					<div
+						ref="container"
+						class="image-editor__canvas"
+						:style="{ cursor: canvasCursor }"
+						role="img"
+						:aria-label="label ?? canvasLabel" />
+					<NcLoadingIcon
+						v-if="!loaded && !errored"
+						class="image-editor__loading"
+						:size="44" />
+					<TextOverlay
+						v-if="textEdit !== null"
+						:x="textEdit.screenX"
+						:y="textEdit.screenY"
+						:font-size="textEdit.screenFontSize"
+						:color="textEdit.color"
+						:initial="textEdit.value"
+						@confirm="confirmTextEdit"
+						@cancel="textEdit = null" />
+					<SelectionToolbar
+						v-if="selectionBox !== null"
+						:box="selectionBox"
+						@duplicate="onDuplicateSelection"
+						@delete="onDeleteSelection" />
+				</div>
+
+				<EditorTopBar
+					class="image-editor__topbar"
+					:loaded="loaded"
+					@save="onSave"
+					@cancel="emit('cancel')"
+					@revert="onRevert" />
+
+				<EditorPanel
+					:class="context.activeMode.value === 'filter'
+						? 'image-editor__strip'
+						: 'image-editor__controls'"
+					:loaded="loaded"
+					:oriented="orientedCanvas"
+					@rotateCw="onRotateCW"
+					@rotateCcw="onRotateCCW"
+					@flipHorizontal="onFlipHorizontal"
+					@flipVertical="onFlipVertical"
+					@applyCrop="onApplyCrop"
+					@resetCrop="onResetCrop" />
+
+				<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 			</div>
-
-			<EditorTopBar
-				class="image-editor__topbar"
-				:loaded="loaded"
-				@save="onSave"
-				@cancel="emit('cancel')"
-				@revert="onRevert" />
-
-			<EditorPanel
-				:class="context.activeMode.value === 'filter'
-					? 'image-editor__strip'
-					: 'image-editor__controls'"
-				:loaded="loaded"
-				:oriented="orientedCanvas"
-				@rotateCw="onRotateCW"
-				@rotateCcw="onRotateCCW"
-				@flipHorizontal="onFlipHorizontal"
-				@flipVertical="onFlipVertical"
-				@applyCrop="onApplyCrop"
-				@resetCrop="onResetCrop" />
-
-			<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 		</div>
 	</div>
 </template>
@@ -566,9 +568,27 @@ defineExpose({ exportImage })
 	height: 100%;
 	width: 100%;
 	overflow: hidden;
-	padding: calc(var(--default-grid-baseline) * 5);
 	color: var(--color-main-text);
 	background-color: var(--color-main-background);
+	// Layout adapts to the editor's own size, not the viewport: the
+	// component embeds in arbitrary app layouts. Note: rules for the
+	// container itself cannot live in @container blocks, only
+	// descendants can respond: hence the shell wrapper.
+	container: editor / size;
+
+	&,
+	& :deep(*),
+	& :deep(*)::before,
+	& :deep(*)::after {
+		box-sizing: border-box;
+	}
+
+	&__shell {
+		position: relative;
+		height: 100%;
+		width: 100%;
+		padding: calc(var(--default-grid-baseline) * 5);
+	}
 
 	// Blurred image wallpaper bleeding around the editor card
 	&::before {
@@ -600,6 +620,57 @@ defineExpose({ exportImage })
 		inset: 0;
 		// Keep the fitted image clear of the floating chrome
 		padding: 76px 120px 140px;
+	}
+
+	@container editor (max-width: 900px) {
+		&__viewport {
+			padding: 64px 96px 150px;
+		}
+	}
+
+	@container editor (max-width: 600px) {
+		&__shell {
+			padding: calc(var(--default-grid-baseline) * 2);
+		}
+
+		&__viewport {
+			padding: 60px 12px 170px;
+		}
+
+		&__rail {
+			inset-inline-start: var(--default-grid-baseline);
+		}
+
+		// Doubled class specificity so these beat the card's own sizing
+		& .image-editor__controls {
+			inset-inline: 8px;
+			transform: none;
+			min-width: 0;
+			max-width: none;
+			width: auto;
+		}
+
+		// The preset strip lies down above the bottom edge on phones
+		& .image-editor__strip {
+			flex-direction: row;
+			inset-inline: 8px;
+			inset-block-start: auto;
+			inset-block-end: calc(var(--default-grid-baseline) * 4);
+			transform: none;
+			max-height: none;
+			overflow-x: auto;
+			overflow-y: hidden;
+		}
+
+		// The rail floats over the image on phones, so it needs its own
+		// glass backing for contrast
+		& .image-editor__rail {
+			padding: var(--default-grid-baseline);
+			background: var(--editor-glass);
+			backdrop-filter: blur(24px) saturate(1.4);
+			border: 1px solid rgba(255, 255, 255, 0.09);
+			border-radius: var(--border-radius-large, 12px);
+		}
 	}
 
 	&__canvas {
