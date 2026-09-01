@@ -6,6 +6,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
 	testDir: './e2e',
+	// Two more than the 4-core default of two
+	workers: 4,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	// Shards emit blob reports on CI, merged into one HTML report by the

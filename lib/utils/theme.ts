@@ -19,7 +19,7 @@ export function primaryColor(): string {
  *
  * @param canvas the image to sample
  */
-export function ambientColor(canvas: HTMLCanvasElement): string {
+export function ambientColor(canvas: HTMLCanvasElement | HTMLImageElement): string {
 	const sample = document.createElement('canvas')
 	sample.width = 8
 	sample.height = 8
@@ -52,10 +52,12 @@ export function ambientColor(canvas: HTMLCanvasElement): string {
  *
  * @param canvas the image to sample
  */
-export function ambientBackdrop(canvas: HTMLCanvasElement): string {
+export function ambientBackdrop(canvas: HTMLCanvasElement | HTMLImageElement): string {
 	const sample = document.createElement('canvas')
+	const width = canvas instanceof HTMLImageElement ? canvas.naturalWidth : canvas.width
+	const height = canvas instanceof HTMLImageElement ? canvas.naturalHeight : canvas.height
 	sample.width = 24
-	sample.height = Math.max(1, Math.round((24 * canvas.height) / canvas.width))
+	sample.height = Math.max(1, Math.round((24 * height) / width))
 	const context = sample.getContext('2d')
 	if (context === null) {
 		return ''
