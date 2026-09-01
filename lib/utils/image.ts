@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { t } from './l10n.ts'
+
 /**
  * Load a decoded image element from a Blob, File or URL.
  *
@@ -19,7 +21,7 @@ export async function loadImage(source: Blob | string): Promise<HTMLImageElement
 				image.crossOrigin = 'anonymous'
 			}
 			image.onload = () => resolve(image)
-			image.onerror = () => reject(new Error('Image could not be decoded'))
+			image.onerror = () => reject(new Error(t('Image could not be decoded')))
 			image.src = url
 		})
 	} finally {
@@ -40,7 +42,7 @@ export async function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/png'
 	return new Promise((resolve, reject) => {
 		canvas.toBlob((blob) => {
 			if (blob === null) {
-				reject(new Error('Canvas could not be encoded'))
+				reject(new Error(t('Canvas could not be encoded')))
 				return
 			}
 			resolve(blob)
