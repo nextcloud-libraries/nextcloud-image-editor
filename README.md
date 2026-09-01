@@ -25,8 +25,8 @@ unmaintained Filerobot editor.
 - Redaction that destroys pixels (block averaging or strong blur),
   never just an overlay
 - Full undo/redo with Ctrl+Z/Y, revert-all behind a confirmation,
-  arrow-key nudging, cursor-anchored wheel zoom, drag panning and a
-  click-to-reset zoom readout
+  arrow-key nudging, cursor-anchored wheel zoom, drag panning, pinch
+  zoom on touch and a click-to-reset zoom readout
 - Ambient glass UI tinted by the image itself, responsive down to
   phone-sized containers (container queries, not viewport media queries)
 - Keyboard accessible, pointer-event based canvas (mouse and touch),
@@ -114,3 +114,7 @@ Regressions are the primary risk for a long-lived canvas library:
   pixels, not just DOM state; jsdom has no real canvas and is never used
   to test Konva code.
 - New tools ship with their tests in the same pull request, no exceptions.
+- Current spread: 80+ unit tests over the pure state, geometry,
+  filter and interaction math; nearly 100 browser scenarios (twice,
+  chromium and firefox) asserting exported pixels and end-to-end
+  behavior.
