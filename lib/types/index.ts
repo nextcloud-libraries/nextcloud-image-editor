@@ -8,6 +8,8 @@ export interface ExportOptions {
 	format?: 'image/png' | 'image/jpeg' | 'image/webp'
 	/** Encoder quality between 0 and 1, only for lossy formats */
 	quality?: number
+	/** Bound the longest output edge, never upscaling */
+	maxSize?: number
 }
 
 export interface ExportResult {

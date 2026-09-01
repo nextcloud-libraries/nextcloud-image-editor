@@ -1,0 +1,136 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import type { Rect, Size } from './state.ts'
+
+import Konva from 'konva'
+import { clampRect } from './state.ts'
+
+export interface CropOverlayDeps {
+	stage: Konva.Stage
+	/** Oriented image size in scene coordinates */
+	oriented: Size
+	/** View transform mapping scene to stage coordinates */
+	scale: number
+	offset: { x: number, y: number }
+	/** Crop rect to start from, defaults to the full image */
+	initial: Rect | null
+}
+
+export interface CropOverlay {
+	/** Current crop rectangle in scene coordinates */
+	getRect(): Rect
+	destroy(): void
+}
+
+/**
+ * Interactive crop overlay: a draggable, resizable rectangle with the
+ * surrounding area dimmed. Works in stage coordinates on its own layer.
+ *
+ * @param deps stage, view transform and initial rect
+ */
+export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
+	const toStage = (rect: Rect): Rect => ({
+		x: deps.offset.x + rect.x * deps.scale,
+		y: deps.offset.y + rect.y * deps.scale,
+		width: rect.width * deps.scale,
+		height: rect.height * deps.scale,
+	})
+	const toScene = (rect: Rect): Rect => ({
+		x: (rect.x - deps.offset.x) / deps.scale,
+		y: (rect.y - deps.offset.y) / deps.scale,
+		width: rect.width / deps.scale,
+		height: rect.height / deps.scale,
+	})
+
+	const imageBounds = toStage({ x: 0, y: 0, ...deps.oriented })
+	const layer = new Konva.Layer({ name: 'crop' })
+
+	const makeShade = () => new Konva.Rect({
+		fill: 'rgba(0, 0, 0, 0.5)',
+		listening: false,
+	})
+	const shadeTop = makeShade()
+	const shadeLeft = makeShade()
+	const shadeRight = makeShade()
+	const shadeBottom = makeShade()
+	for (const shade of [shadeTop, shadeLeft, shadeRight, shadeBottom]) {
+		layer.add(shade)
+	}
+
+	const cropNode = new Konva.Rect({
+		...toStage(clampRect(deps.initial ?? { x: 0, y: 0, ...deps.oriented }, deps.oriented)),
+		stroke: '#fff',
+		strokeWidth: 1,
+		draggable: true,
+		strokeScaleEnabled: false,
+	})
+	layer.add(cropNode)
+
+	const clampToImage = (rect: Rect): Rect => {
+		const x = Math.min(Math.max(rect.x, imageBounds.x), imageBounds.x + imageBounds.width - rect.width)
+		const y = Math.min(Math.max(rect.y, imageBounds.y), imageBounds.y + imageBounds.height - rect.height)
+		return { ...rect, x, y }
+	}
+
+	const updateShades = () => {
+		const rect = {
+			x: cropNode.x(),
+			y: cropNode.y(),
+			width: cropNode.width() * cropNode.scaleX(),
+			height: cropNode.height() * cropNode.scaleY(),
+		}
+		const { x, y, width, height } = imageBounds
+		shadeTop.setAttrs({ x, y, width, height: rect.y - y })
+		shadeLeft.setAttrs({ x, y: rect.y, width: rect.x - x, height: rect.height })
+		shadeRight.setAttrs({ x: rect.x + rect.width, y: rect.y, width: x + width - rect.x - rect.width, height: rect.height })
+		shadeBottom.setAttrs({ x, y: rect.y + rect.height, width, height: y + height - rect.y - rect.height })
+	}
+
+	const transformer = new Konva.Transformer({
+		nodes: [cropNode],
+		rotateEnabled: false,
+		flipEnabled: false,
+		keepRatio: false,
+		boundBoxFunc: (oldBox, newBox) => {
+			const inX = newBox.x >= imageBounds.x - 0.5
+				&& newBox.x + newBox.width <= imageBounds.x + imageBounds.width + 0.5
+			const inY = newBox.y >= imageBounds.y - 0.5
+				&& newBox.y + newBox.height <= imageBounds.y + imageBounds.height + 0.5
+			return (inX && inY && newBox.width >= 8 && newBox.height >= 8) ? newBox : oldBox
+		},
+	})
+	layer.add(transformer)
+
+	cropNode.dragBoundFunc((position) => clampToImage({
+		...position,
+		width: cropNode.width() * cropNode.scaleX(),
+		height: cropNode.height() * cropNode.scaleY(),
+	}))
+	cropNode.on('dragmove transform', updateShades)
+
+	updateShades()
+	deps.stage.add(layer)
+
+	return {
+		getRect() {
+			const scene = toScene({
+				x: cropNode.x(),
+				y: cropNode.y(),
+				width: cropNode.width() * cropNode.scaleX(),
+				height: cropNode.height() * cropNode.scaleY(),
+			})
+			return clampRect({
+				x: Math.round(scene.x),
+				y: Math.round(scene.y),
+				width: Math.round(scene.width),
+				height: Math.round(scene.height),
+			}, deps.oriented)
+		},
+		destroy() {
+			transformer.destroy()
+			layer.destroy()
+		},
+	}
+}

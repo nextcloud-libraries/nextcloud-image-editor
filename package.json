@@ -36,6 +36,8 @@
   ],
   "scripts": {
     "build": "vite --mode production build",
+    "build:demo": "vite build --config playground/vite.config.ts",
+    "build:doc": "typedoc && touch dist/doc/.nojekyll",
     "dev": "vite --mode development build",
     "l10n:extract": "node build/extract-l10n.js",
     "lint": "eslint lib/ __tests__/ e2e/ playground/",
@@ -64,10 +66,12 @@
     "gettext-parser": "^8.0.0",
     "jsdom": "^27.0.1",
     "sass": "^1.103.1",
+    "typedoc": "^0.28.20",
     "typescript": "^5.9.3",
     "vite": "^7.1.11",
     "vitest": "^3.2.4",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue-material-design-icons": "^5.3.1"
   },
   "peerDependencies": {
     "@nextcloud/vue": "^9.0.0",
