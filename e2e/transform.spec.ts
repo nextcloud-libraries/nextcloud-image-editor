@@ -100,6 +100,7 @@ test('fine rotation and zoom scrub without changing export size', async ({ page 
 	await setInputValue(page.locator('[data-test="fine-rotation"]'), '30')
 	expect((await readState(page)).fineRotation).toBe(30)
 
+	await page.locator('[data-test="tab-scale"]').click()
 	await setInputValue(page.locator('[data-test="zoom"]'), '2')
 	expect((await readState(page)).zoom).toBe(2)
 
