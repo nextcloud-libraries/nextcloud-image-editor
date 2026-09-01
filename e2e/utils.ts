@@ -3,8 +3,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import type { Locator, Page } from '@playwright/test'
+import type Konva from 'konva'
 
 import { expect } from '@playwright/test'
+
+declare global {
+	interface Window {
+		/** Konva registers itself globally in the browser build */
+		Konva: { stages: Konva.Stage[] }
+	}
+}
 
 export interface SavedProbe {
 	size: number
@@ -79,9 +87,9 @@ export async function imageTopLeft(page: Page, width = 200, height = 100) {
  */
 export async function cropAnchor(page: Page, name: string) {
 	return page.evaluate((anchorName) => {
-		const stage = (window as never as { Konva: { stages: { container(): HTMLElement, findOne(sel: string): { getAbsolutePosition(): { x: number, y: number } } }[] } }).Konva.stages[0]!
+		const stage = window.Konva.stages[0]!
 		const rect = stage.container().getBoundingClientRect()
-		const anchor = stage.findOne(`.${anchorName}`).getAbsolutePosition()
+		const anchor = stage.findOne(`.${anchorName}`)!.getAbsolutePosition()
 		return { x: rect.x + anchor.x, y: rect.y + anchor.y }
 	}, name)
 }
@@ -94,9 +102,9 @@ export async function cropAnchor(page: Page, name: string) {
  */
 export async function imageView(page: Page) {
 	return page.evaluate(() => {
-		const stage = (window as never as { Konva: { stages: { container(): HTMLElement, findOne(sel: string): { x(): number, y(): number, scaleX(): number } }[] } }).Konva.stages[0]!
+		const stage = window.Konva.stages[0]!
 		const rect = stage.container().getBoundingClientRect()
-		const group = stage.findOne('Group')
+		const group = stage.findOne('Group')!
 		return {
 			x: rect.x + group.x(),
 			y: rect.y + group.y(),

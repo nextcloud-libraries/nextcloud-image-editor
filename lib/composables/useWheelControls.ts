@@ -17,13 +17,41 @@ import { onBeforeUnmount, onMounted } from 'vue'
  */
 export function useWheelControls(element: Ref<HTMLElement | null>, context: EditorContext): void {
 	let dragFrom: { x: number, y: number, panX: number, panY: number } | null = null
+	// Active touch points, for two-finger pinch zooming
+	const pointers = new Map<number, { x: number, y: number }>()
+	let pinchDistance: number | null = null
 
 	const pannable = () => context.activeTool.value === 'adjust' && context.viewZoom.value > 1
+
+	/**
+	 * Distance between the two active pointers.
+	 */
+	function currentPinch(): number | null {
+		if (pointers.size !== 2) {
+			return null
+		}
+		const [a, b] = [...pointers.values()]
+		return Math.hypot(a!.x - b!.x, a!.y - b!.y)
+	}
+
+	/**
+	 * @param zoom the requested zoom factor
+	 */
+	function applyZoom(zoom: number): void {
+		context.viewZoom.value = zoom < 1.05 ? 1 : Math.min(4, zoom)
+		if (context.viewZoom.value === 1) {
+			context.viewPan.value = { x: 0, y: 0 }
+		}
+	}
 
 	/**
 	 * @param event the pointer event
 	 */
 	function onPointerDown(event: PointerEvent): void {
+		if (event.pointerType === 'touch') {
+			pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+			pinchDistance = currentPinch()
+		}
 		if (!pannable() || event.button !== 0) {
 			return
 		}
@@ -40,6 +68,15 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 	 * @param event the pointer event
 	 */
 	function onPointerMove(event: PointerEvent): void {
+		if (event.pointerType === 'touch' && pointers.has(event.pointerId)) {
+			pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+			const distance = currentPinch()
+			if (distance !== null && pinchDistance !== null && pinchDistance > 0) {
+				applyZoom(context.viewZoom.value * (distance / pinchDistance))
+				pinchDistance = distance
+				return
+			}
+		}
 		if (dragFrom === null) {
 			return
 		}
@@ -51,8 +88,16 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 
 	/**
 	 *
+	 * @param event
 	 */
-	function onPointerUp(): void {
+	/**
+	 * @param event the pointer event, absent when invoked as a reset
+	 */
+	function onPointerUp(event?: PointerEvent): void {
+		if (event !== undefined) {
+			pointers.delete(event.pointerId)
+			pinchDistance = currentPinch()
+		}
 		dragFrom = null
 	}
 
