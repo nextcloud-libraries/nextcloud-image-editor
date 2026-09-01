@@ -1,0 +1,169 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import type Konva from 'konva'
+import type { Tool } from './context.ts'
+import type { Annotation, EditorState, TextAnnotation } from './state.ts'
+
+import { buildAnnotationNode } from './render.ts'
+
+export interface ToolOptions {
+	color: string
+	strokeWidth: number
+	fontSize: number
+	sticker: string
+}
+
+export interface PointerToolDeps {
+	stage: Konva.Stage
+	/** Content group receiving the live preview node while dragging */
+	contentGroup(): Konva.Group | null
+	getState(): EditorState
+	commit(state: EditorState): void
+	/** Convert a stage pointer position to oriented image coordinates */
+	toScene(pointer: { x: number, y: number }): { x: number, y: number }
+	options(): ToolOptions
+	/** Open the text editing overlay at the given scene position */
+	startTextEdit(position: { x: number, y: number }): void
+}
+
+/**
+ * Random unique annotation id.
+ */
+function newId(): string {
+	return crypto.randomUUID()
+}
+
+/**
+ * Attach the pointer handlers for the drawing-style tools to the stage.
+ * Returns a cleanup function removing the handlers again.
+ *
+ * @param tool the active tool
+ * @param deps stage access and state callbacks
+ */
+export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => void {
+	if (!['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker'].includes(tool)) {
+		return () => {}
+	}
+
+	let active: Annotation | null = null
+	let previewNode: Konva.Shape | null = null
+	let start = { x: 0, y: 0 }
+	let pendingText: { x: number, y: number } | null = null
+
+	const scenePointer = () => {
+		const pointer = deps.stage.getPointerPosition()
+		return pointer === null ? null : deps.toScene(pointer)
+	}
+
+	const refreshPreview = () => {
+		previewNode?.destroy()
+		previewNode = active === null ? null : buildAnnotationNode(active)
+		if (previewNode !== null) {
+			// The live preview joins the content group so it shares the
+			// scene transform with the final node
+			deps.contentGroup()?.add(previewNode)
+		}
+	}
+
+	const onPointerDown = () => {
+		const point = scenePointer()
+		if (point === null) {
+			return
+		}
+		const options = deps.options()
+		start = point
+
+		switch (tool) {
+			case 'draw':
+				active = { id: newId(), type: 'draw', points: [point.x, point.y], color: options.color, strokeWidth: options.strokeWidth }
+				break
+			case 'arrow':
+				active = { id: newId(), type: 'arrow', points: [point.x, point.y, point.x, point.y], color: options.color, strokeWidth: options.strokeWidth }
+				break
+			case 'rectangle':
+			case 'ellipse':
+				active = { id: newId(), type: tool, rect: { x: point.x, y: point.y, width: 1, height: 1 }, color: options.color, strokeWidth: options.strokeWidth }
+				break
+			case 'text':
+				// Deferred to pointerup: opening the overlay mid-click would
+				// blur (and close) it again when the click completes
+				pendingText = point
+				return
+			case 'sticker': {
+				const state = deps.getState()
+				const sticker: TextAnnotation = {
+					id: newId(),
+					type: 'sticker',
+					x: point.x,
+					y: point.y,
+					text: options.sticker,
+					color: options.color,
+					fontSize: options.fontSize * 2,
+					rotation: 0,
+				}
+				deps.commit({ ...state, annotations: [...state.annotations, sticker] })
+				return
+			}
+		}
+		refreshPreview()
+	}
+
+	const onPointerMove = () => {
+		if (active === null) {
+			return
+		}
+		const point = scenePointer()
+		if (point === null) {
+			return
+		}
+
+		switch (active.type) {
+			case 'draw':
+				active = { ...active, points: [...active.points, point.x, point.y] }
+				break
+			case 'arrow':
+				active = { ...active, points: [start.x, start.y, point.x, point.y] }
+				break
+			case 'rectangle':
+			case 'ellipse':
+				active = {
+					...active,
+					rect: {
+						x: Math.min(start.x, point.x),
+						y: Math.min(start.y, point.y),
+						width: Math.abs(point.x - start.x) || 1,
+						height: Math.abs(point.y - start.y) || 1,
+					},
+				}
+				break
+		}
+		refreshPreview()
+	}
+
+	const onPointerUp = () => {
+		if (pendingText !== null) {
+			deps.startTextEdit(pendingText)
+			pendingText = null
+			return
+		}
+		if (active === null) {
+			return
+		}
+		const state = deps.getState()
+		deps.commit({ ...state, annotations: [...state.annotations, active] })
+		active = null
+		previewNode?.destroy()
+		previewNode = null
+	}
+
+	deps.stage.on('pointerdown.tool', onPointerDown)
+	deps.stage.on('pointermove.tool', onPointerMove)
+	deps.stage.on('pointerup.tool', onPointerUp)
+
+	return () => {
+		deps.stage.off('.tool')
+		previewNode?.destroy()
+	}
+}
