@@ -13,6 +13,7 @@ export interface ToolOptions {
 	strokeWidth: number
 	fontSize: number
 	sticker: string
+	redactStyle: 'pixelate' | 'blur'
 }
 
 export interface PointerToolDeps {
@@ -23,6 +24,8 @@ export interface PointerToolDeps {
 	commit(state: EditorState): void
 	/** Convert a stage pointer position to oriented image coordinates */
 	toScene(pointer: { x: number, y: number }): { x: number, y: number }
+	/** The orientation-baked source canvas, needed by redact previews */
+	oriented(): HTMLCanvasElement | null
 	options(): ToolOptions
 	/** Open the text editing overlay at the given scene position */
 	startTextEdit(position: { x: number, y: number }): void
@@ -43,7 +46,7 @@ function newId(): string {
  * @param deps stage access and state callbacks
  */
 export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => void {
-	if (!['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker'].includes(tool)) {
+	if (!['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)) {
 		return () => {}
 	}
 
@@ -59,7 +62,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 
 	const refreshPreview = () => {
 		previewNode?.destroy()
-		previewNode = active === null ? null : buildAnnotationNode(active)
+		previewNode = active === null ? null : buildAnnotationNode(active, deps.oriented() ?? undefined)
 		if (previewNode !== null) {
 			// The live preview joins the content group so it shares the
 			// scene transform with the final node
@@ -85,6 +88,9 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			case 'rectangle':
 			case 'ellipse':
 				active = { id: newId(), type: tool, rect: { x: point.x, y: point.y, width: 1, height: 1 }, color: options.color, strokeWidth: options.strokeWidth }
+				break
+			case 'redact':
+				active = { id: newId(), type: 'redact', rect: { x: point.x, y: point.y, width: 1, height: 1 }, style: options.redactStyle }
 				break
 			case 'text':
 				// Deferred to pointerup: opening the overlay mid-click would
@@ -128,6 +134,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				break
 			case 'rectangle':
 			case 'ellipse':
+			case 'redact':
 				active = {
 					...active,
 					rect: {

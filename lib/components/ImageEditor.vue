@@ -11,8 +11,10 @@ import type { ExportOptions, ExportResult } from '../types/index.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
-import EditorActionBar from './EditorActionBar.vue'
-import EditorBottomBar from './EditorBottomBar.vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
+import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
+import Delete from 'vue-material-design-icons/Delete.vue'
+import EditorPanel from './EditorPanel.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import EditorTopBar from './EditorTopBar.vue'
 import TextOverlay from './TextOverlay.vue'
@@ -22,7 +24,7 @@ import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
 import { renderScene, renderToCanvas, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
-import { flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
+import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { fitContain } from '../utils/geometry.ts'
 import { canvasToBlob, loadImage } from '../utils/image.ts'
@@ -43,6 +45,8 @@ const emit = defineEmits<{
 }>()
 
 const canvasLabel = t('Image editor')
+const duplicateLabel = t('Duplicate')
+const deleteLabel = t('Delete')
 
 const context = createEditorContext()
 const container = useTemplateRef<HTMLDivElement>('container')
@@ -63,6 +67,9 @@ interface TextEdit {
 }
 const textEdit = ref<TextEdit | null>(null)
 
+/** Stage-space bounds of the selected annotation, for the mini toolbar */
+const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
+
 // Konva objects are deliberately non-reactive: proxying them breaks
 // their internal caching and costs performance for no benefit.
 let stage: Konva.Stage | null = null
@@ -75,7 +82,7 @@ let pendingTransition: { kind: TransitionKind, context: TransitionContext } | nu
 
 const canvasCursor = computed(() => {
 	const tool = context.activeTool.value
-	return ['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker'].includes(tool)
+	return ['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)
 		? 'crosshair'
 		: 'default'
 })
@@ -167,6 +174,9 @@ function renderView(): void {
 			},
 			getSelectedId: () => context.selectedId.value,
 			editText: (annotation) => startTextEdit({ x: annotation.x, y: annotation.y }, annotation),
+			onSelectionRect: (rect) => {
+				selectionBox.value = rect
+			},
 		})
 	} else if (tool === 'crop') {
 		cropOverlay = attachCropOverlay({
@@ -180,6 +190,7 @@ function renderView(): void {
 		detachTool = attachPointerTools(tool, {
 			stage,
 			contentGroup: () => scene?.contentGroup ?? null,
+			oriented: () => orientedCanvas.value,
 			getState: () => context.state.value,
 			commit: context.commit,
 			toScene: (pointer) => toImageCoords(
@@ -193,6 +204,7 @@ function renderView(): void {
 				strokeWidth: context.strokeWidth.value,
 				fontSize: context.fontSize.value,
 				sticker: context.sticker.value,
+				redactStyle: context.redactStyle.value,
 			}),
 			startTextEdit: (position) => startTextEdit(position),
 		})
@@ -206,8 +218,7 @@ function refreshOrientedCanvas(): void {
 	if (sourceImage === null) {
 		return
 	}
-	const state = context.state.value
-	orientedCanvas.value = orientImage(sourceImage, state.rotation, state.flipX, state.flipY)
+	orientedCanvas.value = orientImage(sourceImage, context.state.value)
 }
 
 /**
@@ -354,6 +365,29 @@ function onApplyCrop(): void {
 }
 
 /**
+ * Duplicate the selected annotation and select the copy.
+ */
+function onDuplicateSelection(): void {
+	const id = context.selectedId.value
+	const state = context.state.value
+	const annotation = state.annotations.find((entry) => entry.id === id)
+	if (annotation === undefined) {
+		return
+	}
+	const copy = duplicateAnnotation(annotation)
+	context.commit({ ...state, annotations: [...state.annotations, copy] })
+	context.selectedId.value = copy.id
+	renderView()
+}
+
+/**
+ * Revert every edit as one undoable step.
+ */
+function onRevert(): void {
+	context.commit(createInitialState())
+}
+
+/**
  * Drop the crop and return to the full image.
  */
 function onResetCrop(): void {
@@ -427,10 +461,13 @@ async function onSave(): Promise<void> {
 
 watch(() => props.src, load)
 watch(
-	() => [context.state.value.rotation, context.state.value.flipX, context.state.value.flipY],
+	() => {
+		const { rotation, flipX, flipY, fineRotation, zoom } = context.state.value
+		return [rotation, flipX, flipY, fineRotation, zoom]
+	},
 	refreshOrientedCanvas,
 )
-watch([context.state, context.activeTool, orientedCanvas, containerSize], renderView)
+watch([context.state, context.activeTool, context.viewZoom, orientedCanvas, containerSize], renderView)
 watch(context.state, (state) => emit('change', structuredClone(state)))
 
 onMounted(() => {
@@ -458,48 +495,90 @@ defineExpose({ exportImage })
 
 <template>
 	<div class="image-editor">
-		<EditorTopBar :loaded="loaded" @save="onSave" @cancel="emit('cancel')" />
+		<EditorTopBar
+			:loaded="loaded"
+			@save="onSave"
+			@cancel="emit('cancel')"
+			@revert="onRevert" />
 		<div class="image-editor__body">
 			<EditorSidebar :loaded="loaded" />
-			<div class="image-editor__main">
-				<EditorActionBar
-					:loaded="loaded"
-					@rotateCw="onRotateCW"
-					@rotateCcw="onRotateCCW"
-					@flipHorizontal="onFlipHorizontal"
-					@flipVertical="onFlipVertical"
-					@applyCrop="onApplyCrop"
-					@resetCrop="onResetCrop"
-					@deleteSelection="onDeleteSelection" />
-				<div class="image-editor__viewport">
-					<div
-						ref="container"
-						class="image-editor__canvas"
-						:style="{ cursor: canvasCursor }"
-						role="img"
-						:aria-label="label ?? canvasLabel" />
-					<TextOverlay
-						v-if="textEdit !== null"
-						:x="textEdit.screenX"
-						:y="textEdit.screenY"
-						:font-size="textEdit.screenFontSize"
-						:color="textEdit.color"
-						:initial="textEdit.value"
-						@confirm="confirmTextEdit"
-						@cancel="textEdit = null" />
+			<div class="image-editor__viewport">
+				<div
+					ref="container"
+					class="image-editor__canvas"
+					:style="{ cursor: canvasCursor }"
+					role="img"
+					:aria-label="label ?? canvasLabel" />
+				<TextOverlay
+					v-if="textEdit !== null"
+					:x="textEdit.screenX"
+					:y="textEdit.screenY"
+					:font-size="textEdit.screenFontSize"
+					:color="textEdit.color"
+					:initial="textEdit.value"
+					@confirm="confirmTextEdit"
+					@cancel="textEdit = null" />
+				<div
+					v-if="selectionBox !== null"
+					class="image-editor__selection-toolbar"
+					data-test="selection-toolbar"
+					:style="{
+						insetInlineStart: `${selectionBox.x + selectionBox.width / 2}px`,
+						insetBlockStart: `${Math.max(4, selectionBox.y - 48)}px`,
+					}">
+					<NcButton
+						data-test="duplicate"
+						:aria-label="duplicateLabel"
+						:title="duplicateLabel"
+						variant="tertiary"
+						@click="onDuplicateSelection">
+						<template #icon>
+							<ContentCopy :size="18" />
+						</template>
+					</NcButton>
+					<NcButton
+						data-test="delete"
+						:aria-label="deleteLabel"
+						:title="deleteLabel"
+						variant="tertiary"
+						@click="onDeleteSelection">
+						<template #icon>
+							<Delete :size="18" />
+						</template>
+					</NcButton>
 				</div>
-				<EditorBottomBar :loaded="loaded" />
 			</div>
+			<EditorPanel
+				:loaded="loaded"
+				:oriented="orientedCanvas"
+				@rotateCw="onRotateCW"
+				@rotateCcw="onRotateCCW"
+				@flipHorizontal="onFlipHorizontal"
+				@flipVertical="onFlipVertical"
+				@applyCrop="onApplyCrop"
+				@resetCrop="onResetCrop"
+				@deleteSelection="onDeleteSelection" />
 		</div>
 	</div>
 </template>
 
 <style scoped lang="scss">
 .image-editor {
+	// The editor is always dark, whatever the surrounding theme:
+	// the image is the hero and the chrome recedes
+	--color-main-text: #f2f2f7;
+	--color-main-background: #161618;
+	--color-background-hover: #26262a;
+	--color-background-dark: #2e2e33;
+	--color-border: rgba(255, 255, 255, 0.08);
+	--color-element-hover: #26262a;
+	font-size: 13px;
+
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 	width: 100%;
+	color: var(--color-main-text);
 	background-color: var(--color-main-background);
 
 	&__body {
@@ -508,22 +587,32 @@ defineExpose({ exportImage })
 		min-height: 0;
 	}
 
-	&__main {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-width: 0;
-	}
-
 	&__viewport {
 		position: relative;
 		flex: 1;
+		min-width: 0;
 		min-height: 0;
+		padding: calc(var(--default-grid-baseline) * 6);
+		// The stage sits slightly darker than the chrome
+		background-color: #101012;
 	}
 
 	&__canvas {
 		height: 100%;
 		width: 100%;
+	}
+
+	&__selection-toolbar {
+		position: absolute;
+		display: flex;
+		gap: 2px;
+		padding: 2px;
+		transform: translateX(-50%);
+		border-radius: var(--border-radius-pill, 100px);
+		background-color: rgba(28, 28, 30, 0.85);
+		backdrop-filter: blur(12px);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+		z-index: 1;
 	}
 }
 </style>

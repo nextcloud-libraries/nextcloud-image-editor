@@ -118,3 +118,57 @@ test('annotations rotate with the image', async ({ page }) => {
 	expect(after.x).toBeCloseTo(100 - before.y, 0)
 	expect(after.y).toBeCloseTo(before.x, 0)
 })
+
+test('redact pixelates the selected region destructively', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	// Off-grid rect crossing the color boundary so the center block
+	// averages red and blue
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })
+
+	const state = await readState(page)
+	expect(state.annotations).toHaveLength(1)
+	expect(state.annotations[0].type).toBe('redact')
+
+	const result = await save(page)
+	expect(result.center[0]).toBeGreaterThan(20)
+	expect(result.center[2]).toBeGreaterThan(20)
+})
+
+test('the selection toolbar duplicates and deletes', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 80, y: corner.y + 60 })
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 50, corner.y + 20)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+
+	await page.locator('[data-test="duplicate"]').click()
+	expect((await readState(page)).annotations).toHaveLength(2)
+
+	await page.locator('[data-test="delete"]').click()
+	expect((await readState(page)).annotations).toHaveLength(1)
+})
+
+test('redact can blur instead of pixelate', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.locator('[data-test="redact-blur"]').click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })
+
+	const state = await readState(page)
+	expect(state.annotations[0].style).toBe('blur')
+
+	// The blur mixes red into blue across the boundary
+	const result = await save(page)
+	expect(result.center[0]).toBeGreaterThan(15)
+	expect(result.center[2]).toBeGreaterThan(15)
+})

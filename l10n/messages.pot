@@ -14,6 +14,9 @@ msgstr ""
 msgid "Arrow"
 msgstr ""
 
+msgid "Blur"
+msgstr ""
+
 msgid "Brightness"
 msgstr ""
 
@@ -35,7 +38,13 @@ msgstr ""
 msgid "Delete selection"
 msgstr ""
 
+msgid "Delete"
+msgstr ""
+
 msgid "Draw"
+msgstr ""
+
+msgid "Duplicate"
 msgstr ""
 
 msgid "Ellipse"
@@ -65,7 +74,16 @@ msgstr ""
 msgid "Image editor"
 msgstr ""
 
+msgid "Invert"
+msgstr ""
+
 msgid "No filter"
+msgstr ""
+
+msgid "Pixelate"
+msgstr ""
+
+msgid "Posterize"
 msgstr ""
 
 msgid "Rectangle"
@@ -74,7 +92,13 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
+msgid "Redact"
+msgstr ""
+
 msgid "Reset crop"
+msgstr ""
+
+msgid "Revert all changes"
 msgstr ""
 
 msgid "Rotate left"
@@ -83,10 +107,19 @@ msgstr ""
 msgid "Rotate right"
 msgstr ""
 
+msgid "Rotation"
+msgstr ""
+
 msgid "Saturation"
 msgstr ""
 
 msgid "Save"
+msgstr ""
+
+msgid "Scale"
+msgstr ""
+
+msgid "Solarize"
 msgstr ""
 
 msgid "Select"
@@ -105,4 +138,10 @@ msgid "Text"
 msgstr ""
 
 msgid "Undo"
+msgstr ""
+
+msgid "Zoom in"
+msgstr ""
+
+msgid "Zoom out"
 msgstr ""

@@ -23,7 +23,9 @@ export interface SavedProbe {
  * @param page the test page
  */
 export async function waitLoaded(page: Page): Promise<void> {
-	await page.goto('/')
+	// The deterministic 200x100 fixture; the default page shows a real
+	// photo for humans
+	await page.goto('/?src=test')
 	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
 }
 
