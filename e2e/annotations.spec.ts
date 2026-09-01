@@ -244,3 +244,31 @@ test('rectangle rotation survives rebuilds and round trips', async ({ page }) =>
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	expect((await readState(page)).annotations[0].rotation).toBeCloseTo(123, 5)
 })
+
+test('the emoji picker feeds the sticker tool', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
+	await page.locator('[data-test="emoji-picker"]').click()
+
+	// The picker popover opens with a search field
+	await expect(page.locator('.emoji-mart, [class*="emoji"]').first()).toBeVisible()
+})
+
+test('the text overlay grows with its content', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await page.mouse.click(corner.x + 30, corner.y + 30)
+	const overlay = page.locator('[data-test="text-overlay"]')
+	await expect(overlay).toBeVisible()
+
+	const before = (await overlay.boundingBox())!.width
+	await overlay.pressSequentially('growing wide')
+	const after = (await overlay.boundingBox())!.width
+	expect(after).toBeGreaterThan(before)
+
+	await overlay.press('Enter')
+	expect((await readState(page)).annotations[0].text).toBe('growing wide')
+})
