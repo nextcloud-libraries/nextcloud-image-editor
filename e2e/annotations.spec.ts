@@ -63,7 +63,11 @@ test('text tool adds a text annotation via the overlay', async ({ page }) => {
 test('sticker tool places the picked emoji', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
-	await page.getByRole('button', { name: '🎉' }).click()
+	// The quick row is the user's frequently used emojis: pick the
+	// second entry dynamically instead of assuming its value
+	const chip = page.locator('.editor-card__tabs button').nth(1)
+	const emoji = (await chip.innerText()).trim()
+	await chip.click()
 
 	const corner = await imageTopLeft(page)
 	await page.mouse.click(corner.x + 100, corner.y + 50)
@@ -71,7 +75,7 @@ test('sticker tool places the picked emoji', async ({ page }) => {
 	const state = await readState(page)
 	expect(state.annotations).toHaveLength(1)
 	expect(state.annotations[0].type).toBe('sticker')
-	expect(state.annotations[0].text).toBe('🎉')
+	expect(state.annotations[0].text).toBe(emoji)
 })
 
 test('undo removes the last annotation', async ({ page }) => {

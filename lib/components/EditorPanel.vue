@@ -6,6 +6,7 @@
 import type { Tool } from '../editor/context.ts'
 import type { FilterPreset } from '../editor/state.ts'
 
+import { emojiSearch } from '@nextcloud/vue/functions/emoji'
 import { computed, shallowRef } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmojiPicker from '@nextcloud/vue/components/NcEmojiPicker'
@@ -47,7 +48,24 @@ const emit = defineEmits<{
 
 const context = useEditorContext()
 
-const DEFAULT_STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
+const FALLBACK_STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
+
+/**
+ * The user's frequently used emojis, falling back to a curated set
+ * when there is no usage history yet.
+ */
+function frequentStickers(): string[] {
+	try {
+		const frequent = emojiSearch('', 12)
+			.map((emoji) => (emoji as { native?: string }).native)
+			.filter((native): native is string => typeof native === 'string' && native !== '')
+		return frequent.length >= 6 ? frequent : FALLBACK_STICKERS
+	} catch {
+		return FALLBACK_STICKERS
+	}
+}
+
+const DEFAULT_STICKERS = frequentStickers()
 
 // The picked emoji joins the quick row when it came from the picker
 const STICKERS = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
@@ -78,6 +96,7 @@ const labels = {
 	blur: t('Blur'),
 }
 const moreLabel = t('More emojis')
+const selectHint = t('Click an annotation to move, resize or recolor it')
 
 const subTools: { id: Tool, label: string, icon: unknown }[] = [
 	{ id: 'draw', label: t('Draw'), icon: Pencil },
@@ -382,13 +401,14 @@ function setPreset(preset: FilterPreset) {
 				@commit="() => {}" />
 		</template>
 
-		<!-- Select: recolor the picked annotation -->
+		<!-- Select: recolor the picked annotation, hint otherwise -->
 		<div v-else-if="context.activeMode.value === 'select'" class="editor-card__tabs">
-			<label class="editor-card__option">
+			<label v-if="context.selectedId.value !== null" class="editor-card__option">
 				{{ labels.color }}
 				<!-- Native input: @nextcloud/vue offers no compact color field -->
 				<input v-model="context.drawColor.value" type="color">
 			</label>
+			<span v-else class="editor-card__hint">{{ selectHint }}</span>
 		</div>
 
 		<!-- Sticker -->
@@ -468,6 +488,11 @@ function setPreset(preset: FilterPreset) {
 		gap: var(--default-grid-baseline);
 		font-size: 12px;
 		opacity: 0.9;
+	}
+
+	&__hint {
+		font-size: 12px;
+		opacity: 0.65;
 	}
 }
 
