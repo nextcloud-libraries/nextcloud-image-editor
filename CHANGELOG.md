@@ -22,6 +22,11 @@
 - Redact tool (pixelate or blur), fine rotation and scale, extended
   filter presets with live previews.
 - Crop aspect presets, true rotation for rectangles and ellipses,
-  eleven filter presets, a dedicated select mode with mode-switch
-  motion, frequently-used emoji stickers with the full picker, an
-  auto-growing text overlay, and a phone-ready full-window layout.
+  eleven filter presets, a dedicated select mode, frequently-used
+  emoji stickers with the full picker, an auto-growing text overlay,
+  and a full-window layout down to phone-sized containers.
+- Pinch zoom on touch devices; Escape leaves the crop mode without
+  applying.
+- Internals: per-mode panel components, text-editing and export
+  composables, pure and unit-tested crop clamping, transform folding
+  and pointer-tool state machines.
