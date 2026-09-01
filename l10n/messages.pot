@@ -32,6 +32,9 @@ msgstr ""
 msgid "Canvas could not be encoded"
 msgstr ""
 
+msgid "Click an annotation to move, resize or recolor it"
+msgstr ""
+
 msgid "Color"
 msgstr ""
 
