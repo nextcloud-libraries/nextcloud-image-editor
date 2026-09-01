@@ -16,3 +16,8 @@
   sticker annotations with selection, transform and full undo/redo.
 - API documentation (typedoc) and a static demo page deployed to
   GitHub Pages.
+- Ambient glass redesign: image-tinted chrome, floating tool rail,
+  bottom control card and filter preview strip; keyboard shortcuts,
+  view zoom/pan and a responsive layout driven by container queries.
+- Redact tool (pixelate or blur), fine rotation and scale, extended
+  filter presets with live previews.
