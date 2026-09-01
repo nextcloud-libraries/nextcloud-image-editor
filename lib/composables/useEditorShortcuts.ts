@@ -89,6 +89,19 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 			context.redo()
 			return
 		}
+		if (event.key === '+' || event.key === '=') {
+			const next = context.viewZoom.value * 1.25
+			context.viewZoom.value = Math.min(4, next)
+			return
+		}
+		if (event.key === '-') {
+			const next = context.viewZoom.value / 1.25
+			context.viewZoom.value = next < 1.05 ? 1 : next
+			if (context.viewZoom.value === 1) {
+				context.viewPan.value = { x: 0, y: 0 }
+			}
+			return
+		}
 		if (event.key in NUDGE_KEYS && context.selectedId.value !== null) {
 			nudgeSelection(event)
 			return
