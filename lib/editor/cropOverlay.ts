@@ -168,6 +168,10 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		gridLines[3]!.points([rect.x, rect.y + (rect.height * 2) / 3, rect.x + rect.width, rect.y + (rect.height * 2) / 3])
 	}
 
+	// Mirrors the transformer's keepRatio: reading it back inside its
+	// own boundBoxFunc would make the initializer self-referential
+	let ratioLocked = false
+
 	const transformer = new Konva.Transformer({
 		nodes: [cropNode],
 		rotateEnabled: false,
@@ -181,7 +185,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		anchorStroke: '#111',
 		anchorStrokeWidth: 1,
 		borderStroke: 'rgba(255, 255, 255, 0.7)',
-		boundBoxFunc: (oldBox, newBox) => ({ ...newBox, ...clampCropBox(imageBounds, oldBox, newBox, transformer.keepRatio()) }),
+		boundBoxFunc: (oldBox, newBox) => ({ ...newBox, ...clampCropBox(imageBounds, oldBox, newBox, ratioLocked) }),
 
 	})
 	layer.add(transformer)
@@ -200,7 +204,8 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	 * @param aspect width divided by height, or null for freeform
 	 */
 	const setAspect = (aspect: number | null): void => {
-		transformer.keepRatio(aspect !== null)
+		ratioLocked = aspect !== null
+		transformer.keepRatio(ratioLocked)
 		if (aspect === null) {
 			return
 		}
