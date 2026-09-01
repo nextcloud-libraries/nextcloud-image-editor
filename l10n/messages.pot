@@ -2,16 +2,16 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
-msgid "Annotation text"
-msgstr ""
-
-msgid "Apply crop"
+msgid "Adjust"
 msgstr ""
 
 msgid "Annotate"
 msgstr ""
 
-msgid "Adjust"
+msgid "Annotation text"
+msgstr ""
+
+msgid "Apply crop"
 msgstr ""
 
 msgid "Arrow"
@@ -36,9 +36,6 @@ msgid "Contrast"
 msgstr ""
 
 msgid "Crop"
-msgstr ""
-
-msgid "Delete selection"
 msgstr ""
 
 msgid "Delete"
@@ -89,10 +86,10 @@ msgstr ""
 msgid "Rectangle"
 msgstr ""
 
-msgid "Redo"
+msgid "Redact"
 msgstr ""
 
-msgid "Redact"
+msgid "Redo"
 msgstr ""
 
 msgid "Reset crop"
@@ -119,13 +116,13 @@ msgstr ""
 msgid "Scale"
 msgstr ""
 
-msgid "Solarize"
-msgstr ""
-
 msgid "Select"
 msgstr ""
 
 msgid "Sepia"
+msgstr ""
+
+msgid "Solarize"
 msgstr ""
 
 msgid "Sticker"

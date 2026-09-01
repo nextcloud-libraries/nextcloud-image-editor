@@ -149,8 +149,10 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
  *
  * @param node the Konva image node
  * @param state the edit state
+ * @param pixelRatio cache resolution: 1 for exports, the view scale for
+ * interactive rendering so slider drags stay smooth on large images
  */
-export function applyFilters(node: Konva.Image, state: EditorState): void {
+export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio = 1): void {
 	const { brightness, contrast, saturation } = state.adjustments
 	const filters = []
 
@@ -188,7 +190,7 @@ export function applyFilters(node: Konva.Image, state: EditorState): void {
 	if (state.preset === 'posterize') {
 		node.levels(0.5)
 	}
-	node.cache({ pixelRatio: 1 })
+	node.cache({ pixelRatio })
 }
 
 /**
@@ -274,7 +276,9 @@ export function renderScene(
 	}
 
 	const imageNode = new Konva.Image({ image: oriented, listening: false })
-	applyFilters(imageNode, state)
+	// Interactive rendering caches at display resolution; exports call
+	// with scale 1 and keep full quality
+	applyFilters(imageNode, state, Math.min(1, options.scale * (globalThis.devicePixelRatio || 1)))
 	contentGroup.add(imageNode)
 
 	const annotationNodes = state.annotations.map((annotation) => buildAnnotationNode(annotation, oriented))
