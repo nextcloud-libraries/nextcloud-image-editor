@@ -13,8 +13,6 @@ export type TransitionKind
 		| 'flip-h'
 		| 'flip-v'
 		| 'crop'
-		| 'mode-in'
-		| 'mode-out'
 
 export interface TransitionContext {
 	/** View scale before the change */
@@ -84,18 +82,6 @@ export function playTransition(kind: TransitionKind, deps: TransitionDeps, conte
 	pivotOnCenter(deps)
 
 	switch (kind) {
-		case 'mode-in':
-		case 'mode-out': {
-			// Modes rest at different fits (crop keeps more air), so the
-			// zoom really travels between them; equal fits get a pulse
-			const scales = Math.abs(context.previousScale - scale) > 0.001
-				? context.previousScale
-				: scale * (kind === 'mode-out' ? 1.04 : 0.96)
-			group.opacity(0.9)
-			group.scale({ x: scales, y: scales })
-			group.to({ opacity: 1, scaleX: scale, scaleY: scale, duration: 0.28, easing })
-			return
-		}
 		case 'load':
 			group.opacity(0)
 			group.scale({ x: scale * 0.96, y: scale * 0.96 })

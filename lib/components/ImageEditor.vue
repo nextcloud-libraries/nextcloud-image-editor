@@ -115,13 +115,9 @@ const viewOptions = computed<SceneOptions | null>(() => {
 			height: Math.max(1, containerSize.value.height - margin * 2),
 		},
 	)
-	// Each mode rests at its own fit, the reference behavior: crop
-	// keeps air around the image for its handles, detail modes sit
-	// closer; the mode transition animates between these fits
-	const modeFit = context.activeMode.value === 'crop' ? 0.88 : 1
 	// View zoom magnifies around the center; panning shifts the view
 	// but content edges never pass the container edges
-	const scale = fit.scale * modeFit * context.viewZoom.value
+	const scale = fit.scale * context.viewZoom.value
 	const pan = context.viewPan.value
 	const boundX = Math.max(0, (visible.width * scale - containerSize.value.width) / 2 + margin)
 	const boundY = Math.max(0, (visible.height * scale - containerSize.value.height) / 2 + margin)
@@ -514,17 +510,6 @@ watch(
 	},
 	refreshOrientedCanvas,
 )
-// Registered before the render watcher so the transition context is
-// captured ahead of the rebuild that consumes it
-watch(context.activeMode, (mode) => {
-	if (!loaded.value) {
-		return
-	}
-	pendingTransition = {
-		kind: mode === 'crop' ? 'mode-out' : 'mode-in',
-		context: captureView(),
-	}
-})
 watch([context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.cropAspect, applyCropAspect)
 
