@@ -133,3 +133,17 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 	expect(restored.rotation).toBe(90)
 	expect(restored.flipY).toBe(true)
 })
+
+test('aspect presets lock the crop ratio', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+
+	await page.locator('[data-test="aspect-1:1"]').click()
+	await page.locator('[data-test="apply-crop"]').click()
+
+	const crop = (await readState(page)).crop
+	expect(crop.width).toBe(crop.height)
+
+	const result = await save(page)
+	expect(result.width).toBe(result.height)
+})

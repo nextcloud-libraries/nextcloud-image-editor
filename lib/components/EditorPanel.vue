@@ -49,6 +49,14 @@ const context = useEditorContext()
 
 const STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
 
+const aspectPresets: { id: number | 'original' | null, label: string }[] = [
+	{ id: null, label: t('Free') },
+	{ id: 'original', label: t('Original') },
+	{ id: 1, label: '1:1' },
+	{ id: 4 / 3, label: '4:3' },
+	{ id: 16 / 9, label: '16:9' },
+]
+
 const labels = {
 	rotateLeft: t('Rotate left'),
 	rotateRight: t('Rotate right'),
@@ -182,6 +190,18 @@ function setPreset(preset: FilterPreset) {
 	<GlassSurface v-else variant="card" class="editor-card">
 		<!-- Crop -->
 		<template v-if="context.activeMode.value === 'crop'">
+			<div class="editor-card__tabs">
+				<NcButton
+					v-for="preset in aspectPresets"
+					:key="String(preset.id)"
+					:data-test="`aspect-${preset.id === null ? 'free' : preset.id === 'original' ? 'original' : preset.label}`"
+					:pressed="context.cropAspect.value === preset.id"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="context.cropAspect.value = preset.id">
+					{{ preset.label }}
+				</NcButton>
+			</div>
 			<div class="editor-card__tabs">
 				<NcButton
 					:aria-label="labels.rotateLeft"

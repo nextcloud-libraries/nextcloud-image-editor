@@ -5,7 +5,7 @@
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
 import type { EditorState } from './state.ts'
 
-import { inject, provide, shallowRef } from 'vue'
+import { inject, provide, shallowRef, watch } from 'vue'
 import { useHistory } from '../composables/useHistory.ts'
 import { createInitialState } from './state.ts'
 
@@ -51,6 +51,8 @@ export interface EditorContext {
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
 	redactStyle: ShallowRef<'pixelate' | 'blur'>
+	/** Crop aspect lock: width/height ratio, 'original', or null = free */
+	cropAspect: ShallowRef<number | 'original' | null>
 	/** View-only magnification of the canvas, 1 = fit */
 	viewZoom: ShallowRef<number>
 	/** View-only pan offset in stage pixels, only meaningful when zoomed */
@@ -95,6 +97,7 @@ export function createEditorContext(): EditorContext {
 		fontSize: shallowRef(24),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
+		cropAspect: shallowRef<number | 'original' | null>(null),
 		viewZoom: shallowRef(1),
 		viewPan: shallowRef({ x: 0, y: 0 }),
 		selectedId: shallowRef<string | null>(null),
@@ -130,6 +133,14 @@ export function createEditorContext(): EditorContext {
 			history.push(structuredClone(state.value))
 		},
 	}
+
+	// A selection is only visible and editable in the select tool;
+	// keeping it across tool switches invites invisible deletions
+	watch(activeTool, (tool) => {
+		if (tool !== 'select') {
+			context.selectedId.value = null
+		}
+	})
 
 	provide(EDITOR_CONTEXT, context)
 	return context

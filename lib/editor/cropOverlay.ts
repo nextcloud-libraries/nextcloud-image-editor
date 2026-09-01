@@ -21,6 +21,13 @@ export interface CropOverlayDeps {
 export interface CropOverlay {
 	/** Current crop rectangle in scene coordinates */
 	getRect(): Rect
+	/**
+	 * Lock the crop to an aspect ratio, resizing the current rect to
+	 * match, or free it again with null.
+	 *
+	 * @param aspect width divided by height, or null for freeform
+	 */
+	setAspect(aspect: number | null): void
 	destroy(): void
 }
 
@@ -134,10 +141,48 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	}))
 	cropNode.on('dragmove transform', updateOverlay)
 
+	/**
+	 * Resize the crop rect to the given ratio around its center, kept
+	 * inside the image, and lock the transformer to it.
+	 *
+	 * @param aspect width divided by height, or null for freeform
+	 */
+	const setAspect = (aspect: number | null): void => {
+		transformer.keepRatio(aspect !== null)
+		if (aspect === null) {
+			return
+		}
+		const current = {
+			x: cropNode.x(),
+			y: cropNode.y(),
+			width: cropNode.width() * cropNode.scaleX(),
+			height: cropNode.height() * cropNode.scaleY(),
+		}
+		// Largest rect with the wanted ratio that fits the image bounds,
+		// no bigger than the current selection's longest edge
+		const width = Math.min(
+			Math.max(current.width, current.height * aspect),
+			imageBounds.width,
+			imageBounds.height * aspect,
+		)
+		const height = width / aspect
+		const center = { x: current.x + current.width / 2, y: current.y + current.height / 2 }
+		const position = clampToImage({
+			x: center.x - width / 2,
+			y: center.y - height / 2,
+			width,
+			height,
+		})
+		cropNode.setAttrs({ ...position, width, height, scaleX: 1, scaleY: 1 })
+		transformer.forceUpdate()
+		updateOverlay()
+	}
+
 	updateOverlay()
 	deps.stage.add(layer)
 
 	return {
+		setAspect,
 		getRect() {
 			const scene = toScene({
 				x: cropNode.x(),
