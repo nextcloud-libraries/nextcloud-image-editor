@@ -17,6 +17,16 @@ export interface ShortcutDeps {
 	onEscape(): void
 }
 
+/**
+ * Whether the event originates from a control that owns its keys.
+ *
+ * @param target the event target
+ */
+function isFormControl(target: EventTarget | null): boolean {
+	return target instanceof HTMLElement
+		&& target.closest('input, textarea, select, [contenteditable]') !== null
+}
+
 const NUDGE_KEYS: Record<string, [number, number]> = {
 	ArrowLeft: [-1, 0],
 	ArrowRight: [1, 0],
@@ -64,7 +74,7 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 	 * @param event the keyboard event
 	 */
 	function onKeydown(event: KeyboardEvent): void {
-		if (deps.isTextEditing()) {
+		if (deps.isTextEditing() || isFormControl(event.target)) {
 			return
 		}
 		const meta = event.ctrlKey || event.metaKey
@@ -97,6 +107,9 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 	 * @param event the keyboard event
 	 */
 	function onKeyup(event: KeyboardEvent): void {
+		if (isFormControl(event.target)) {
+			return
+		}
 		if (nudging && event.key in NUDGE_KEYS) {
 			nudging = false
 			context.commit(context.state.value)

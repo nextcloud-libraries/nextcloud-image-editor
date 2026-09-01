@@ -30,6 +30,8 @@ export default defineConfig({
 	webServer: {
 		command: 'npm run playground -- --port 5173 --strictPort --host 127.0.0.1',
 		url: 'http://127.0.0.1:5173',
-		reuseExistingServer: !process.env.CI,
+		// Never reuse a long-running dev server: stale HMR module graphs
+		// have twice produced impossible test failures
+		reuseExistingServer: false,
 	},
 })

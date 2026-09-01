@@ -172,3 +172,22 @@ test('redact can blur instead of pixelate', async ({ page }) => {
 	expect(result.center[0]).toBeGreaterThan(15)
 	expect(result.center[2]).toBeGreaterThan(15)
 })
+
+test('switching tools drops the selection instead of hiding it', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 80, y: corner.y + 60 })
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 50, corner.y + 20)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+
+	// Switching to Draw must clear the (now invisible) selection: a
+	// Delete press afterwards may not remove anything
+	await page.getByRole('button', { name: 'Draw' }).click()
+	await page.keyboard.press('Delete')
+	expect((await readState(page)).annotations).toHaveLength(1)
+})

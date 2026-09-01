@@ -8,13 +8,54 @@ import type { EditorContext } from '../editor/context.ts'
 import { onBeforeUnmount, onMounted } from 'vue'
 
 /**
- * Wheel gestures on the canvas: ctrl/cmd + wheel zooms the view,
- * a plain wheel pans it while zoomed.
+ * View gestures on the canvas: ctrl/cmd + wheel zooms, a plain wheel
+ * pans while zoomed, and dragging pans in the modes without a canvas
+ * tool (adjust/filter) so it cannot fight annotation dragging.
  *
  * @param element the canvas container
  * @param context the editor context holding the view state
  */
 export function useWheelControls(element: Ref<HTMLElement | null>, context: EditorContext): void {
+	let dragFrom: { x: number, y: number, panX: number, panY: number } | null = null
+
+	const pannable = () => context.activeTool.value === 'adjust' && context.viewZoom.value > 1
+
+	/**
+	 * @param event the pointer event
+	 */
+	function onPointerDown(event: PointerEvent): void {
+		if (!pannable() || event.button !== 0) {
+			return
+		}
+		dragFrom = {
+			x: event.clientX,
+			y: event.clientY,
+			panX: context.viewPan.value.x,
+			panY: context.viewPan.value.y,
+		}
+		element.value?.setPointerCapture(event.pointerId)
+	}
+
+	/**
+	 * @param event the pointer event
+	 */
+	function onPointerMove(event: PointerEvent): void {
+		if (dragFrom === null) {
+			return
+		}
+		context.viewPan.value = {
+			x: dragFrom.panX + (event.clientX - dragFrom.x),
+			y: dragFrom.panY + (event.clientY - dragFrom.y),
+		}
+	}
+
+	/**
+	 *
+	 */
+	function onPointerUp(): void {
+		dragFrom = null
+	}
+
 	/**
 	 * @param event the wheel event
 	 */
@@ -34,9 +75,19 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 	}
 
 	onMounted(() => {
-		element.value?.addEventListener('wheel', onWheel, { passive: false })
+		const target = element.value
+		target?.addEventListener('wheel', onWheel, { passive: false })
+		target?.addEventListener('pointerdown', onPointerDown)
+		target?.addEventListener('pointermove', onPointerMove)
+		target?.addEventListener('pointerup', onPointerUp)
+		target?.addEventListener('pointercancel', onPointerUp)
 	})
 	onBeforeUnmount(() => {
-		element.value?.removeEventListener('wheel', onWheel)
+		const target = element.value
+		target?.removeEventListener('wheel', onWheel)
+		target?.removeEventListener('pointerdown', onPointerDown)
+		target?.removeEventListener('pointermove', onPointerMove)
+		target?.removeEventListener('pointerup', onPointerUp)
+		target?.removeEventListener('pointercancel', onPointerUp)
 	})
 }

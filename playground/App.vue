@@ -12,7 +12,7 @@ const BROKEN_SRC = 'data:image/png;base64,not-an-image'
 
 // Unsplash photo by Bailey Zindel (Unsplash License, free to use);
 // hotlinked from their CORS-enabled CDN
-const DEMO_SRC = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=80'
+const DEMO_SRC = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=3840&q=85'
 
 /**
  * 200x100 test image: left half red rgb(200,0,0), right half blue

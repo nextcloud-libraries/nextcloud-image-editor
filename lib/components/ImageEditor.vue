@@ -84,9 +84,13 @@ let pendingTransition: { kind: TransitionKind, context: TransitionContext } | nu
 
 const canvasCursor = computed(() => {
 	const tool = context.activeTool.value
-	return ['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)
-		? 'crosshair'
-		: 'default'
+	if (['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)) {
+		return 'crosshair'
+	}
+	if (tool === 'adjust' && context.viewZoom.value > 1) {
+		return 'grab'
+	}
+	return 'default'
 })
 
 const viewOptions = computed<SceneOptions | null>(() => {
@@ -188,6 +192,7 @@ function renderView(): void {
 			offset: options.offset,
 			initial: context.state.value.crop,
 		})
+		applyCropAspect()
 	} else if (tool !== 'adjust') {
 		detachTool = attachPointerTools(tool, {
 			stage,
@@ -210,6 +215,22 @@ function renderView(): void {
 			}),
 			startTextEdit: (position) => startTextEdit(position),
 		})
+	}
+}
+
+/**
+ * Push the chosen aspect lock into the live crop overlay.
+ */
+function applyCropAspect(): void {
+	if (cropOverlay === null) {
+		return
+	}
+	const aspect = context.cropAspect.value
+	const oriented = orientedCanvas.value
+	if (aspect === 'original' && oriented !== null) {
+		cropOverlay.setAspect(oriented.width / oriented.height)
+	} else {
+		cropOverlay.setAspect(typeof aspect === 'number' ? aspect : null)
 	}
 }
 
@@ -465,6 +486,7 @@ watch(
 	refreshOrientedCanvas,
 )
 watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
+watch(context.cropAspect, applyCropAspect)
 watch(context.state, (state) => emit('change', structuredClone(state)))
 
 onMounted(() => {
