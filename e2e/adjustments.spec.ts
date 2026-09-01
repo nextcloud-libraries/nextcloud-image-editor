@@ -22,7 +22,6 @@ test('darkening brightness changes the exported pixels', async ({ page }) => {
 test('adjustment sliders record a single undo step on release', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Finetune' }).click()
-	await page.locator('[data-test="tab-contrast"]').click()
 	await setInputValue(page.locator('[data-test="adjust-contrast"]'), '40')
 
 	await page.getByRole('button', { name: 'Undo' }).click()
@@ -41,4 +40,17 @@ test('grayscale preset removes color', async ({ page }) => {
 	expect(Math.abs(r - g)).toBeLessThanOrEqual(2)
 	expect(Math.abs(g - b)).toBeLessThanOrEqual(2)
 	expect(r).toBeGreaterThan(10)
+})
+
+test('invert preset flips the colors', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Filter', exact: true }).click()
+	await page.locator('[data-test="preset-invert"]').click()
+
+	expect((await readState(page)).preset).toBe('invert')
+
+	const result = await save(page)
+	// rgb(200,0,0) inverts to rgb(55,255,255)
+	expect(result.topLeft[1]).toBeGreaterThan(200)
+	expect(result.topLeft[2]).toBeGreaterThan(200)
 })

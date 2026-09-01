@@ -36,3 +36,16 @@ test('emits error for an undecodable source', async ({ page }) => {
 	await expect(page.locator('[data-test="errors"]')).toHaveText('Image could not be decoded')
 	await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
 })
+
+test('view zoom magnifies without touching the edit state', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="zoom-out"]')).toBeDisabled()
+
+	await page.locator('[data-test="zoom-in"]').click()
+	await expect(page.locator('[data-test="zoom-out"]')).toBeEnabled()
+
+	// Purely a view concern: the state and the export stay untouched
+	const result = await save(page)
+	expect(result.width).toBe(200)
+	expect(result.height).toBe(100)
+})

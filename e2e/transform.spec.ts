@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { expectColor, imageTopLeft, readState, save, slowDrag, waitLoaded } from './utils.ts'
+import { expectColor, imageTopLeft, readState, save, setInputValue, slowDrag, waitLoaded } from './utils.ts'
 
 test('rotate right turns the image clockwise', async ({ page }) => {
 	await waitLoaded(page)
@@ -92,4 +92,43 @@ test('undo and redo walk the edit history', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Redo' }).click()
 	expect((await readState(page)).rotation).toBe(90)
+})
+
+test('fine rotation and zoom scrub without changing export size', async ({ page }) => {
+	await waitLoaded(page)
+
+	await setInputValue(page.locator('[data-test="fine-rotation"]'), '30')
+	expect((await readState(page)).fineRotation).toBe(30)
+
+	await setInputValue(page.locator('[data-test="zoom"]'), '2')
+	expect((await readState(page)).zoom).toBe(2)
+
+	// Cover scaling keeps the frame identical whatever the angle or zoom
+	const result = await save(page)
+	expect(result.width).toBe(200)
+	expect(result.height).toBe(100)
+
+	// Each slider release is one undo step
+	await page.getByRole('button', { name: 'Undo' }).click()
+	expect((await readState(page)).zoom).toBe(1)
+	await page.getByRole('button', { name: 'Undo' }).click()
+	expect((await readState(page)).fineRotation).toBe(0)
+})
+
+test('revert clears every edit as one undoable step', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await page.getByRole('button', { name: 'Flip horizontal' }).click()
+
+	await page.locator('[data-test="revert"]').click()
+	const state = await readState(page)
+	expect(state.rotation).toBe(0)
+	expect(state.flipX).toBe(false)
+
+	// Undoing the revert restores the rotated and flipped state; the
+	// visual horizontal flip landed on flipY while the image was sideways
+	await page.getByRole('button', { name: 'Undo' }).click()
+	const restored = await readState(page)
+	expect(restored.rotation).toBe(90)
+	expect(restored.flipY).toBe(true)
 })
