@@ -694,16 +694,27 @@ defineExpose({ exportImage })
 	}
 
 	@container editor (max-width: 600px) {
+		// Full-window app feel on phones: no floating card chrome
 		&__shell {
-			padding: calc(var(--default-grid-baseline) * 2);
+			padding: 0;
+		}
+
+		&__frame {
+			border-radius: 0;
 		}
 
 		&__viewport {
 			padding: 60px 12px 170px;
 		}
 
+		// Anchor the rail under the top bar and cap its height so it can
+		// never collide with the bottom control card
 		&__rail {
 			inset-inline-start: var(--default-grid-baseline);
+			inset-block-start: 64px;
+			transform: none;
+			max-height: calc(100% - 240px);
+			overflow-y: auto;
 		}
 
 		// Doubled class specificity so these beat the card's own sizing

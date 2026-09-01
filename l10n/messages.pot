@@ -5,6 +5,9 @@ msgstr ""
 msgid "Adjust"
 msgstr ""
 
+msgid "All edits will be discarded. This cannot be undone by closing the dialog."
+msgstr ""
+
 msgid "Annotate"
 msgstr ""
 
@@ -111,6 +114,9 @@ msgid "Redo"
 msgstr ""
 
 msgid "Reset crop"
+msgstr ""
+
+msgid "Reset zoom"
 msgstr ""
 
 msgid "Revert all changes"

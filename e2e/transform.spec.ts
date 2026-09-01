@@ -122,6 +122,7 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 	await page.getByRole('button', { name: 'Flip horizontal' }).click()
 
 	await page.locator('[data-test="revert"]').click()
+	await page.locator('[data-test="revert-confirm"]').click()
 	const state = await readState(page)
 	expect(state.rotation).toBe(0)
 	expect(state.flipX).toBe(false)

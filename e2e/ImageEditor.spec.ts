@@ -79,3 +79,31 @@ test('view zoom actually magnifies the stage content', async ({ page }) => {
 	const after = await scaleOf()
 	expect(after).toBeGreaterThan(before * 1.4)
 })
+
+test('the zoom readout resets the view to 100%', async ({ page }) => {
+	await waitLoaded(page)
+	await page.locator('[data-test="zoom-in"]').click()
+	await page.locator('[data-test="zoom-in"]').click()
+	await expect(page.locator('[data-test="zoom-reset"]')).not.toHaveText('100%')
+
+	await page.locator('[data-test="zoom-reset"]').click()
+	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('100%')
+	await expect(page.locator('[data-test="zoom-out"]')).toBeDisabled()
+})
+
+test('phone layout keeps the rail and controls apart', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 640 })
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+
+	const rail = await page.locator('.image-editor__rail').boundingBox()
+	const controls = await page.locator('.image-editor__controls').boundingBox()
+	expect(rail).not.toBeNull()
+	expect(controls).not.toBeNull()
+	// No vertical intersection between the floating chrome pieces
+	expect(rail!.y + rail!.height).toBeLessThanOrEqual(controls!.y + 1)
+
+	// The top bar must not overflow horizontally
+	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+	expect(overflow).toBe(0)
+})
