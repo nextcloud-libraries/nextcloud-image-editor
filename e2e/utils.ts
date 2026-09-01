@@ -72,6 +72,40 @@ export async function imageTopLeft(page: Page, width = 200, height = 100) {
 }
 
 /**
+ * On-screen position of a crop transformer anchor, read from Konva.
+ *
+ * @param page the test page
+ * @param name anchor name, e.g. 'top-left'
+ */
+export async function cropAnchor(page: Page, name: string) {
+	return page.evaluate((anchorName) => {
+		const stage = (window as never as { Konva: { stages: { container(): HTMLElement, findOne(sel: string): { getAbsolutePosition(): { x: number, y: number } } }[] } }).Konva.stages[0]!
+		const rect = stage.container().getBoundingClientRect()
+		const anchor = stage.findOne(`.${anchorName}`).getAbsolutePosition()
+		return { x: rect.x + anchor.x, y: rect.y + anchor.y }
+	}, name)
+}
+
+/**
+ * Exact on-screen position and scale of the image, read from the Konva
+ * scene itself; needed where a mode rests at a fit other than 1:1.
+ *
+ * @param page the test page
+ */
+export async function imageView(page: Page) {
+	return page.evaluate(() => {
+		const stage = (window as never as { Konva: { stages: { container(): HTMLElement, findOne(sel: string): { x(): number, y(): number, scaleX(): number } }[] } }).Konva.stages[0]!
+		const rect = stage.container().getBoundingClientRect()
+		const group = stage.findOne('Group')
+		return {
+			x: rect.x + group.x(),
+			y: rect.y + group.y(),
+			scale: group.scaleX(),
+		}
+	})
+}
+
+/**
  * Drag the mouse between two points with intermediate moves, emitting
  * the pointer events the editor tools listen to.
  *
