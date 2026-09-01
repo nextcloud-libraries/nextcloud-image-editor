@@ -7,6 +7,7 @@ import { drag, expectColor, imageTopLeft, readState, save, setInputValue, waitLo
 
 test('freehand drawing paints a stroke', async ({ page }) => {
 	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Draw' }).click()
 	await setInputValue(page.locator('input[type="color"]'), '#00ff00')
 
@@ -25,6 +26,7 @@ test('freehand drawing paints a stroke', async ({ page }) => {
 
 test('dragging creates a rectangle annotation', async ({ page }) => {
 	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Rectangle' }).click()
 
 	const corner = await imageTopLeft(page)
@@ -41,6 +43,7 @@ test('dragging creates a rectangle annotation', async ({ page }) => {
 
 test('text tool adds a text annotation via the overlay', async ({ page }) => {
 	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
 
 	const corner = await imageTopLeft(page)
@@ -59,7 +62,7 @@ test('text tool adds a text annotation via the overlay', async ({ page }) => {
 
 test('sticker tool places the picked emoji', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Sticker' }).click()
+	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
 	await page.getByRole('button', { name: '🎉' }).click()
 
 	const corner = await imageTopLeft(page)
@@ -73,6 +76,7 @@ test('sticker tool places the picked emoji', async ({ page }) => {
 
 test('undo removes the last annotation', async ({ page }) => {
 	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Draw' }).click()
 
 	const corner = await imageTopLeft(page)
@@ -85,6 +89,7 @@ test('undo removes the last annotation', async ({ page }) => {
 
 test('a selected annotation can be deleted with the keyboard', async ({ page }) => {
 	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Draw' }).click()
 
 	const corner = await imageTopLeft(page)
@@ -99,12 +104,13 @@ test('a selected annotation can be deleted with the keyboard', async ({ page }) 
 
 test('annotations rotate with the image', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Sticker' }).click()
+	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
 
 	const corner = await imageTopLeft(page)
 	await page.mouse.click(corner.x + 20, corner.y + 10)
 
 	const before = (await readState(page)).annotations[0]
+	await page.getByRole('button', { name: 'Crop', exact: true }).click()
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	const after = (await readState(page)).annotations[0]
 

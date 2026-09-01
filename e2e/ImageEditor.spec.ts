@@ -5,11 +5,12 @@
 import { expect, test } from '@playwright/test'
 import { expectColor, save, waitLoaded } from './utils.ts'
 
-test('renders the canvas stage and toolbar', async ({ page }) => {
+test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
 	await expect(page.getByRole('button', { name: 'Cancel' })).toBeEnabled()
-	await expect(page.getByRole('button', { name: 'Draw' })).toBeEnabled()
-	await expect(page.getByRole('button', { name: 'Crop' })).toBeEnabled()
+	for (const mode of ['Crop', 'Finetune', 'Filter', 'Annotate', 'Sticker']) {
+		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
+	}
 	await expect(page.locator('[role="img"] canvas').first()).toBeVisible()
 })
 

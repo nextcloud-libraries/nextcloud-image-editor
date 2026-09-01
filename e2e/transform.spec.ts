@@ -52,7 +52,7 @@ test('flip horizontal mirrors the image', async ({ page }) => {
 
 test('cropping reduces the export to the selected area', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Crop' }).click()
+	await page.getByRole('button', { name: 'Crop', exact: true }).click()
 	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
 	// Give the canvas overlay a moment to attach its pointer handlers
 	await page.waitForTimeout(100)

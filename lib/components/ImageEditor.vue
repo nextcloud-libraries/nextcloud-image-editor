@@ -3,6 +3,7 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
 import type { EditorState, Size, TextAnnotation } from '../editor/state.ts'
@@ -10,8 +11,12 @@ import type { ExportOptions, ExportResult } from '../types/index.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
-import EditorToolbar from './EditorToolbar.vue'
+import EditorActionBar from './EditorActionBar.vue'
+import EditorBottomBar from './EditorBottomBar.vue'
+import EditorSidebar from './EditorSidebar.vue'
+import EditorTopBar from './EditorTopBar.vue'
 import TextOverlay from './TextOverlay.vue'
+import { playTransition } from '../editor/animate.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
@@ -66,6 +71,14 @@ let sourceImage: HTMLImageElement | null = null
 let cropOverlay: CropOverlay | null = null
 let detachTool: (() => void) | null = null
 let resizeObserver: ResizeObserver | null = null
+let pendingTransition: { kind: TransitionKind, context: TransitionContext } | null = null
+
+const canvasCursor = computed(() => {
+	const tool = context.activeTool.value
+	return ['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker'].includes(tool)
+		? 'crosshair'
+		: 'default'
+})
 
 const viewOptions = computed<SceneOptions | null>(() => {
 	const oriented = orientedCanvas.value
@@ -80,6 +93,37 @@ const viewOptions = computed<SceneOptions | null>(() => {
 	const fit = fitContain({ width: visible.width, height: visible.height }, containerSize.value)
 	return { scale: fit.scale, offset: { x: fit.x, y: fit.y }, showCropped }
 })
+
+/**
+ * Snapshot the current view metrics, taken right before an animated
+ * edit so the transition can start from the old view.
+ */
+function captureView(): TransitionContext {
+	const options = viewOptions.value
+	const oriented = orientedCanvas.value
+	if (options === null || oriented === null) {
+		return { previousScale: 1, previousOffset: { x: 0, y: 0 }, previousOrigin: { x: 0, y: 0 } }
+	}
+	const origin = options.showCropped
+		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
+		: { x: 0, y: 0 }
+	return {
+		previousScale: options.scale,
+		previousOffset: options.offset,
+		previousOrigin: { x: origin.x, y: origin.y },
+	}
+}
+
+/**
+ * Commit a state change and play a view transition on the rebuilt scene.
+ *
+ * @param kind which transition to play
+ * @param next the state to commit
+ */
+function commitWithTransition(kind: TransitionKind, next: EditorState): void {
+	pendingTransition = { kind, context: captureView() }
+	context.commit(next)
+}
 
 /**
  * Rebuild the stage from the current state and reattach the active tool.
@@ -98,6 +142,19 @@ function renderView(): void {
 
 	stage.size(containerSize.value)
 	scene = renderScene(stage, oriented, context.state.value, options)
+
+	if (pendingTransition !== null) {
+		const visible = options.showCropped
+			? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
+			: { x: 0, y: 0, width: oriented.width, height: oriented.height }
+		playTransition(pendingTransition.kind, {
+			group: scene.contentGroup,
+			container: containerSize.value,
+			visible,
+			scale: options.scale,
+		}, pendingTransition.context)
+		pendingTransition = null
+	}
 
 	const tool = context.activeTool.value
 	if (tool === 'select') {
@@ -164,6 +221,7 @@ async function load(): Promise<void> {
 		// Sensible text size relative to the image resolution
 		const minDimension = Math.min(sourceImage.naturalWidth, sourceImage.naturalHeight)
 		context.fontSize.value = Math.min(128, Math.max(12, Math.round(minDimension / 15)))
+		pendingTransition = { kind: 'load', context: captureView() }
 		refreshOrientedCanvas()
 		loaded.value = true
 	} catch (error) {
@@ -248,14 +306,14 @@ function currentOriented(): Size {
 }
 
 /**
- *
+ * Rotate the image 90° clockwise.
  */
 function onRotateCW(): void {
-	context.commit(rotateCW(context.state.value, currentOriented()))
+	commitWithTransition('rotate-cw', rotateCW(context.state.value, currentOriented()))
 }
 
 /**
- *
+ * Rotate the image 90° counter-clockwise (three clockwise turns).
  */
 function onRotateCCW(): void {
 	let state = context.state.value
@@ -264,39 +322,42 @@ function onRotateCCW(): void {
 		state = rotateCW(state, oriented)
 		oriented = { width: oriented.height, height: oriented.width }
 	}
-	context.commit(state)
+	commitWithTransition('rotate-ccw', state)
 }
 
 /**
- *
+ * Mirror the image horizontally.
  */
 function onFlipHorizontal(): void {
-	context.commit(flipHorizontal(context.state.value, currentOriented()))
+	commitWithTransition('flip-h', flipHorizontal(context.state.value, currentOriented()))
 }
 
 /**
- *
+ * Mirror the image vertically.
  */
 function onFlipVertical(): void {
-	context.commit(flipVertical(context.state.value, currentOriented()))
+	commitWithTransition('flip-v', flipVertical(context.state.value, currentOriented()))
 }
 
 /**
- *
+ * Apply the crop overlay rect and zoom into the cropped view.
  */
 function onApplyCrop(): void {
 	if (cropOverlay !== null) {
-		context.commit({ ...context.state.value, crop: cropOverlay.getRect() })
-		context.activeTool.value = 'select'
+		const crop = cropOverlay.getRect()
+		// Capture before the mode switches so the zoom starts from the
+		// full-image crop view
+		pendingTransition = { kind: 'crop', context: captureView() }
+		context.commit({ ...context.state.value, crop })
+		context.setMode('annotate')
 	}
 }
 
 /**
- *
+ * Drop the crop and return to the full image.
  */
 function onResetCrop(): void {
 	context.commit({ ...context.state.value, crop: null })
-	context.activeTool.value = 'select'
 }
 
 /**
@@ -331,7 +392,7 @@ function onKeydown(event: KeyboardEvent): void {
 		if (context.selectedId.value !== null) {
 			context.selectedId.value = null
 			renderView()
-		} else if (context.activeTool.value !== 'select') {
+		} else if (context.activeMode.value === 'annotate' && context.activeTool.value !== 'select') {
 			context.activeTool.value = 'select'
 		}
 	}
@@ -397,32 +458,38 @@ defineExpose({ exportImage })
 
 <template>
 	<div class="image-editor">
-		<EditorToolbar
-			:loaded="loaded"
-			@rotateCw="onRotateCW"
-			@rotateCcw="onRotateCCW"
-			@flipHorizontal="onFlipHorizontal"
-			@flipVertical="onFlipVertical"
-			@applyCrop="onApplyCrop"
-			@resetCrop="onResetCrop"
-			@deleteSelection="onDeleteSelection"
-			@save="onSave"
-			@cancel="emit('cancel')" />
-		<div class="image-editor__viewport">
-			<div
-				ref="container"
-				class="image-editor__canvas"
-				role="img"
-				:aria-label="label ?? canvasLabel" />
-			<TextOverlay
-				v-if="textEdit !== null"
-				:x="textEdit.screenX"
-				:y="textEdit.screenY"
-				:font-size="textEdit.screenFontSize"
-				:color="textEdit.color"
-				:initial="textEdit.value"
-				@confirm="confirmTextEdit"
-				@cancel="textEdit = null" />
+		<EditorTopBar :loaded="loaded" @save="onSave" @cancel="emit('cancel')" />
+		<div class="image-editor__body">
+			<EditorSidebar :loaded="loaded" />
+			<div class="image-editor__main">
+				<EditorActionBar
+					:loaded="loaded"
+					@rotateCw="onRotateCW"
+					@rotateCcw="onRotateCCW"
+					@flipHorizontal="onFlipHorizontal"
+					@flipVertical="onFlipVertical"
+					@applyCrop="onApplyCrop"
+					@resetCrop="onResetCrop"
+					@deleteSelection="onDeleteSelection" />
+				<div class="image-editor__viewport">
+					<div
+						ref="container"
+						class="image-editor__canvas"
+						:style="{ cursor: canvasCursor }"
+						role="img"
+						:aria-label="label ?? canvasLabel" />
+					<TextOverlay
+						v-if="textEdit !== null"
+						:x="textEdit.screenX"
+						:y="textEdit.screenY"
+						:font-size="textEdit.screenFontSize"
+						:color="textEdit.color"
+						:initial="textEdit.value"
+						@confirm="confirmTextEdit"
+						@cancel="textEdit = null" />
+				</div>
+				<EditorBottomBar :loaded="loaded" />
+			</div>
 		</div>
 	</div>
 </template>
@@ -433,6 +500,20 @@ defineExpose({ exportImage })
 	flex-direction: column;
 	height: 100%;
 	width: 100%;
+	background-color: var(--color-main-background);
+
+	&__body {
+		display: flex;
+		flex: 1;
+		min-height: 0;
+	}
+
+	&__main {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-width: 0;
+	}
 
 	&__viewport {
 		position: relative;

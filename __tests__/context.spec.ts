@@ -72,16 +72,33 @@ describe('createEditorContext', () => {
 		expect(context.state.value.adjustments.brightness).toBe(50)
 	})
 
-	it('reset clears state, history and tool', () => {
+	it('reset clears state, history, mode and tool', () => {
 		const { context } = setupContext()
+		context.setMode('annotate')
 		context.activeTool.value = 'draw'
 		context.commit({ ...context.state.value, rotation: 90 })
 		context.reset()
 
 		expect(context.state.value.rotation).toBe(0)
-		expect(context.activeTool.value).toBe('select')
+		expect(context.activeMode.value).toBe('crop')
+		expect(context.activeTool.value).toBe('crop')
 		expect(context.canUndo.value).toBe(false)
 		expect(context.canRedo.value).toBe(false)
+	})
+
+	it('setMode selects the default tool and drops the selection', () => {
+		const { context } = setupContext()
+		context.selectedId.value = 'some-id'
+
+		context.setMode('annotate')
+		expect(context.activeTool.value).toBe('select')
+		expect(context.selectedId.value).toBeNull()
+
+		context.setMode('finetune')
+		expect(context.activeTool.value).toBe('adjust')
+
+		context.setMode('sticker')
+		expect(context.activeTool.value).toBe('sticker')
 	})
 })
 
