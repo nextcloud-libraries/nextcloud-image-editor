@@ -69,6 +69,8 @@ function onEnter(event: KeyboardEvent) {
 <style scoped>
 .text-overlay {
 	position: absolute;
+	/* Kept in sync with the Konva text nodes for WYSIWYG editing */
+	font-family: Helvetica, Arial, sans-serif;
 	min-width: 4ch;
 	background: transparent;
 	border: 1px dashed var(--color-main-text, #666);

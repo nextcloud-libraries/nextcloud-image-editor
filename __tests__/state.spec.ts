@@ -8,10 +8,12 @@ import { describe, expect, it } from 'vitest'
 import {
 	clampRect,
 	createInitialState,
+	duplicateAnnotation,
 	flipHorizontal,
 	flipVertical,
 	orientedSize,
 	rotateCW,
+	translateAnnotation,
 } from '../lib/editor/state.ts'
 
 // 200x100 oriented space used across the tests
@@ -182,5 +184,24 @@ describe('flipVertical', () => {
 		})
 		const twice = flipVertical(flipVertical(state, ORIENTED), ORIENTED)
 		expect(twice).toEqual(state)
+	})
+})
+
+describe('translateAnnotation', () => {
+	it('shifts points, rects and anchors', () => {
+		expect((translateAnnotation(draw, 5, -5) as DrawAnnotation).points).toEqual([15, 15, 35, 35])
+		expect((translateAnnotation(box, 5, -5) as BoxAnnotation).rect).toEqual({ x: 15, y: 15, width: 30, height: 40 })
+		const moved = translateAnnotation(text, 5, -5) as TextAnnotation
+		expect(moved.x).toBe(55)
+		expect(moved.y).toBe(55)
+	})
+})
+
+describe('duplicateAnnotation', () => {
+	it('clones under a new id with an offset', () => {
+		const copy = duplicateAnnotation(box)
+		expect(copy.id).not.toBe(box.id)
+		expect((copy as BoxAnnotation).rect.x).toBe(box.rect.x + 16)
+		expect((copy as BoxAnnotation).rect.y).toBe(box.rect.y + 16)
 	})
 })

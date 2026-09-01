@@ -311,6 +311,33 @@ export function flipVertical(state: EditorState, oriented: Size): EditorState {
 }
 
 /**
+ * Move an annotation by the given delta.
+ *
+ * @param annotation the annotation to move
+ * @param dx horizontal shift in oriented image pixels
+ * @param dy vertical shift in oriented image pixels
+ */
+export function translateAnnotation(annotation: Annotation, dx: number, dy: number): Annotation {
+	switch (annotation.type) {
+		case 'draw':
+		case 'arrow': {
+			const points = annotation.points.map((value, i) => value + (i % 2 === 0 ? dx : dy))
+			return { ...annotation, points } as Annotation
+		}
+		case 'rectangle':
+		case 'ellipse':
+		case 'redact':
+			return {
+				...annotation,
+				rect: { ...annotation.rect, x: annotation.rect.x + dx, y: annotation.rect.y + dy },
+			}
+		case 'text':
+		case 'sticker':
+			return { ...annotation, x: annotation.x + dx, y: annotation.y + dy }
+	}
+}
+
+/**
  * Clone an annotation under a new id, shifted so the copy is visible
  * next to the original.
  *
@@ -318,23 +345,5 @@ export function flipVertical(state: EditorState, oriented: Size): EditorState {
  * @param offset shift applied to the copy, in oriented image pixels
  */
 export function duplicateAnnotation(annotation: Annotation, offset = 16): Annotation {
-	const id = crypto.randomUUID()
-	switch (annotation.type) {
-		case 'draw':
-		case 'arrow': {
-			const points = annotation.points.map((value) => value + offset)
-			return { ...annotation, id, points } as Annotation
-		}
-		case 'rectangle':
-		case 'ellipse':
-		case 'redact':
-			return {
-				...annotation,
-				id,
-				rect: { ...annotation.rect, x: annotation.rect.x + offset, y: annotation.rect.y + offset },
-			}
-		case 'text':
-		case 'sticker':
-			return { ...annotation, id, x: annotation.x + offset, y: annotation.y + offset }
-	}
+	return { ...translateAnnotation(annotation, offset, offset), id: crypto.randomUUID() }
 }
