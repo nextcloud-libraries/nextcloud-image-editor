@@ -79,5 +79,11 @@
   },
   "engines": {
     "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.0.0"
+    }
   }
 }

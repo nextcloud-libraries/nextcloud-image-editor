@@ -11,3 +11,8 @@
 - Initial scaffold: `ImageEditor` component rendering a Konva stage with
   Blob export, `useHistory` undo/redo composable, vitest unit tests and
   Playwright browser tests with a dev playground.
+- Editing tools: crop, rotate, flip, brightness/contrast/saturation,
+  grayscale and sepia presets, freehand drawing, shapes, arrows, text and
+  sticker annotations with selection, transform and full undo/redo.
+- API documentation (typedoc) and a static demo page deployed to
+  GitHub Pages.
