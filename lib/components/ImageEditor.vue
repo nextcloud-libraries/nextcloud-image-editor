@@ -6,8 +6,8 @@
 import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
-import type { EditorState, Size, TextAnnotation } from '../editor/state.ts'
-import type { ExportOptions, ExportResult } from '../types/index.ts'
+import type { EditorState, Size } from '../editor/state.ts'
+import type { ExportResult } from '../types/index.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -19,17 +19,19 @@ import SelectionToolbar from './SelectionToolbar.vue'
 import TextOverlay from './TextOverlay.vue'
 import { useAmbient } from '../composables/useAmbient.ts'
 import { useEditorShortcuts } from '../composables/useEditorShortcuts.ts'
+import { useExportImage } from '../composables/useExportImage.ts'
+import { useTextEditing } from '../composables/useTextEditing.ts'
 import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
-import { renderScene, renderToCanvas, toImageCoords, visibleRect } from '../editor/render.ts'
+import { renderScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
 import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { fitContain } from '../utils/geometry.ts'
-import { canvasToBlob, loadImage } from '../utils/image.ts'
+import { loadImage } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
 
 const props = defineProps<{
@@ -56,19 +58,6 @@ const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
 const sourceImage = shallowRef<HTMLImageElement | null>(null)
 const { ambient, backdrop } = useAmbient(sourceImage)
-
-interface TextEdit {
-	sceneX: number
-	sceneY: number
-	screenX: number
-	screenY: number
-	screenFontSize: number
-	color: string
-	value: string
-	/** Existing annotation being edited, null when creating */
-	id: string | null
-}
-const textEdit = ref<TextEdit | null>(null)
 
 /** Stage-space bounds of the selected annotation, for the mini toolbar */
 const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
@@ -132,6 +121,19 @@ const viewOptions = computed<SceneOptions | null>(() => {
 		showCropped,
 		fastFilters: context.interacting.value,
 	}
+})
+
+const { textEdit, startTextEdit, confirmTextEdit } = useTextEditing({
+	context,
+	viewOptions: () => viewOptions.value,
+	oriented: () => orientedCanvas.value,
+})
+
+const { exportImage, save: onSave } = useExportImage({
+	oriented: () => orientedCanvas.value,
+	getState: () => context.state.value,
+	onSaved: (result) => emit('save', result),
+	onError: (error) => emit('error', error),
 })
 
 /**
@@ -291,74 +293,6 @@ async function load(): Promise<void> {
 }
 
 /**
- * Open the text overlay at a scene position, optionally editing an
- * existing annotation.
- *
- * @param position scene coordinates of the text anchor
- * @param position.x horizontal scene coordinate
- * @param position.y vertical scene coordinate
- * @param existing annotation to edit instead of creating one
- */
-function startTextEdit(position: { x: number, y: number }, existing?: TextAnnotation): void {
-	const options = viewOptions.value
-	const oriented = orientedCanvas.value
-	if (options === null || oriented === null) {
-		return
-	}
-	const origin = options.showCropped
-		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
-		: { x: 0, y: 0 }
-	textEdit.value = {
-		sceneX: position.x,
-		sceneY: position.y,
-		screenX: options.offset.x + (position.x - origin.x) * options.scale,
-		screenY: options.offset.y + (position.y - origin.y) * options.scale,
-		screenFontSize: (existing?.fontSize ?? context.fontSize.value) * options.scale,
-		color: existing?.color ?? context.drawColor.value,
-		value: existing?.text ?? '',
-		id: existing?.id ?? null,
-	}
-}
-
-/**
- * Commit the text overlay content into the state.
- *
- * @param text the entered text
- */
-function confirmTextEdit(text: string): void {
-	const edit = textEdit.value
-	textEdit.value = null
-	if (edit === null) {
-		return
-	}
-	const state = context.state.value
-	const trimmed = text.trim()
-
-	if (edit.id !== null) {
-		context.commit({
-			...state,
-			annotations: trimmed === ''
-				? state.annotations.filter((annotation) => annotation.id !== edit.id)
-				: state.annotations.map((annotation) => annotation.id === edit.id ? { ...annotation, text: trimmed } : annotation),
-		})
-	} else if (trimmed !== '') {
-		context.commit({
-			...state,
-			annotations: [...state.annotations, {
-				id: crypto.randomUUID(),
-				type: 'text',
-				x: edit.sceneX,
-				y: edit.sceneY,
-				text: trimmed,
-				color: edit.color,
-				fontSize: context.fontSize.value,
-				rotation: 0,
-			}],
-		})
-	}
-}
-
-/**
  *
  */
 function currentOriented(): Size {
@@ -474,33 +408,6 @@ useEditorShortcuts({
 	},
 })
 useWheelControls(container, context)
-
-/**
- * Export the edited image.
- *
- * @param options target format, quality and size bound
- */
-async function exportImage(options: ExportOptions = {}): Promise<ExportResult> {
-	const oriented = orientedCanvas.value
-	if (oriented === null) {
-		throw new Error('No image loaded')
-	}
-	const canvas = renderToCanvas(oriented, context.state.value, options.maxSize)
-	const mimeType = options.format ?? 'image/png'
-	const blob = await canvasToBlob(canvas, mimeType, options.quality)
-	return { blob, width: canvas.width, height: canvas.height, mimeType }
-}
-
-/**
- * Export and emit the result as a save event.
- */
-async function onSave(): Promise<void> {
-	try {
-		emit('save', await exportImage())
-	} catch (error) {
-		emit('error', error instanceof Error ? error : new Error(String(error)))
-	}
-}
 
 watch(() => props.src, load)
 watch(
