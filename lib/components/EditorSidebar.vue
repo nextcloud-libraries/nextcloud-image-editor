@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import type { EditorMode } from '../editor/context.ts'
 
+import Blur from 'vue-material-design-icons/Blur.vue'
 import Crop from 'vue-material-design-icons/Crop.vue'
 import PaletteOutline from 'vue-material-design-icons/PaletteOutline.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
@@ -26,6 +27,7 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 	{ id: 'filter', label: t('Filter'), icon: PaletteOutline },
 	{ id: 'annotate', label: t('Annotate'), icon: Pencil },
 	{ id: 'sticker', label: t('Sticker'), icon: StickerEmoji },
+	{ id: 'redact', label: t('Redact'), icon: Blur },
 ]
 </script>
 
@@ -38,36 +40,45 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 			class="editor-sidebar__tab"
 			:class="{ 'editor-sidebar__tab--active': context.activeMode.value === mode.id }"
 			:disabled="!loaded"
+			:aria-label="mode.label"
+			:title="mode.label"
 			:aria-pressed="context.activeMode.value === mode.id"
 			@click="context.setMode(mode.id)">
 			<component :is="mode.icon" :size="20" />
-			<span>{{ mode.label }}</span>
 		</button>
 	</nav>
 </template>
 
 <style scoped lang="scss">
 .editor-sidebar {
+	// Slim icon-only tool rail
 	display: flex;
 	flex-direction: column;
-	gap: calc(var(--default-grid-baseline) * 2);
-	padding: calc(var(--default-grid-baseline) * 2);
+	align-items: center;
+	gap: var(--default-grid-baseline);
+	padding: calc(var(--default-grid-baseline) * 2) var(--default-grid-baseline);
 	overflow-y: auto;
+	border-inline-end: 1px solid var(--color-border);
 
 	&__tab {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 2px;
-		width: 64px;
-		padding: calc(var(--default-grid-baseline) * 2) var(--default-grid-baseline);
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		padding: 0;
 		border: none;
 		border-radius: var(--border-radius-large, 10px);
 		background: transparent;
 		color: var(--color-main-text);
-		font-size: 12px;
+		font-size: 11px;
+		letter-spacing: 0.01em;
 		cursor: pointer;
-		transition: background-color 0.15s ease, box-shadow 0.15s ease;
+		transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+
+		&:active:not(:disabled) {
+			transform: scale(0.96);
+		}
 
 		&:hover:not(:disabled) {
 			background-color: var(--color-background-hover);
