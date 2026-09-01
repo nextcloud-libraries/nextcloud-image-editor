@@ -89,6 +89,9 @@ msgstr ""
 msgid "No filter"
 msgstr ""
 
+msgid "More emojis"
+msgstr ""
+
 msgid "Noir"
 msgstr ""
 

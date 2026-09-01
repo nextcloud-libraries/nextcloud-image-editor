@@ -8,6 +8,7 @@ import type { FilterPreset } from '../editor/state.ts'
 
 import { computed, shallowRef } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcEmojiPicker from '@nextcloud/vue/components/NcEmojiPicker'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
 import ContrastCircle from 'vue-material-design-icons/ContrastCircle.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
@@ -46,7 +47,12 @@ const emit = defineEmits<{
 
 const context = useEditorContext()
 
-const STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
+const DEFAULT_STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
+
+// The picked emoji joins the quick row when it came from the picker
+const STICKERS = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
+	? DEFAULT_STICKERS
+	: [context.sticker.value, ...DEFAULT_STICKERS.slice(0, 11)])
 
 const aspectPresets: { id: number | 'original' | null, label: string }[] = [
 	{ id: null, label: t('Free') },
@@ -71,6 +77,7 @@ const labels = {
 	pixelate: t('Pixelate'),
 	blur: t('Blur'),
 }
+const moreLabel = t('More emojis')
 
 const subTools: { id: Tool, label: string, icon: unknown }[] = [
 	{ id: 'draw', label: t('Draw'), icon: Pencil },
@@ -395,6 +402,11 @@ function setPreset(preset: FilterPreset) {
 				@click="context.sticker.value = sticker">
 				{{ sticker }}
 			</NcButton>
+			<NcEmojiPicker @select="context.sticker.value = $event">
+				<NcButton data-test="emoji-picker" variant="tertiary">
+					{{ moreLabel }}
+				</NcButton>
+			</NcEmojiPicker>
 		</div>
 
 		<!-- Redact -->
