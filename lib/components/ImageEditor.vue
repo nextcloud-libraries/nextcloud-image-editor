@@ -402,6 +402,9 @@ useEditorShortcuts({
 		if (context.selectedId.value !== null) {
 			context.selectedId.value = null
 			renderView()
+		} else if (context.activeMode.value === 'crop') {
+			// Leave crop without applying the scratch selection
+			context.setMode('select')
 		} else if (context.activeMode.value === 'annotate' && context.activeTool.value !== 'select') {
 			context.activeTool.value = 'select'
 		}
@@ -645,6 +648,8 @@ defineExpose({ exportImage })
 	&__canvas {
 		height: 100%;
 		width: 100%;
+		// Pinch and drag gestures belong to the editor, not the browser
+		touch-action: none;
 	}
 
 	&__topbar {

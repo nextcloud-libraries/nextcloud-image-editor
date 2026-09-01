@@ -159,3 +159,43 @@ test('fine rotation combines with crop and annotations', async ({ page }) => {
 	expect(result.width).toBe(crop.width)
 	expect(result.height).toBe(crop.height)
 })
+
+test('redaction survives a rotation in the export', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })
+
+	await page.getByRole('button', { name: 'Crop', exact: true }).click()
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	// The obfuscated block must rotate with the image: after a
+	// clockwise turn its mixed pixels sit around the new center
+	const result = await save(page)
+	expect(result.width).toBe(100)
+	expect(result.center[0]!).toBeGreaterThan(15)
+	expect(result.center[2]!).toBeGreaterThan(15)
+})
+
+test('view zoom does not disturb crop application', async ({ page }) => {
+	await waitLoaded(page)
+	await page.locator('[data-test="zoom-in"]').click()
+
+	await page.locator('[data-test="aspect-1:1"]').click()
+	await page.locator('[data-test="apply-crop"]').click()
+
+	const crop = (await readState(page)).crop
+	expect(crop.width).toBe(crop.height)
+	const result = await save(page)
+	expect(result.width).toBe(crop.width)
+})
+
+test('escape leaves the crop mode without applying', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+
+	await page.keyboard.press('Escape')
+	await expect(page.locator('[data-test="apply-crop"]')).not.toBeVisible()
+	expect((await readState(page)).crop).toBeNull()
+})
