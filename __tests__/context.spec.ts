@@ -91,8 +91,11 @@ describe('createEditorContext', () => {
 		context.selectedId.value = 'some-id'
 
 		context.setMode('annotate')
-		expect(context.activeTool.value).toBe('select')
+		expect(context.activeTool.value).toBe('draw')
 		expect(context.selectedId.value).toBeNull()
+
+		context.setMode('select')
+		expect(context.activeTool.value).toBe('select')
 
 		context.setMode('finetune')
 		expect(context.activeTool.value).toBe('adjust')

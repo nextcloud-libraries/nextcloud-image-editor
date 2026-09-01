@@ -251,6 +251,12 @@ export interface SceneOptions {
 	offset: { x: number, y: number }
 	/** Clip to the crop rect; disabled while the crop tool shows context */
 	showCropped: boolean
+	/**
+	 * Cache filters at display resolution instead of full resolution.
+	 * Only wanted while a slider is actively scrubbing: it keeps drags
+	 * smooth on large images, at rest the cache must be full quality.
+	 */
+	fastFilters?: boolean
 }
 
 export interface Scene {
@@ -292,9 +298,10 @@ export function renderScene(
 	}
 
 	const imageNode = new Konva.Image({ image: oriented, listening: false })
-	// Interactive rendering caches at display resolution; exports call
-	// with scale 1 and keep full quality
-	applyFilters(imageNode, state, Math.min(1, options.scale * (globalThis.devicePixelRatio || 1)))
+	const pixelRatio = options.fastFilters
+		? Math.min(1, options.scale * (globalThis.devicePixelRatio || 1))
+		: 1
+	applyFilters(imageNode, state, pixelRatio)
 	contentGroup.add(imageNode)
 
 	const annotationNodes = state.annotations.map((annotation) => buildAnnotationNode(annotation, oriented))

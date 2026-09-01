@@ -185,9 +185,9 @@ test('switching tools drops the selection instead of hiding it', async ({ page }
 	await page.mouse.click(corner.x + 50, corner.y + 20)
 	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
 
-	// Switching to Draw must clear the (now invisible) selection: a
-	// Delete press afterwards may not remove anything
-	await page.getByRole('button', { name: 'Draw' }).click()
+	// Leaving the select mode must clear the (now invisible) selection:
+	// a Delete press afterwards may not remove anything
+	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.keyboard.press('Delete')
 	expect((await readState(page)).annotations).toHaveLength(1)
 })
