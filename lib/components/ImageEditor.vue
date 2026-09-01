@@ -81,6 +81,9 @@ let cropOverlay: CropOverlay | null = null
 let detachTool: (() => void) | null = null
 let resizeObserver: ResizeObserver | null = null
 let pendingTransition: { kind: TransitionKind, context: TransitionContext } | null = null
+// The view metrics of the last completed render: transition capture
+// must not read the lazy computed, it already reflects the new mode
+let lastView: TransitionContext | null = null
 
 const canvasCursor = computed(() => {
 	const tool = context.activeTool.value
@@ -112,9 +115,13 @@ const viewOptions = computed<SceneOptions | null>(() => {
 			height: Math.max(1, containerSize.value.height - margin * 2),
 		},
 	)
+	// Each mode rests at its own fit, the reference behavior: crop
+	// keeps air around the image for its handles, detail modes sit
+	// closer; the mode transition animates between these fits
+	const modeFit = context.activeMode.value === 'crop' ? 0.88 : 1
 	// View zoom magnifies around the center; panning shifts the view
 	// but content edges never pass the container edges
-	const scale = fit.scale * context.viewZoom.value
+	const scale = fit.scale * modeFit * context.viewZoom.value
 	const pan = context.viewPan.value
 	const boundX = Math.max(0, (visible.width * scale - containerSize.value.width) / 2 + margin)
 	const boundY = Math.max(0, (visible.height * scale - containerSize.value.height) / 2 + margin)
@@ -136,19 +143,7 @@ const viewOptions = computed<SceneOptions | null>(() => {
  * edit so the transition can start from the old view.
  */
 function captureView(): TransitionContext {
-	const options = viewOptions.value
-	const oriented = orientedCanvas.value
-	if (options === null || oriented === null) {
-		return { previousScale: 1, previousOffset: { x: 0, y: 0 }, previousOrigin: { x: 0, y: 0 } }
-	}
-	const origin = options.showCropped
-		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
-		: { x: 0, y: 0 }
-	return {
-		previousScale: options.scale,
-		previousOffset: options.offset,
-		previousOrigin: { x: origin.x, y: origin.y },
-	}
+	return lastView ?? { previousScale: 1, previousOffset: { x: 0, y: 0 }, previousOrigin: { x: 0, y: 0 } }
 }
 
 /**
@@ -180,6 +175,10 @@ function renderView(): void {
 	stage.size(containerSize.value)
 	scene = renderScene(stage, oriented, context.state.value, options)
 
+	const renderedOrigin = options.showCropped
+		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
+		: { x: 0, y: 0 }
+
 	if (pendingTransition !== null) {
 		const visible = options.showCropped
 			? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
@@ -191,6 +190,12 @@ function renderView(): void {
 			scale: options.scale,
 		}, pendingTransition.context)
 		pendingTransition = null
+	}
+
+	lastView = {
+		previousScale: options.scale,
+		previousOffset: options.offset,
+		previousOrigin: { x: renderedOrigin.x, y: renderedOrigin.y },
 	}
 
 	const tool = context.activeTool.value
@@ -509,11 +514,8 @@ watch(
 	},
 	refreshOrientedCanvas,
 )
-watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
-watch(context.cropAspect, applyCropAspect)
-
-// A soft zoom pulse when switching modes: crop pulls back for
-// overview, detail modes settle in
+// Registered before the render watcher so the transition context is
+// captured ahead of the rebuild that consumes it
 watch(context.activeMode, (mode) => {
 	if (!loaded.value) {
 		return
@@ -523,6 +525,8 @@ watch(context.activeMode, (mode) => {
 		context: captureView(),
 	}
 })
+watch([context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
+watch(context.cropAspect, applyCropAspect)
 
 // The color control follows the selection and edits it in place
 watch(context.selectedId, (id) => {
@@ -661,11 +665,12 @@ defineExpose({ exportImage })
 		box-sizing: border-box;
 	}
 
+	// Full-window implementation, author decision: the editor fills its
+	// host without a floating card frame
 	&__shell {
 		position: relative;
 		height: 100%;
 		width: 100%;
-		padding: calc(var(--default-grid-baseline) * 5);
 	}
 
 	// Blurred image wallpaper bleeding around the editor card
@@ -685,12 +690,8 @@ defineExpose({ exportImage })
 		height: 100%;
 		width: 100%;
 		overflow: hidden;
-		border-radius: 24px;
 		background: rgba(14, 14, 18, 0.55);
 		backdrop-filter: blur(40px);
-		box-shadow:
-			0 24px 80px rgba(0, 0, 0, 0.5),
-			inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 	}
 
 	&__viewport {
@@ -702,14 +703,6 @@ defineExpose({ exportImage })
 	}
 
 	@container editor (max-width: 600px) {
-		// Full-window app feel on phones: no floating card chrome
-		&__shell {
-			padding: 0;
-		}
-
-		&__frame {
-			border-radius: 0;
-		}
 
 		&__viewport {
 			padding: 56px 8px 8px;

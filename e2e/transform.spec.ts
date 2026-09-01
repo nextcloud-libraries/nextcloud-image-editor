@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { expectColor, imageTopLeft, readState, save, setInputValue, slowDrag, waitLoaded } from './utils.ts'
+import { cropAnchor, expectColor, imageView, readState, save, setInputValue, slowDrag, waitLoaded } from './utils.ts'
 
 test('rotate right turns the image clockwise', async ({ page }) => {
 	await waitLoaded(page)
@@ -57,11 +57,12 @@ test('cropping reduces the export to the selected area', async ({ page }) => {
 	// Give the canvas overlay a moment to attach its pointer handlers
 	await page.waitForTimeout(100)
 
-	// Drag the top-left transformer anchor towards the image center.
-	// Synthetic fast drags lose a few initial pixels in the transformer,
-	// so the assertions accept a range instead of exact coordinates.
-	const corner = await imageTopLeft(page)
-	await slowDrag(page, corner, { x: corner.x + 50, y: corner.y + 25 })
+	// Drag the top-left transformer anchor towards the image center,
+	// grabbing it exactly where Konva reports it. Synthetic fast drags
+	// lose a few initial pixels, so assertions accept a range.
+	const view = await imageView(page)
+	const anchor = await cropAnchor(page, 'top-left')
+	await slowDrag(page, anchor, { x: anchor.x + 50 * view.scale, y: anchor.y + 25 * view.scale })
 	await page.locator('[data-test="apply-crop"]').click()
 
 	// Only the top-left anchor moved, so the crop must keep the image's
