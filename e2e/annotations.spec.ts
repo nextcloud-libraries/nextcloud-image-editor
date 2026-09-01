@@ -65,7 +65,7 @@ test('sticker tool places the picked emoji', async ({ page }) => {
 	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
 	// The quick row is the user's frequently used emojis: pick the
 	// second entry dynamically instead of assuming its value
-	const chip = page.locator('.editor-card__tabs button').nth(1)
+	const chip = page.locator('.sticker-panel button').nth(1)
 	const emoji = (await chip.innerText()).trim()
 	await chip.click()
 
