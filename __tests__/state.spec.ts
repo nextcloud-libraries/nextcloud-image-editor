@@ -220,6 +220,20 @@ describe('rotated boxes survive round trips', () => {
 })
 
 describe('flipVertical', () => {
+	it('mirrors draw points and redaction rects vertically', () => {
+		const redact = { id: 'r', type: 'redact', rect: { x: 5, y: 10, width: 20, height: 30 }, style: 'pixelate' } as const
+		const state = stateWith({ annotations: [draw, redact] })
+		const flipped = flipVertical(state, ORIENTED)
+		expect((flipped.annotations[0] as DrawAnnotation).points).toEqual([10, 80, 30, 60])
+		expect((flipped.annotations[1] as typeof redact).rect.y).toBe(60)
+	})
+
+	it('mirrors redaction rects horizontally', () => {
+		const redact = { id: 'r', type: 'redact', rect: { x: 5, y: 10, width: 20, height: 30 }, style: 'blur' } as const
+		const flipped = flipHorizontal(stateWith({ annotations: [redact] }), ORIENTED)
+		expect((flipped.annotations[0] as typeof redact).rect.x).toBe(175)
+	})
+
 	it('toggles flipY and mirrors the crop', () => {
 		const state = stateWith({ crop: { x: 20, y: 10, width: 60, height: 30 } })
 		const flipped = flipVertical(state, ORIENTED)

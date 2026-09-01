@@ -45,7 +45,10 @@ function translatePoints(points: number[], dx: number, dy: number): number[] {
  * @param annotation the annotation to update
  * @param node its Konva node after the interaction
  */
-function applyNodeTransform(annotation: Annotation, node: Konva.Node): Annotation {
+export function applyNodeTransform(
+	annotation: Annotation,
+	node: Pick<Konva.Node, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>,
+): Annotation {
 	switch (annotation.type) {
 		case 'draw':
 		case 'arrow': {

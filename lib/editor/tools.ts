@@ -62,12 +62,20 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 
 	const refreshPreview = () => {
 		previewNode?.destroy()
-		previewNode = active === null ? null : buildAnnotationNode(active, deps.oriented() ?? undefined)
-		if (previewNode !== null) {
-			// The live preview joins the content group so it shares the
-			// scene transform with the final node
-			deps.contentGroup()?.add(previewNode)
+		previewNode = null
+		if (active === null) {
+			return
 		}
+		const source = deps.oriented() ?? undefined
+		// A redaction preview needs the image to pixelate; without it the
+		// commit still works, only the live preview is skipped
+		if (active.type === 'redact' && source === undefined) {
+			return
+		}
+		previewNode = buildAnnotationNode(active, source)
+		// The live preview joins the content group so it shares the
+		// scene transform with the final node
+		deps.contentGroup()?.add(previewNode)
 	}
 
 	const onPointerDown = () => {
