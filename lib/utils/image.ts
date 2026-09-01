@@ -13,6 +13,11 @@ export async function loadImage(source: Blob | string): Promise<HTMLImageElement
 	try {
 		return await new Promise((resolve, reject) => {
 			const image = new Image()
+			// Remote images must be CORS-clean, otherwise they taint the
+			// canvas and exporting throws a SecurityError
+			if (/^https?:/.test(url)) {
+				image.crossOrigin = 'anonymous'
+			}
 			image.onload = () => resolve(image)
 			image.onerror = () => reject(new Error('Image could not be decoded'))
 			image.src = url
