@@ -393,9 +393,16 @@ function setPreset(preset: FilterPreset) {
 	flex-direction: column;
 	align-items: center;
 	gap: calc(var(--default-grid-baseline) * 2);
-	min-width: 420px;
-	max-width: min(680px, 90%);
+	min-width: min(420px, 92cqw);
+	max-width: min(680px, 94cqw);
 	padding: calc(var(--default-grid-baseline) * 3) calc(var(--default-grid-baseline) * 5);
+
+	@container editor (max-width: 600px) {
+		min-width: 0;
+		width: 100%;
+		max-width: none;
+		padding-inline: calc(var(--default-grid-baseline) * 3);
+	}
 
 	&__tabs {
 		display: flex;
@@ -427,5 +434,11 @@ function setPreset(preset: FilterPreset) {
 	padding: calc(var(--default-grid-baseline) * 2);
 	overflow-y: auto;
 	max-height: 100%;
+
+	@container editor (max-width: 600px) {
+		flex-direction: row;
+		overflow-y: hidden;
+		overflow-x: auto;
+	}
 }
 </style>

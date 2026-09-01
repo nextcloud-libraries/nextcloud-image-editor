@@ -49,3 +49,20 @@ test('view zoom magnifies without touching the edit state', async ({ page }) => 
 	expect(result.width).toBe(200)
 	expect(result.height).toBe(100)
 })
+
+test('adapts to a phone-sized container', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 })
+	await waitLoaded(page)
+
+	// No horizontal overflow, all modes reachable, saving still works
+	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+	expect(overflow).toBe(0)
+
+	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Redact']) {
+		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
+	}
+
+	const result = await save(page)
+	expect(result.width).toBe(200)
+	expect(result.height).toBe(100)
+})

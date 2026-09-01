@@ -170,5 +170,13 @@ function stepZoom(direction: 1 | -1) {
 		opacity: 0.7;
 		margin-inline-end: var(--default-grid-baseline);
 	}
+
+	@container editor (max-width: 600px) {
+		padding-inline: calc(var(--default-grid-baseline) * 2);
+
+		&__zoom {
+			display: none;
+		}
+	}
 }
 </style>

@@ -77,5 +77,11 @@ const emit = defineEmits<{
 		opacity: 0.5;
 		cursor: default;
 	}
+
+	@container editor (max-width: 600px) {
+		min-width: 52px;
+		padding: var(--default-grid-baseline) 2px;
+		font-size: 10px;
+	}
 }
 </style>
