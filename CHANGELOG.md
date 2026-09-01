@@ -1,0 +1,13 @@
+<!--
+  - SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+# Changelog
+
+## 0.1.0 – unreleased
+
+### Added
+
+- Initial scaffold: `ImageEditor` component rendering a Konva stage with
+  Blob export, `useHistory` undo/redo composable, vitest unit tests and
+  Playwright browser tests with a dev playground.

@@ -1,0 +1,18 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Canvas could not be encoded"
+msgstr ""
+
+msgid "Image could not be decoded"
+msgstr ""
+
+msgid "Image editor"
+msgstr ""
+
+msgid "Save"
+msgstr ""

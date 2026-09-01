@@ -1,0 +1,79 @@
+{
+  "name": "@nextcloud/image-editor",
+  "version": "0.1.0",
+  "description": "Vue 3 image editor component for Nextcloud apps",
+  "keywords": [
+    "nextcloud",
+    "image",
+    "editor",
+    "canvas",
+    "konva",
+    "vue"
+  ],
+  "homepage": "https://github.com/nextcloud-libraries/nextcloud-image-editor",
+  "bugs": {
+    "url": "https://github.com/nextcloud-libraries/nextcloud-image-editor/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nextcloud-libraries/nextcloud-image-editor.git"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "Nextcloud GmbH and Nextcloud contributors",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite --mode production build",
+    "dev": "vite --mode development build",
+    "l10n:extract": "node build/extract-l10n.js",
+    "lint": "eslint lib/ __tests__/ e2e/ playground/",
+    "lint:fix": "eslint --fix lib/ __tests__/ e2e/ playground/",
+    "playground": "vite serve --config playground/vite.config.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest watch",
+    "watch": "vite --mode development build --watch"
+  },
+  "dependencies": {
+    "@nextcloud/l10n": "^3.4.0",
+    "konva": "~10.3.2"
+  },
+  "devDependencies": {
+    "@nextcloud/eslint-config": "^9.0.1",
+    "@nextcloud/vite-config": "^2.5.4",
+    "@nextcloud/vue": "^9.11.0",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.9.1",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vue/tsconfig": "^0.8.1",
+    "gettext-extractor": "^4.0.1",
+    "gettext-parser": "^8.0.0",
+    "jsdom": "^27.0.1",
+    "sass": "^1.103.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.11",
+    "vitest": "^3.2.4",
+    "vue": "^3.5.13"
+  },
+  "peerDependencies": {
+    "@nextcloud/vue": "^9.0.0",
+    "vue": "^3.5.0"
+  },
+  "engines": {
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
+  }
+}
