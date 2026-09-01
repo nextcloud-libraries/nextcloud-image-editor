@@ -125,6 +125,8 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 				fill: annotation.color,
 				fontSize: annotation.fontSize,
 				rotation: annotation.rotation,
+				// Kept in sync with the text overlay for WYSIWYG editing
+				fontFamily: 'Helvetica, Arial, sans-serif',
 			})
 		case 'redact': {
 			if (oriented === undefined) {

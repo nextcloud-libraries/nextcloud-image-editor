@@ -11,13 +11,15 @@ import type { ExportOptions, ExportResult } from '../types/index.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
-import NcButton from '@nextcloud/vue/components/NcButton'
-import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
-import Delete from 'vue-material-design-icons/Delete.vue'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import EditorPanel from './EditorPanel.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import EditorTopBar from './EditorTopBar.vue'
+import SelectionToolbar from './SelectionToolbar.vue'
 import TextOverlay from './TextOverlay.vue'
+import { useAmbient } from '../composables/useAmbient.ts'
+import { useEditorShortcuts } from '../composables/useEditorShortcuts.ts'
+import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
@@ -45,14 +47,14 @@ const emit = defineEmits<{
 }>()
 
 const canvasLabel = t('Image editor')
-const duplicateLabel = t('Duplicate')
-const deleteLabel = t('Delete')
 
 const context = createEditorContext()
 const container = useTemplateRef<HTMLDivElement>('container')
 const loaded = ref(false)
+const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
+const { ambient, backdrop } = useAmbient(orientedCanvas)
 
 interface TextEdit {
 	sceneX: number
@@ -226,6 +228,7 @@ function refreshOrientedCanvas(): void {
  */
 async function load(): Promise<void> {
 	loaded.value = false
+	errored.value = false
 	try {
 		sourceImage = await loadImage(props.src)
 		context.reset()
@@ -236,6 +239,7 @@ async function load(): Promise<void> {
 		refreshOrientedCanvas()
 		loaded.value = true
 	} catch (error) {
+		errored.value = true
 		emit('error', error instanceof Error ? error : new Error(String(error)))
 	}
 }
@@ -410,27 +414,20 @@ function onDeleteSelection(): void {
 	})
 }
 
-/**
- * Delete the selection or leave the current tool/selection via keyboard.
- *
- * @param event the keyboard event
- */
-function onKeydown(event: KeyboardEvent): void {
-	if (textEdit.value !== null) {
-		return
-	}
-	if ((event.key === 'Delete' || event.key === 'Backspace') && context.selectedId.value !== null) {
-		event.preventDefault()
-		onDeleteSelection()
-	} else if (event.key === 'Escape') {
+useEditorShortcuts({
+	context,
+	isTextEditing: () => textEdit.value !== null,
+	onDelete: onDeleteSelection,
+	onEscape: () => {
 		if (context.selectedId.value !== null) {
 			context.selectedId.value = null
 			renderView()
 		} else if (context.activeMode.value === 'annotate' && context.activeTool.value !== 'select') {
 			context.activeTool.value = 'select'
 		}
-	}
-}
+	},
+})
+useWheelControls(container, context)
 
 /**
  * Export the edited image.
@@ -467,7 +464,7 @@ watch(
 	},
 	refreshOrientedCanvas,
 )
-watch([context.state, context.activeTool, context.viewZoom, orientedCanvas, containerSize], renderView)
+watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.state, (state) => emit('change', structuredClone(state)))
 
 onMounted(() => {
@@ -477,12 +474,10 @@ onMounted(() => {
 		containerSize.value = { width: clientWidth, height: clientHeight }
 	})
 	resizeObserver.observe(container.value!)
-	window.addEventListener('keydown', onKeydown)
 	load()
 })
 
 onBeforeUnmount(() => {
-	window.removeEventListener('keydown', onKeydown)
 	resizeObserver?.disconnect()
 	detachTool?.()
 	cropOverlay?.destroy()
@@ -494,14 +489,13 @@ defineExpose({ exportImage })
 </script>
 
 <template>
-	<div class="image-editor">
-		<EditorTopBar
-			:loaded="loaded"
-			@save="onSave"
-			@cancel="emit('cancel')"
-			@revert="onRevert" />
-		<div class="image-editor__body">
-			<EditorSidebar :loaded="loaded" />
+	<div
+		class="image-editor"
+		:style="{
+			'--editor-ambient': ambient,
+			'--editor-backdrop': backdrop ? `url(${backdrop})` : 'none',
+		}">
+		<div class="image-editor__frame">
 			<div class="image-editor__viewport">
 				<div
 					ref="container"
@@ -509,6 +503,10 @@ defineExpose({ exportImage })
 					:style="{ cursor: canvasCursor }"
 					role="img"
 					:aria-label="label ?? canvasLabel" />
+				<NcLoadingIcon
+					v-if="!loaded && !errored"
+					class="image-editor__loading"
+					:size="44" />
 				<TextOverlay
 					v-if="textEdit !== null"
 					:x="textEdit.screenX"
@@ -518,37 +516,24 @@ defineExpose({ exportImage })
 					:initial="textEdit.value"
 					@confirm="confirmTextEdit"
 					@cancel="textEdit = null" />
-				<div
+				<SelectionToolbar
 					v-if="selectionBox !== null"
-					class="image-editor__selection-toolbar"
-					data-test="selection-toolbar"
-					:style="{
-						insetInlineStart: `${selectionBox.x + selectionBox.width / 2}px`,
-						insetBlockStart: `${Math.max(4, selectionBox.y - 48)}px`,
-					}">
-					<NcButton
-						data-test="duplicate"
-						:aria-label="duplicateLabel"
-						:title="duplicateLabel"
-						variant="tertiary"
-						@click="onDuplicateSelection">
-						<template #icon>
-							<ContentCopy :size="18" />
-						</template>
-					</NcButton>
-					<NcButton
-						data-test="delete"
-						:aria-label="deleteLabel"
-						:title="deleteLabel"
-						variant="tertiary"
-						@click="onDeleteSelection">
-						<template #icon>
-							<Delete :size="18" />
-						</template>
-					</NcButton>
-				</div>
+					:box="selectionBox"
+					@duplicate="onDuplicateSelection"
+					@delete="onDeleteSelection" />
 			</div>
+
+			<EditorTopBar
+				class="image-editor__topbar"
+				:loaded="loaded"
+				@save="onSave"
+				@cancel="emit('cancel')"
+				@revert="onRevert" />
+
 			<EditorPanel
+				:class="context.activeMode.value === 'filter'
+					? 'image-editor__strip'
+					: 'image-editor__controls'"
 				:loaded="loaded"
 				:oriented="orientedCanvas"
 				@rotateCw="onRotateCW"
@@ -556,45 +541,65 @@ defineExpose({ exportImage })
 				@flipHorizontal="onFlipHorizontal"
 				@flipVertical="onFlipVertical"
 				@applyCrop="onApplyCrop"
-				@resetCrop="onResetCrop"
-				@deleteSelection="onDeleteSelection" />
+				@resetCrop="onResetCrop" />
+
+			<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 		</div>
 	</div>
 </template>
 
 <style scoped lang="scss">
 .image-editor {
-	// The editor is always dark, whatever the surrounding theme:
-	// the image is the hero and the chrome recedes
+	// Always-dark chrome floating over the image, every surface tinted
+	// by the image itself: --editor-ambient carries its dominant color,
+	// --editor-backdrop a tiny blurred copy used as the wallpaper
 	--color-main-text: #f2f2f7;
-	--color-main-background: #161618;
-	--color-background-hover: #26262a;
-	--color-background-dark: #2e2e33;
-	--color-border: rgba(255, 255, 255, 0.08);
-	--color-element-hover: #26262a;
+	--color-main-background: #141416;
+	--color-background-hover: rgba(255, 255, 255, 0.08);
+	--color-background-dark: rgba(255, 255, 255, 0.14);
+	--color-border: rgba(255, 255, 255, 0.09);
+	--color-element-hover: rgba(255, 255, 255, 0.08);
+	--editor-glass: rgba(20, 20, 26, 0.6);
 	font-size: 13px;
 
-	display: flex;
-	flex-direction: column;
+	position: relative;
 	height: 100%;
 	width: 100%;
+	overflow: hidden;
+	padding: calc(var(--default-grid-baseline) * 5);
 	color: var(--color-main-text);
 	background-color: var(--color-main-background);
 
-	&__body {
-		display: flex;
-		flex: 1;
-		min-height: 0;
+	// Blurred image wallpaper bleeding around the editor card
+	&::before {
+		content: '';
+		position: absolute;
+		inset: -10%;
+		background-image: var(--editor-backdrop);
+		background-size: cover;
+		background-position: center;
+		filter: blur(64px) saturate(1.3) brightness(0.55);
+		transform: scale(1.15);
+	}
+
+	&__frame {
+		position: relative;
+		height: 100%;
+		width: 100%;
+		overflow: hidden;
+		border-radius: 24px;
+		background: rgba(14, 14, 18, 0.55);
+		backdrop-filter: blur(40px);
+		box-shadow:
+			0 24px 80px rgba(0, 0, 0, 0.5),
+			inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 	}
 
 	&__viewport {
-		position: relative;
-		flex: 1;
-		min-width: 0;
-		min-height: 0;
-		padding: calc(var(--default-grid-baseline) * 6);
-		// The stage sits slightly darker than the chrome
-		background-color: #101012;
+		position: absolute;
+		inset: 0;
+		// Keep the fitted image clear of the floating chrome
+		padding: 76px 120px 140px;
 	}
 
 	&__canvas {
@@ -602,17 +607,41 @@ defineExpose({ exportImage })
 		width: 100%;
 	}
 
-	&__selection-toolbar {
+	&__topbar {
 		position: absolute;
-		display: flex;
-		gap: 2px;
-		padding: 2px;
-		transform: translateX(-50%);
-		border-radius: var(--border-radius-pill, 100px);
-		background-color: rgba(28, 28, 30, 0.85);
-		backdrop-filter: blur(12px);
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-		z-index: 1;
+		inset-block-start: 0;
+		inset-inline: 0;
+		// Legibility scrim over bright images
+		background: linear-gradient(rgba(8, 8, 12, 0.5), transparent);
 	}
+
+	&__rail {
+		position: absolute;
+		inset-inline-start: calc(var(--default-grid-baseline) * 4);
+		inset-block-start: 50%;
+		transform: translateY(-50%);
+	}
+
+	&__controls {
+		position: absolute;
+		inset-block-end: calc(var(--default-grid-baseline) * 5);
+		inset-inline-start: 50%;
+		transform: translateX(-50%);
+	}
+
+	&__strip {
+		position: absolute;
+		inset-inline-end: calc(var(--default-grid-baseline) * 4);
+		inset-block-start: 50%;
+		transform: translateY(-50%);
+		max-height: calc(100% - 160px);
+	}
+
+	&__loading {
+		position: absolute;
+		inset: 0;
+		margin: auto;
+	}
+
 }
 </style>

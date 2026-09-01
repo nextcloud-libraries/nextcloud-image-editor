@@ -8,3 +8,5 @@ coverage/
 .eslintcache
 test-results/
 playwright-report/
+dev-*.mjs
+.dev/

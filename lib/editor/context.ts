@@ -53,6 +53,8 @@ export interface EditorContext {
 	redactStyle: ShallowRef<'pixelate' | 'blur'>
 	/** View-only magnification of the canvas, 1 = fit */
 	viewZoom: ShallowRef<number>
+	/** View-only pan offset in stage pixels, only meaningful when zoomed */
+	viewPan: ShallowRef<{ x: number, y: number }>
 	/** Id of the annotation selected in select mode */
 	selectedId: ShallowRef<string | null>
 	canUndo: ComputedRef<boolean>
@@ -94,6 +96,7 @@ export function createEditorContext(): EditorContext {
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		viewZoom: shallowRef(1),
+		viewPan: shallowRef({ x: 0, y: 0 }),
 		selectedId: shallowRef<string | null>(null),
 		canUndo: history.canUndo,
 		canRedo: history.canRedo,
@@ -123,6 +126,7 @@ export function createEditorContext(): EditorContext {
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
 			context.viewZoom.value = 1
+			context.viewPan.value = { x: 0, y: 0 }
 			history.push(structuredClone(state.value))
 		},
 	}

@@ -112,6 +112,7 @@ function stepZoom(direction: 1 | -1) {
 		</div>
 
 		<div class="editor-topbar__actions">
+			<span class="editor-topbar__zoom" aria-hidden="true">{{ Math.round(context.viewZoom.value * 100) }}%</span>
 			<NcButton data-test="cancel" variant="tertiary" @click="emit('cancel')">
 				{{ labels.cancel }}
 			</NcButton>
@@ -131,7 +132,7 @@ function stepZoom(direction: 1 | -1) {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: var(--default-grid-baseline) calc(var(--default-grid-baseline) * 2);
+	padding: calc(var(--default-grid-baseline) * 2) calc(var(--default-grid-baseline) * 6);
 
 	&__history {
 		display: flex;
@@ -139,7 +140,9 @@ function stepZoom(direction: 1 | -1) {
 		gap: var(--default-grid-baseline);
 		padding: 2px;
 		border-radius: var(--border-radius-pill, 100px);
-		background-color: var(--color-background-hover);
+		background: var(--editor-glass, rgba(24, 24, 28, 0.55));
+		backdrop-filter: blur(24px) saturate(1.4);
+		border: 1px solid rgba(255, 255, 255, 0.09);
 	}
 
 	&__separator {
@@ -157,7 +160,15 @@ function stepZoom(direction: 1 | -1) {
 	}
 
 	&__actions {
+		align-items: center;
 		justify-content: flex-end;
+	}
+
+	&__zoom {
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.7;
+		margin-inline-end: var(--default-grid-baseline);
 	}
 }
 </style>

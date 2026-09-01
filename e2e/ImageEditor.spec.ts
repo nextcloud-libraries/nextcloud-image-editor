@@ -8,7 +8,7 @@ import { expectColor, save, waitLoaded } from './utils.ts'
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
 	await expect(page.getByRole('button', { name: 'Cancel' })).toBeEnabled()
-	for (const mode of ['Crop', 'Finetune', 'Filter', 'Annotate', 'Sticker']) {
+	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker']) {
 		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
 	}
 	await expect(page.locator('[role="img"] canvas').first()).toBeVisible()
