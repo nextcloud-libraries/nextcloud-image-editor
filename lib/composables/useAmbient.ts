@@ -15,18 +15,20 @@ export interface Ambient {
 }
 
 /**
- * Track the ambient chrome tint derived from the edited image.
+ * Track the ambient chrome tint derived from the original image.
+ * Deliberately fed by the untouched source: rotating or flipping the
+ * edit must not make the wallpaper jump around.
  *
- * @param oriented the orientation-baked source canvas
+ * @param source the decoded source image
  */
-export function useAmbient(oriented: ShallowRef<HTMLCanvasElement | null>): Ambient {
+export function useAmbient(source: ShallowRef<HTMLImageElement | null>): Ambient {
 	const ambient = ref('88, 86, 112')
 	const backdrop = ref('')
 
-	watch(oriented, (canvas) => {
-		if (canvas !== null) {
-			ambient.value = ambientColor(canvas)
-			backdrop.value = ambientBackdrop(canvas)
+	watch(source, (image) => {
+		if (image !== null) {
+			ambient.value = ambientColor(image)
+			backdrop.value = ambientBackdrop(image)
 		}
 	})
 

@@ -54,7 +54,8 @@ const loaded = ref(false)
 const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
-const { ambient, backdrop } = useAmbient(orientedCanvas)
+const sourceImage = shallowRef<HTMLImageElement | null>(null)
+const { ambient, backdrop } = useAmbient(sourceImage)
 
 interface TextEdit {
 	sceneX: number
@@ -76,7 +77,6 @@ const selectionBox = shallowRef<{ x: number, y: number, width: number, height: n
 // their internal caching and costs performance for no benefit.
 let stage: Konva.Stage | null = null
 let scene: Scene | null = null
-let sourceImage: HTMLImageElement | null = null
 let cropOverlay: CropOverlay | null = null
 let detachTool: (() => void) | null = null
 let resizeObserver: ResizeObserver | null = null
@@ -262,10 +262,10 @@ function applyCropAspect(): void {
  * Regenerate the orientation-baked canvas after rotation/flip changes.
  */
 function refreshOrientedCanvas(): void {
-	if (sourceImage === null) {
+	if (sourceImage.value === null) {
 		return
 	}
-	orientedCanvas.value = orientImage(sourceImage, context.state.value)
+	orientedCanvas.value = orientImage(sourceImage.value, context.state.value)
 }
 
 /**
@@ -275,10 +275,10 @@ async function load(): Promise<void> {
 	loaded.value = false
 	errored.value = false
 	try {
-		sourceImage = await loadImage(props.src)
+		sourceImage.value = await loadImage(props.src)
 		context.reset()
 		// Sensible text size relative to the image resolution
-		const minDimension = Math.min(sourceImage.naturalWidth, sourceImage.naturalHeight)
+		const minDimension = Math.min(sourceImage.value.naturalWidth, sourceImage.value.naturalHeight)
 		context.fontSize.value = Math.min(128, Math.max(12, Math.round(minDimension / 15)))
 		pendingTransition = { kind: 'load', context: captureView() }
 		refreshOrientedCanvas()
