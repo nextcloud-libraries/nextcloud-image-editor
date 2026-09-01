@@ -130,6 +130,27 @@ describe('flipHorizontal', () => {
 	})
 })
 
+describe('fine rotation and zoom', () => {
+	it('defaults to no fine rotation and no zoom', () => {
+		const state = createInitialState()
+		expect(state.fineRotation).toBe(0)
+		expect(state.zoom).toBe(1)
+	})
+
+	it('negates the fine rotation on flips', () => {
+		const state = stateWith({ fineRotation: 15 })
+		expect(flipHorizontal(state, ORIENTED).fineRotation).toBe(-15)
+		expect(flipVertical(state, ORIENTED).fineRotation).toBe(-15)
+	})
+
+	it('keeps fine rotation and zoom across 90 degree turns', () => {
+		const state = stateWith({ fineRotation: 15, zoom: 2 })
+		const rotated = rotateCW(state, ORIENTED)
+		expect(rotated.fineRotation).toBe(15)
+		expect(rotated.zoom).toBe(2)
+	})
+})
+
 describe('flip axis under rotation', () => {
 	it('maps a visual horizontal flip to the source vertical axis when sideways', () => {
 		const state = stateWith({ rotation: 90 })

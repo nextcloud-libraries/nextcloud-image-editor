@@ -19,9 +19,10 @@ export type Tool
 		| 'arrow'
 		| 'text'
 		| 'sticker'
+		| 'redact'
 
 /** Top-level editor sections, presented as sidebar tabs */
-export type EditorMode = 'crop' | 'finetune' | 'filter' | 'annotate' | 'sticker'
+export type EditorMode = 'crop' | 'finetune' | 'filter' | 'annotate' | 'sticker' | 'redact'
 
 /** The canvas tool each mode starts with */
 export const MODE_DEFAULT_TOOL: Record<EditorMode, Tool> = {
@@ -30,6 +31,7 @@ export const MODE_DEFAULT_TOOL: Record<EditorMode, Tool> = {
 	filter: 'adjust',
 	annotate: 'select',
 	sticker: 'sticker',
+	redact: 'redact',
 }
 
 export interface EditorContext {
@@ -47,6 +49,10 @@ export interface EditorContext {
 	fontSize: ShallowRef<number>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
+	/** Obfuscation style used by new redactions */
+	redactStyle: ShallowRef<'pixelate' | 'blur'>
+	/** View-only magnification of the canvas, 1 = fit */
+	viewZoom: ShallowRef<number>
 	/** Id of the annotation selected in select mode */
 	selectedId: ShallowRef<string | null>
 	canUndo: ComputedRef<boolean>
@@ -86,6 +92,8 @@ export function createEditorContext(): EditorContext {
 		strokeWidth: shallowRef(6),
 		fontSize: shallowRef(24),
 		sticker: shallowRef('😀'),
+		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
+		viewZoom: shallowRef(1),
 		selectedId: shallowRef<string | null>(null),
 		canUndo: history.canUndo,
 		canRedo: history.canRedo,
@@ -114,6 +122,7 @@ export function createEditorContext(): EditorContext {
 			activeMode.value = 'crop'
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
+			context.viewZoom.value = 1
 			history.push(structuredClone(state.value))
 		},
 	}

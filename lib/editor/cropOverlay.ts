@@ -109,14 +109,14 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		rotateEnabled: false,
 		flipEnabled: false,
 		keepRatio: false,
-		// Pintura-style round corner dots
+		// Pintura-style solid round corner dots
 		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-		anchorSize: 16,
-		anchorCornerRadius: 8,
-		anchorFill: '#222',
-		anchorStroke: '#fff',
-		anchorStrokeWidth: 2,
-		borderStroke: 'rgba(255, 255, 255, 0.9)',
+		anchorSize: 14,
+		anchorCornerRadius: 7,
+		anchorFill: '#111',
+		anchorStroke: '#111',
+		anchorStrokeWidth: 1,
+		borderStroke: 'rgba(255, 255, 255, 0.7)',
 		boundBoxFunc: (oldBox, newBox) => {
 			const inX = newBox.x >= imageBounds.x - 0.5
 				&& newBox.x + newBox.width <= imageBounds.x + imageBounds.width + 0.5

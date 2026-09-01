@@ -17,12 +17,66 @@ export function visibleRect(state: EditorState, oriented: Size) {
 }
 
 /**
+ * Obfuscate a region of the oriented image: pixelate averages it into
+ * coarse blocks, blur applies a strong gaussian. Either way the
+ * information is destroyed in the exported pixels, not overlaid.
+ *
+ * @param oriented the orientation-baked source canvas
+ * @param rect the region to obfuscate
+ * @param rect.x horizontal region origin
+ * @param rect.y vertical region origin
+ * @param rect.width region width
+ * @param rect.height region height
+ * @param style pixelate or blur
+ */
+function obfuscate(
+	oriented: HTMLCanvasElement,
+	rect: { x: number, y: number, width: number, height: number },
+	style: 'pixelate' | 'blur',
+): HTMLCanvasElement {
+	const strength = Math.max(4, Math.round(Math.min(oriented.width, oriented.height) / 40))
+	const out = document.createElement('canvas')
+	out.width = Math.max(1, Math.ceil(rect.width))
+	out.height = Math.max(1, Math.ceil(rect.height))
+	const context = out.getContext('2d')!
+
+	if (style === 'blur') {
+		// Draw with padding so the blur does not bleed transparency in
+		// from the edges, the canvas bounds crop the padding again
+		const pad = strength * 2
+		context.filter = `blur(${strength}px)`
+		context.drawImage(
+			oriented,
+			rect.x - pad,
+			rect.y - pad,
+			rect.width + pad * 2,
+			rect.height + pad * 2,
+			-pad,
+			-pad,
+			out.width + pad * 2,
+			out.height + pad * 2,
+		)
+		return out
+	}
+
+	const small = document.createElement('canvas')
+	small.width = Math.max(1, Math.ceil(rect.width / strength))
+	small.height = Math.max(1, Math.ceil(rect.height / strength))
+	small.getContext('2d')!
+		.drawImage(oriented, rect.x, rect.y, rect.width, rect.height, 0, 0, small.width, small.height)
+	context.imageSmoothingEnabled = false
+	context.drawImage(small, 0, 0, out.width, out.height)
+	return out
+}
+
+/**
  * Build the Konva node for one annotation. Nodes carry the annotation id
  * and the 'annotation' name so tools can map them back to state entries.
  *
  * @param annotation the annotation to render
+ * @param oriented the orientation-baked source canvas, needed by redact
  */
-export function buildAnnotationNode(annotation: Annotation): Konva.Shape {
+export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanvasElement): Konva.Shape {
 	const base = { id: annotation.id, name: 'annotation' }
 	switch (annotation.type) {
 		case 'draw':
@@ -72,6 +126,17 @@ export function buildAnnotationNode(annotation: Annotation): Konva.Shape {
 				fontSize: annotation.fontSize,
 				rotation: annotation.rotation,
 			})
+		case 'redact': {
+			if (oriented === undefined) {
+				throw new Error('Redaction requires the oriented image')
+			}
+			return new Konva.Image({
+				...base,
+				image: obfuscate(oriented, annotation.rect, annotation.style),
+				x: annotation.rect.x,
+				y: annotation.rect.y,
+			})
+		}
 	}
 }
 
@@ -96,10 +161,16 @@ export function applyFilters(node: Konva.Image, state: EditorState): void {
 	if (saturation !== 0) {
 		filters.push(Konva.Filters.HSL)
 	}
-	if (state.preset === 'grayscale') {
-		filters.push(Konva.Filters.Grayscale)
-	} else if (state.preset === 'sepia') {
-		filters.push(Konva.Filters.Sepia)
+	const presetFilters = {
+		none: null,
+		grayscale: Konva.Filters.Grayscale,
+		sepia: Konva.Filters.Sepia,
+		invert: Konva.Filters.Invert,
+		solarize: Konva.Filters.Solarize,
+		posterize: Konva.Filters.Posterize,
+	}[state.preset]
+	if (presetFilters !== null) {
+		filters.push(presetFilters)
 	}
 
 	if (filters.length === 0) {
@@ -112,7 +183,45 @@ export function applyFilters(node: Konva.Image, state: EditorState): void {
 	node.brightness(brightness / 100)
 	node.contrast(contrast)
 	node.saturation(saturation / 100)
+	if (state.preset === 'posterize') {
+		node.levels(0.5)
+	}
 	node.cache({ pixelRatio: 1 })
+}
+
+/**
+ * Small data-URL preview of the visible image with a preset applied,
+ * for the filter picker chips.
+ *
+ * @param oriented the orientation-baked source canvas
+ * @param state the current edit state
+ * @param preset the preset to preview instead of the active one
+ * @param size bound for the longest thumbnail edge
+ */
+export function presetThumbnail(oriented: HTMLCanvasElement, state: EditorState, preset: EditorState['preset'], size = 96): string {
+	const visible = visibleRect(state, { width: oriented.width, height: oriented.height })
+	const scale = Math.min(size / visible.width, size / visible.height)
+	const thumb = document.createElement('canvas')
+	thumb.width = Math.max(1, Math.round(visible.width * scale))
+	thumb.height = Math.max(1, Math.round(visible.height * scale))
+	thumb.getContext('2d')!
+		.drawImage(oriented, visible.x, visible.y, visible.width, visible.height, 0, 0, thumb.width, thumb.height)
+
+	const stage = new Konva.Stage({
+		container: document.createElement('div'),
+		width: thumb.width,
+		height: thumb.height,
+	})
+	try {
+		const node = new Konva.Image({ image: thumb, listening: false })
+		applyFilters(node, { ...state, preset })
+		const layer = new Konva.Layer()
+		layer.add(node)
+		stage.add(layer)
+		return stage.toDataURL()
+	} finally {
+		stage.destroy()
+	}
 }
 
 export interface SceneOptions {
@@ -166,7 +275,7 @@ export function renderScene(
 	applyFilters(imageNode, state)
 	contentGroup.add(imageNode)
 
-	const annotationNodes = state.annotations.map(buildAnnotationNode)
+	const annotationNodes = state.annotations.map((annotation) => buildAnnotationNode(annotation, oriented))
 	annotationNodes.forEach((node) => contentGroup.add(node))
 
 	const layer = new Konva.Layer()

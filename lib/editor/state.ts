@@ -24,7 +24,7 @@ export interface Adjustments {
 	saturation: number
 }
 
-export type FilterPreset = 'none' | 'grayscale' | 'sepia'
+export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'invert' | 'solarize' | 'posterize'
 
 export interface DrawAnnotation {
 	id: string
@@ -65,10 +65,23 @@ export interface TextAnnotation {
 	rotation: number
 }
 
-export type Annotation = DrawAnnotation | ArrowAnnotation | BoxAnnotation | TextAnnotation
+export interface RedactAnnotation {
+	id: string
+	type: 'redact'
+	/** Region to obfuscate, in oriented image coordinates */
+	rect: Rect
+	/** How the region is destroyed */
+	style: 'pixelate' | 'blur'
+}
+
+export type Annotation = DrawAnnotation | ArrowAnnotation | BoxAnnotation | TextAnnotation | RedactAnnotation
 
 export interface EditorState {
 	rotation: Rotation
+	/** Additional free rotation in degrees, -45 to 45 */
+	fineRotation: number
+	/** Center zoom factor, 1 or greater */
+	zoom: number
 	flipX: boolean
 	flipY: boolean
 	/** Crop rectangle in oriented image coordinates, null meaning uncropped */
@@ -84,6 +97,8 @@ export interface EditorState {
 export function createInitialState(): EditorState {
 	return {
 		rotation: 0,
+		fineRotation: 0,
+		zoom: 1,
 		flipX: false,
 		flipY: false,
 		crop: null,
@@ -165,6 +180,7 @@ function mapAnnotationCW(annotation: Annotation, height: number): Annotation {
 			return { ...annotation, points: mapPointsCW(annotation.points, height) as ArrowAnnotation['points'] }
 		case 'rectangle':
 		case 'ellipse':
+		case 'redact':
 			return { ...annotation, rect: mapRectCW(annotation.rect, height) }
 		case 'text':
 		case 'sticker':
@@ -208,6 +224,7 @@ function mapAnnotationFlipX(annotation: Annotation, width: number): Annotation {
 		}
 		case 'rectangle':
 		case 'ellipse':
+		case 'redact':
 			return {
 				...annotation,
 				rect: { ...annotation.rect, x: width - annotation.rect.x - annotation.rect.width },
@@ -239,6 +256,7 @@ export function flipHorizontal(state: EditorState, oriented: Size): EditorState 
 		...state,
 		flipX: sideways ? state.flipX : !state.flipX,
 		flipY: sideways ? !state.flipY : state.flipY,
+		fineRotation: -state.fineRotation,
 		crop: state.crop && { ...state.crop, x: oriented.width - state.crop.x - state.crop.width },
 		annotations: state.annotations.map((annotation) => mapAnnotationFlipX(annotation, oriented.width)),
 	}
@@ -259,6 +277,7 @@ function mapAnnotationFlipY(annotation: Annotation, height: number): Annotation 
 		}
 		case 'rectangle':
 		case 'ellipse':
+		case 'redact':
 			return {
 				...annotation,
 				rect: { ...annotation.rect, y: height - annotation.rect.y - annotation.rect.height },
@@ -285,7 +304,37 @@ export function flipVertical(state: EditorState, oriented: Size): EditorState {
 		...state,
 		flipX: sideways ? !state.flipX : state.flipX,
 		flipY: sideways ? state.flipY : !state.flipY,
+		fineRotation: -state.fineRotation,
 		crop: state.crop && { ...state.crop, y: oriented.height - state.crop.y - state.crop.height },
 		annotations: state.annotations.map((annotation) => mapAnnotationFlipY(annotation, oriented.height)),
+	}
+}
+
+/**
+ * Clone an annotation under a new id, shifted so the copy is visible
+ * next to the original.
+ *
+ * @param annotation the annotation to duplicate
+ * @param offset shift applied to the copy, in oriented image pixels
+ */
+export function duplicateAnnotation(annotation: Annotation, offset = 16): Annotation {
+	const id = crypto.randomUUID()
+	switch (annotation.type) {
+		case 'draw':
+		case 'arrow': {
+			const points = annotation.points.map((value) => value + offset)
+			return { ...annotation, id, points } as Annotation
+		}
+		case 'rectangle':
+		case 'ellipse':
+		case 'redact':
+			return {
+				...annotation,
+				id,
+				rect: { ...annotation.rect, x: annotation.rect.x + offset, y: annotation.rect.y + offset },
+			}
+		case 'text':
+		case 'sticker':
+			return { ...annotation, id, x: annotation.x + offset, y: annotation.y + offset }
 	}
 }

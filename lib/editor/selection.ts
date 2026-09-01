@@ -15,6 +15,16 @@ export interface SelectionDeps {
 	getSelectedId(): string | null
 	/** Open the text overlay to edit an existing annotation */
 	editText(annotation: TextAnnotation): void
+	/**
+	 * Report the selected node's stage-space bounds, null on deselect
+	 *
+	 * @param rect the bounds in stage pixels
+	 * @param rect.x horizontal position
+	 * @param rect.y vertical position
+	 * @param rect.width bound width
+	 * @param rect.height bound height
+	 */
+	onSelectionRect(rect: { x: number, y: number, width: number, height: number } | null): void
 }
 
 /**
@@ -43,6 +53,7 @@ function applyNodeTransform(annotation: Annotation, node: Konva.Node): Annotatio
 			return { ...annotation, points } as Annotation
 		}
 		case 'rectangle':
+		case 'redact':
 			return {
 				...annotation,
 				rect: {
@@ -82,6 +93,8 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		rotateEnabled: true,
 		flipEnabled: false,
 		ignoreStroke: true,
+		// A plain square with four corner handles
+		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 		anchorSize: 12,
 		anchorCornerRadius: 6,
 		anchorFill: '#fff',
@@ -95,11 +108,21 @@ export function attachSelection(deps: SelectionDeps): () => void {
 
 	const findAnnotation = (id: string): Annotation | undefined => deps.getState().annotations.find((annotation) => annotation.id === id)
 
+	// Konva id selectors match literally, and CSS.escape would mangle
+	// UUIDs starting with a digit, so compare ids directly
+	const findNode = (id: string | null) => id === null ? null : deps.stage.find('.annotation').find((node) => node.id() === id) ?? null
+
+	const reportRect = () => {
+		const node = findNode(deps.getSelectedId())
+		deps.onSelectionRect(node ? node.getClientRect() : null)
+	}
+
 	const syncTransformer = () => {
 		const id = deps.getSelectedId()
-		const node = id === null ? null : deps.stage.findOne(`#${CSS.escape(id)}`)
+		const node = findNode(id)
 		if (node === null || node === undefined) {
 			transformer.nodes([])
+			deps.onSelectionRect(null)
 			return
 		}
 		const annotation = findAnnotation(id!)
@@ -109,6 +132,7 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		transformer.resizeEnabled(!movableOnly)
 		transformer.rotateEnabled(!movableOnly)
 		transformer.nodes([node])
+		deps.onSelectionRect(node.getClientRect())
 	}
 
 	const makeDraggable = () => {
@@ -149,10 +173,12 @@ export function attachSelection(deps: SelectionDeps): () => void {
 	deps.stage.on('click.selection tap.selection', onClick)
 	deps.stage.on('dblclick.selection dbltap.selection', onDblClick)
 	deps.stage.on('dragend.selection transformend.selection', onWriteBack)
+	deps.stage.on('dragmove.selection transform.selection', reportRect)
 
 	return () => {
 		deps.stage.off('.selection')
 		deps.stage.find('.annotation').forEach((node) => node.draggable(false))
+		deps.onSelectionRect(null)
 		transformer.destroy()
 		layer.destroy()
 	}
