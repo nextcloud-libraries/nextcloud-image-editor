@@ -12,15 +12,21 @@ unmaintained Filerobot editor.
 
 ## Features
 
-- Crop with rule-of-thirds guides, 90° rotation, flips, fine rotation
-  (±45°) and scale: the frame stays stable thanks to cover scaling
-- Brightness, contrast and saturation adjustments; filter presets
-  (grayscale, sepia, invert, solarize, posterize) with live preview chips
+- Crop with rule-of-thirds guides, aspect presets (free, original,
+  1:1, 4:3, 16:9), 90° rotation, flips, fine rotation (±45°) and scale
+ : the frame stays stable thanks to cover scaling
+- Brightness, contrast and saturation adjustments; eleven filter
+  presets (pop, warm, cool, fade, grayscale, noir, sepia, invert,
+  solarize, posterize) with live preview chips
 - Annotations: freehand drawing, rectangles, ellipses, arrows, text and
-  emoji stickers: movable, resizable, duplicatable and deletable
+  emoji stickers (the user's frequently used Nextcloud emojis plus the
+  full picker): movable, resizable, rotatable, recolorable,
+  duplicatable and deletable
 - Redaction that destroys pixels (block averaging or strong blur),
   never just an overlay
-- Full undo/redo with Ctrl+Z/Y, arrow-key nudging, view zoom and pan
+- Full undo/redo with Ctrl+Z/Y, revert-all behind a confirmation,
+  arrow-key nudging, cursor-anchored wheel zoom, drag panning and a
+  click-to-reset zoom readout
 - Ambient glass UI tinted by the image itself, responsive down to
   phone-sized containers (container queries, not viewport media queries)
 - Keyboard accessible, pointer-event based canvas (mouse and touch),

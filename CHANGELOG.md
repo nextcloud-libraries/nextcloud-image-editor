@@ -21,3 +21,7 @@
   view zoom/pan and a responsive layout driven by container queries.
 - Redact tool (pixelate or blur), fine rotation and scale, extended
   filter presets with live previews.
+- Crop aspect presets, true rotation for rectangles and ellipses,
+  eleven filter presets, a dedicated select mode with mode-switch
+  motion, frequently-used emoji stickers with the full picker, an
+  auto-growing text overlay, and a phone-ready full-window layout.
