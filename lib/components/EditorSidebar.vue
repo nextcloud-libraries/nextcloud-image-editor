@@ -7,6 +7,7 @@ import type { EditorMode } from '../editor/context.ts'
 
 import Blur from 'vue-material-design-icons/Blur.vue'
 import Crop from 'vue-material-design-icons/Crop.vue'
+import CursorDefaultOutline from 'vue-material-design-icons/CursorDefaultOutline.vue'
 import PaletteOutline from 'vue-material-design-icons/PaletteOutline.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import StickerEmoji from 'vue-material-design-icons/StickerEmoji.vue'
@@ -23,6 +24,7 @@ defineProps<{
 const context = useEditorContext()
 
 const modes: { id: EditorMode, label: string, icon: unknown }[] = [
+	{ id: 'select', label: t('Select'), icon: CursorDefaultOutline },
 	{ id: 'crop', label: t('Crop'), icon: Crop },
 	{ id: 'finetune', label: t('Adjust'), icon: Tune },
 	{ id: 'filter', label: t('Filter'), icon: PaletteOutline },

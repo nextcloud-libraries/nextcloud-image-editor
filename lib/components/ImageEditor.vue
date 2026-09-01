@@ -127,6 +127,7 @@ const viewOptions = computed<SceneOptions | null>(() => {
 				+ Math.min(boundY, Math.max(-boundY, pan.y)),
 		},
 		showCropped,
+		fastFilters: context.interacting.value,
 	}
 })
 
@@ -511,6 +512,18 @@ watch(
 watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.cropAspect, applyCropAspect)
 
+// A soft zoom pulse when switching modes: crop pulls back for
+// overview, detail modes settle in
+watch(context.activeMode, (mode) => {
+	if (!loaded.value) {
+		return
+	}
+	pendingTransition = {
+		kind: mode === 'crop' ? 'mode-out' : 'mode-in',
+		context: captureView(),
+	}
+})
+
 // The color control follows the selection and edits it in place
 watch(context.selectedId, (id) => {
 	const annotation = context.state.value.annotations.find((entry) => entry.id === id)
@@ -683,14 +696,9 @@ defineExpose({ exportImage })
 	&__viewport {
 		position: absolute;
 		inset: 0;
-		// Keep the fitted image clear of the floating chrome
-		padding: 76px 120px 140px;
-	}
-
-	@container editor (max-width: 900px) {
-		&__viewport {
-			padding: 64px 96px 150px;
-		}
+		// The stage runs under the floating glass chrome; the fit margin
+		// keeps interactive handles visible
+		padding: 56px 16px 16px;
 	}
 
 	@container editor (max-width: 600px) {
@@ -704,7 +712,7 @@ defineExpose({ exportImage })
 		}
 
 		&__viewport {
-			padding: 60px 12px 170px;
+			padding: 56px 8px 8px;
 		}
 
 		// Anchor the rail under the top bar and cap its height so it can

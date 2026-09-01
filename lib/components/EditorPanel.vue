@@ -10,7 +10,6 @@ import { computed, shallowRef } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
 import ContrastCircle from 'vue-material-design-icons/ContrastCircle.vue'
-import CursorDefaultOutline from 'vue-material-design-icons/CursorDefaultOutline.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
 import FlipHorizontal from 'vue-material-design-icons/FlipHorizontal.vue'
 import FlipVertical from 'vue-material-design-icons/FlipVertical.vue'
@@ -74,7 +73,6 @@ const labels = {
 }
 
 const subTools: { id: Tool, label: string, icon: unknown }[] = [
-	{ id: 'select', label: t('Select'), icon: CursorDefaultOutline },
 	{ id: 'draw', label: t('Draw'), icon: Pencil },
 	{ id: 'rectangle', label: t('Rectangle'), icon: RectangleOutline },
 	{ id: 'ellipse', label: t('Ellipse'), icon: EllipseOutline },
@@ -377,6 +375,15 @@ function setPreset(preset: FilterPreset) {
 				@commit="() => {}" />
 		</template>
 
+		<!-- Select: recolor the picked annotation -->
+		<div v-else-if="context.activeMode.value === 'select'" class="editor-card__tabs">
+			<label class="editor-card__option">
+				{{ labels.color }}
+				<!-- Native input: @nextcloud/vue offers no compact color field -->
+				<input v-model="context.drawColor.value" type="color">
+			</label>
+		</div>
+
 		<!-- Sticker -->
 		<div v-else-if="context.activeMode.value === 'sticker'" class="editor-card__tabs">
 			<NcButton
@@ -459,6 +466,24 @@ function setPreset(preset: FilterPreset) {
 	padding: calc(var(--default-grid-baseline) * 2);
 	overflow-y: auto;
 	max-height: 100%;
+
+	// Slim glass-fitting scrollbar
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+
+	&::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.22);
+		border-radius: 3px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
 
 	@container editor (max-width: 600px) {
 		flex-direction: row;

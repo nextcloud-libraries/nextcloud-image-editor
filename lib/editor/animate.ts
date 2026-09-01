@@ -13,6 +13,8 @@ export type TransitionKind
 		| 'flip-h'
 		| 'flip-v'
 		| 'crop'
+		| 'mode-in'
+		| 'mode-out'
 
 export interface TransitionContext {
 	/** View scale before the change */
@@ -82,6 +84,18 @@ export function playTransition(kind: TransitionKind, deps: TransitionDeps, conte
 	pivotOnCenter(deps)
 
 	switch (kind) {
+		case 'mode-in':
+			// Subtle settle-in when a mode wants focus on detail
+			group.opacity(0.85)
+			group.scale({ x: scale * 0.97, y: scale * 0.97 })
+			group.to({ opacity: 1, scaleX: scale, scaleY: scale, duration: 0.22, easing })
+			return
+		case 'mode-out':
+			// Slight pull-back when a mode wants overview (crop)
+			group.opacity(0.85)
+			group.scale({ x: scale * 1.03, y: scale * 1.03 })
+			group.to({ opacity: 1, scaleX: scale, scaleY: scale, duration: 0.22, easing })
+			return
 		case 'load':
 			group.opacity(0)
 			group.scale({ x: scale * 0.96, y: scale * 0.96 })

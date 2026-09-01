@@ -22,14 +22,15 @@ export type Tool
 		| 'redact'
 
 /** Top-level editor sections, presented as sidebar tabs */
-export type EditorMode = 'crop' | 'finetune' | 'filter' | 'annotate' | 'sticker' | 'redact'
+export type EditorMode = 'select' | 'crop' | 'finetune' | 'filter' | 'annotate' | 'sticker' | 'redact'
 
 /** The canvas tool each mode starts with */
 export const MODE_DEFAULT_TOOL: Record<EditorMode, Tool> = {
+	select: 'select',
 	crop: 'crop',
 	finetune: 'adjust',
 	filter: 'adjust',
-	annotate: 'select',
+	annotate: 'draw',
 	sticker: 'sticker',
 	redact: 'redact',
 }
@@ -57,6 +58,8 @@ export interface EditorContext {
 	viewZoom: ShallowRef<number>
 	/** View-only pan offset in stage pixels, only meaningful when zoomed */
 	viewPan: ShallowRef<{ x: number, y: number }>
+	/** True between preview() and the next commit: a slider is scrubbing */
+	interacting: ShallowRef<boolean>
 	/** Id of the annotation selected in select mode */
 	selectedId: ShallowRef<string | null>
 	canUndo: ComputedRef<boolean>
@@ -100,14 +103,17 @@ export function createEditorContext(): EditorContext {
 		cropAspect: shallowRef<number | 'original' | null>(null),
 		viewZoom: shallowRef(1),
 		viewPan: shallowRef({ x: 0, y: 0 }),
+		interacting: shallowRef(false),
 		selectedId: shallowRef<string | null>(null),
 		canUndo: history.canUndo,
 		canRedo: history.canRedo,
 		commit(next) {
+			context.interacting.value = false
 			state.value = next
 			history.push(structuredClone(next))
 		},
 		preview(next) {
+			context.interacting.value = true
 			state.value = next
 		},
 		undo() {
