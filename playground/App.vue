@@ -120,15 +120,24 @@ function onChange(state: EditorState) {
 
 <style scoped>
 .playground {
-	display: flex;
-	flex-direction: column;
 	height: 100vh;
 }
 
+/* Test-observability overlay: must never affect the editor layout,
+   moving it mid-test shifts every canvas coordinate */
 output {
-	flex-shrink: 0;
-	max-height: 40px;
-	overflow: auto;
-	font-size: 10px;
+	position: fixed;
+	inset-inline: 0;
+	max-height: 24px;
+	overflow: hidden;
+	font-size: 9px;
+	opacity: 0.4;
+	pointer-events: none;
+	z-index: 10;
 }
+
+output[data-test='saved'] { inset-block-end: 72px; }
+output[data-test='state'] { inset-block-end: 48px; }
+output[data-test='cancelled'] { inset-block-end: 24px; }
+output[data-test='errors'] { inset-block-end: 0; }
 </style>
