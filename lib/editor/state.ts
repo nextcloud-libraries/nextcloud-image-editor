@@ -47,7 +47,10 @@ export interface ArrowAnnotation {
 export interface BoxAnnotation {
 	id: string
 	type: 'rectangle' | 'ellipse'
+	/** The shape's local frame: rotation pivots on the rect's top-left */
 	rect: Rect
+	/** Clockwise degrees around the rect's top-left corner */
+	rotation: number
 	color: string
 	strokeWidth: number
 }
@@ -180,6 +183,13 @@ function mapAnnotationCW(annotation: Annotation, height: number): Annotation {
 			return { ...annotation, points: mapPointsCW(annotation.points, height) as ArrowAnnotation['points'] }
 		case 'rectangle':
 		case 'ellipse':
+			// The anchor maps like a point and the rotation field absorbs
+			// the quarter turn; the local frame (width/height) is untouched
+			return {
+				...annotation,
+				rect: { ...annotation.rect, x: height - annotation.rect.y, y: annotation.rect.x },
+				rotation: (annotation.rotation + 90) % 360,
+			}
 		case 'redact':
 			return { ...annotation, rect: mapRectCW(annotation.rect, height) }
 		case 'text':
@@ -223,7 +233,20 @@ function mapAnnotationFlipX(annotation: Annotation, width: number): Annotation {
 			return { ...annotation, points } as Annotation
 		}
 		case 'rectangle':
-		case 'ellipse':
+		case 'ellipse': {
+			// Exact mirror: the new anchor is the mirrored image of the
+			// rotated top-right corner, with the rotation direction negated
+			const radians = (annotation.rotation * Math.PI) / 180
+			return {
+				...annotation,
+				rect: {
+					...annotation.rect,
+					x: width - annotation.rect.x - annotation.rect.width * Math.cos(radians),
+					y: annotation.rect.y + annotation.rect.width * Math.sin(radians),
+				},
+				rotation: (360 - annotation.rotation) % 360,
+			}
+		}
 		case 'redact':
 			return {
 				...annotation,
@@ -276,7 +299,18 @@ function mapAnnotationFlipY(annotation: Annotation, height: number): Annotation 
 			return { ...annotation, points } as Annotation
 		}
 		case 'rectangle':
-		case 'ellipse':
+		case 'ellipse': {
+			const radians = (annotation.rotation * Math.PI) / 180
+			return {
+				...annotation,
+				rect: {
+					...annotation.rect,
+					x: annotation.rect.x - annotation.rect.height * Math.sin(radians),
+					y: height - annotation.rect.y - annotation.rect.height * Math.cos(radians),
+				},
+				rotation: (360 - annotation.rotation) % 360,
+			}
+		}
 		case 'redact':
 			return {
 				...annotation,

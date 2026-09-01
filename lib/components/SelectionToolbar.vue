@@ -30,7 +30,7 @@ const deleteLabel = t('Delete')
 		data-test="selection-toolbar"
 		:style="{
 			insetInlineStart: `${box.x + box.width / 2}px`,
-			insetBlockStart: `${Math.max(4, box.y - 48)}px`,
+			insetBlockStart: `${box.y + box.height + 12}px`,
 		}">
 		<NcButton
 			data-test="duplicate"

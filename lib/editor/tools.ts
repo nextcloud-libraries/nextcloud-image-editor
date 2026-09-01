@@ -87,7 +87,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				break
 			case 'rectangle':
 			case 'ellipse':
-				active = { id: newId(), type: tool, rect: { x: point.x, y: point.y, width: 1, height: 1 }, color: options.color, strokeWidth: options.strokeWidth }
+				active = { id: newId(), type: tool, rect: { x: point.x, y: point.y, width: 1, height: 1 }, rotation: 0, color: options.color, strokeWidth: options.strokeWidth }
 				break
 			case 'redact':
 				active = { id: newId(), type: 'redact', rect: { x: point.x, y: point.y, width: 1, height: 1 }, style: options.redactStyle }
