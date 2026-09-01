@@ -139,7 +139,9 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		// distort stroke geometry unpredictably. Redactions stay
 		// axis-aligned: their pixel sampling has no notion of an angle.
 		const movableOnly = annotation?.type === 'draw' || annotation?.type === 'arrow'
-		const rotatable = annotation !== undefined && 'rotation' in annotation && annotation.type !== 'redact'
+		// Redactions carry no rotation field, so the narrowing excludes
+		// them naturally
+		const rotatable = annotation !== undefined && 'rotation' in annotation
 		transformer.resizeEnabled(!movableOnly)
 		transformer.rotateEnabled(rotatable)
 		transformer.nodes([node])

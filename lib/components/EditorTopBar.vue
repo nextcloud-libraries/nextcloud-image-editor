@@ -3,7 +3,10 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import { ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcDialog from '@nextcloud/vue/components/NcDialog'
+import Close from 'vue-material-design-icons/Close.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
 import Redo from 'vue-material-design-icons/Redo.vue'
@@ -29,11 +32,15 @@ const labels = {
 	undo: t('Undo'),
 	redo: t('Redo'),
 	revert: t('Revert all changes'),
+	revertText: t('All edits will be discarded. This cannot be undone by closing the dialog.'),
 	zoomIn: t('Zoom in'),
 	zoomOut: t('Zoom out'),
+	resetZoom: t('Reset zoom'),
 	save: t('Save'),
 	cancel: t('Cancel'),
 }
+
+const confirmRevert = ref(false)
 
 /**
  * Step the view magnification, snapping back to the fitted view.
@@ -44,26 +51,47 @@ function stepZoom(direction: 1 | -1) {
 	const factor = direction === 1 ? 1.5 : 1 / 1.5
 	const next = context.viewZoom.value * factor
 	context.viewZoom.value = next < 1.05 ? 1 : Math.min(4, next)
+	if (context.viewZoom.value === 1) {
+		context.viewPan.value = { x: 0, y: 0 }
+	}
+}
+
+/**
+ * Reset the view to the fitted state.
+ */
+function resetZoom() {
+	context.viewZoom.value = 1
+	context.viewPan.value = { x: 0, y: 0 }
+}
+
+/**
+ * The user confirmed the revert.
+ */
+function onConfirmRevert() {
+	confirmRevert.value = false
+	emit('revert')
 }
 </script>
 
 <template>
 	<div class="editor-topbar">
-		<div class="editor-topbar__start">
+		<span class="editor-topbar__spacer" />
+
+		<div class="editor-topbar__history">
 			<NcButton
 				data-test="revert"
 				:aria-label="labels.revert"
 				:title="labels.revert"
 				:disabled="!loaded || !context.canUndo.value"
 				variant="tertiary"
-				@click="emit('revert')">
+				@click="confirmRevert = true">
 				<template #icon>
 					<Restore :size="20" />
 				</template>
 			</NcButton>
-		</div>
 
-		<div class="editor-topbar__history">
+			<span class="editor-topbar__separator" />
+
 			<NcButton
 				:aria-label="labels.undo"
 				:title="labels.undo"
@@ -98,6 +126,16 @@ function stepZoom(direction: 1 | -1) {
 					<MagnifyMinusOutline :size="20" />
 				</template>
 			</NcButton>
+			<button
+				type="button"
+				class="editor-topbar__zoom"
+				data-test="zoom-reset"
+				:aria-label="labels.resetZoom"
+				:title="labels.resetZoom"
+				:disabled="!loaded"
+				@click="resetZoom">
+				{{ Math.round(context.viewZoom.value * 100) }}%
+			</button>
 			<NcButton
 				data-test="zoom-in"
 				:aria-label="labels.zoomIn"
@@ -112,9 +150,23 @@ function stepZoom(direction: 1 | -1) {
 		</div>
 
 		<div class="editor-topbar__actions">
-			<span class="editor-topbar__zoom" aria-hidden="true">{{ Math.round(context.viewZoom.value * 100) }}%</span>
-			<NcButton data-test="cancel" variant="tertiary" @click="emit('cancel')">
+			<NcButton
+				data-test="cancel"
+				class="editor-topbar__cancel-text"
+				variant="tertiary"
+				@click="emit('cancel')">
 				{{ labels.cancel }}
+			</NcButton>
+			<NcButton
+				data-test="cancel-icon"
+				class="editor-topbar__cancel-icon"
+				:aria-label="labels.cancel"
+				:title="labels.cancel"
+				variant="tertiary"
+				@click="emit('cancel')">
+				<template #icon>
+					<Close :size="20" />
+				</template>
 			</NcButton>
 			<NcButton
 				data-test="save"
@@ -124,6 +176,24 @@ function stepZoom(direction: 1 | -1) {
 				{{ labels.save }}
 			</NcButton>
 		</div>
+
+		<NcDialog
+			v-model:open="confirmRevert"
+			:name="labels.revert"
+			data-test="revert-dialog">
+			<p>{{ labels.revertText }}</p>
+			<template #actions>
+				<NcButton variant="tertiary" @click="confirmRevert = false">
+					{{ labels.cancel }}
+				</NcButton>
+				<NcButton
+					data-test="revert-confirm"
+					variant="error"
+					@click="onConfirmRevert">
+					{{ labels.revert }}
+				</NcButton>
+			</template>
+		</NcDialog>
 	</div>
 </template>
 
@@ -137,10 +207,10 @@ function stepZoom(direction: 1 | -1) {
 	&__history {
 		display: flex;
 		align-items: center;
-		gap: var(--default-grid-baseline);
+		gap: 2px;
 		padding: 2px;
 		border-radius: var(--border-radius-pill, 100px);
-		background: var(--editor-glass, rgba(24, 24, 28, 0.55));
+		background: var(--editor-glass, rgba(22, 22, 26, 0.6));
 		backdrop-filter: blur(24px) saturate(1.4);
 		border: 1px solid rgba(255, 255, 255, 0.09);
 	}
@@ -151,31 +221,63 @@ function stepZoom(direction: 1 | -1) {
 		background-color: var(--color-border);
 	}
 
+	&__zoom {
+		min-width: 48px;
+		border: none;
+		background: transparent;
+		color: var(--color-main-text);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.8;
+		cursor: pointer;
+		padding: 0 4px;
+
+		&:hover:not(:disabled) {
+			opacity: 1;
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary-element);
+			outline-offset: 2px;
+		}
+
+		&:disabled {
+			cursor: default;
+			opacity: 0.4;
+		}
+	}
+
 	// Both sides flex equally so the history pill stays centered
-	&__start,
+	&__spacer,
 	&__actions {
 		flex: 1;
 		display: flex;
+		align-items: center;
 		gap: var(--default-grid-baseline);
 	}
 
 	&__actions {
-		align-items: center;
 		justify-content: flex-end;
 	}
 
-	&__zoom {
-		font-size: 12px;
-		font-variant-numeric: tabular-nums;
-		opacity: 0.7;
-		margin-inline-end: var(--default-grid-baseline);
+	// Text cancel on wide layouts, icon-only on narrow ones
+	&__cancel-icon {
+		display: none !important;
 	}
 
 	@container editor (max-width: 600px) {
 		padding-inline: calc(var(--default-grid-baseline) * 2);
 
+		&__cancel-text {
+			display: none !important;
+		}
+
+		&__cancel-icon {
+			display: inline-flex !important;
+		}
+
 		&__zoom {
-			display: none;
+			min-width: 40px;
 		}
 	}
 }
