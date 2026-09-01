@@ -5,6 +5,7 @@
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
 import Konva from 'konva'
+import { primaryColor } from '../utils/theme.ts'
 
 export interface SelectionDeps {
 	stage: Konva.Stage
@@ -76,10 +77,17 @@ function applyNodeTransform(annotation: Annotation, node: Konva.Node): Annotatio
  * @param deps stage access and state callbacks
  */
 export function attachSelection(deps: SelectionDeps): () => void {
+	const accent = primaryColor()
 	const transformer = new Konva.Transformer({
 		rotateEnabled: true,
 		flipEnabled: false,
 		ignoreStroke: true,
+		anchorSize: 12,
+		anchorCornerRadius: 6,
+		anchorFill: '#fff',
+		anchorStroke: accent,
+		borderStroke: accent,
+		rotateAnchorOffset: 24,
 	})
 	const layer = new Konva.Layer({ name: 'selection' })
 	layer.add(transformer)
