@@ -6,19 +6,21 @@
 import type { Tool } from '../editor/context.ts'
 import type { FilterPreset } from '../editor/state.ts'
 
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
+import ContrastCircle from 'vue-material-design-icons/ContrastCircle.vue'
 import CursorDefaultOutline from 'vue-material-design-icons/CursorDefaultOutline.vue'
-import Delete from 'vue-material-design-icons/Delete.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
 import FlipHorizontal from 'vue-material-design-icons/FlipHorizontal.vue'
 import FlipVertical from 'vue-material-design-icons/FlipVertical.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
+import InvertColors from 'vue-material-design-icons/InvertColors.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import RotateLeft from 'vue-material-design-icons/RotateLeft.vue'
 import RotateRight from 'vue-material-design-icons/RotateRight.vue'
+import WhiteBalanceSunny from 'vue-material-design-icons/WhiteBalanceSunny.vue'
 import { useEditorContext } from '../editor/context.ts'
 import { presetThumbnail } from '../editor/render.ts'
 import { t } from '../utils/l10n.ts'
@@ -37,7 +39,6 @@ const emit = defineEmits<{
 	flipVertical: []
 	applyCrop: []
 	resetCrop: []
-	deleteSelection: []
 }>()
 
 const context = useEditorContext()
@@ -45,27 +46,17 @@ const context = useEditorContext()
 const STICKERS = ['😀', '😍', '🎉', '👍', '❤️', '⭐', '🔥', '💡', '✅', '❌', '❓', '⚠️']
 
 const labels = {
-	transform: t('Transform'),
-	rotation: t('Rotation'),
-	scale: t('Scale'),
 	rotateLeft: t('Rotate left'),
 	rotateRight: t('Rotate right'),
 	flipHorizontal: t('Flip horizontal'),
 	flipVertical: t('Flip vertical'),
 	applyCrop: t('Apply crop'),
 	resetCrop: t('Reset crop'),
-	light: t('Light'),
-	brightness: t('Brightness'),
-	contrast: t('Contrast'),
-	saturation: t('Saturation'),
-	tool: t('Tool'),
+	rotation: t('Rotation'),
+	scale: t('Scale'),
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
 	fontSize: t('Font size'),
-	selection: t('Selection'),
-	deleteSelection: t('Delete selection'),
-	sticker: t('Sticker'),
-	style: t('Style'),
 	pixelate: t('Pixelate'),
 	blur: t('Blur'),
 }
@@ -79,11 +70,20 @@ const subTools: { id: Tool, label: string, icon: unknown }[] = [
 	{ id: 'text', label: t('Text'), icon: FormatText },
 ]
 
-const adjustments = [
-	{ id: 'brightness', label: labels.brightness },
-	{ id: 'contrast', label: labels.contrast },
-	{ id: 'saturation', label: labels.saturation },
-] as const
+type AdjustmentKey = 'brightness' | 'contrast' | 'saturation'
+const adjustments: { id: AdjustmentKey, label: string, icon: unknown }[] = [
+	{ id: 'brightness', label: t('Brightness'), icon: WhiteBalanceSunny },
+	{ id: 'contrast', label: t('Contrast'), icon: ContrastCircle },
+	{ id: 'saturation', label: t('Saturation'), icon: InvertColors },
+]
+const activeAdjustment = shallowRef<AdjustmentKey>('brightness')
+
+type CropControl = 'rotation' | 'scale'
+const cropControls: { id: CropControl, label: string }[] = [
+	{ id: 'rotation', label: t('Rotation') },
+	{ id: 'scale', label: t('Scale') },
+]
+const activeCropControl = shallowRef<CropControl>('rotation')
 
 const presets: { id: FilterPreset, label: string }[] = [
 	{ id: 'none', label: t('No filter') },
@@ -108,26 +108,29 @@ const presetPreviews = computed(() => {
 const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow'].includes(context.activeTool.value))
 
 /**
- * Live-preview an adjustment while its slider is dragged.
+ * Live-preview the active adjustment while the slider is dragged.
  *
- * @param key the adjustment to change
  * @param event the range input event
  */
-function onAdjustInput(key: 'brightness' | 'contrast' | 'saturation', event: Event) {
+function onAdjustInput(event: Event) {
 	const value = Number((event.target as HTMLInputElement).value)
 	const state = context.state.value
-	context.preview({ ...state, adjustments: { ...state.adjustments, [key]: value } })
+	context.preview({
+		...state,
+		adjustments: { ...state.adjustments, [activeAdjustment.value]: value },
+	})
 }
 
 /**
- * Live-preview fine rotation or zoom while its slider is dragged.
+ * Live-preview fine rotation or zoom while the slider is dragged.
  *
- * @param key which transform value to change
  * @param event the range input event
  */
-function onTransformInput(key: 'fineRotation' | 'zoom', event: Event) {
+function onTransformInput(event: Event) {
 	const value = Number((event.target as HTMLInputElement).value)
-	context.preview({ ...context.state.value, [key]: value })
+	context.preview(activeCropControl.value === 'rotation'
+		? { ...context.state.value, fineRotation: value }
+		: { ...context.state.value, zoom: value })
 }
 
 /**
@@ -148,84 +151,85 @@ function setPreset(preset: FilterPreset) {
 </script>
 
 <template>
-	<aside class="editor-panel">
-		<!-- Crop: transform sliders and orientation actions -->
-		<template v-if="context.activeMode.value === 'crop'">
-			<section class="editor-panel__section">
-				<h3>{{ labels.transform }}</h3>
-				<div class="editor-panel__grid">
-					<NcButton
-						:aria-label="labels.rotateLeft"
-						:title="labels.rotateLeft"
-						:disabled="!loaded"
-						variant="tertiary"
-						@click="emit('rotateCcw')">
-						<template #icon>
-							<RotateLeft :size="20" />
-						</template>
-					</NcButton>
-					<NcButton
-						:aria-label="labels.rotateRight"
-						:title="labels.rotateRight"
-						:disabled="!loaded"
-						variant="tertiary"
-						@click="emit('rotateCw')">
-						<template #icon>
-							<RotateRight :size="20" />
-						</template>
-					</NcButton>
-					<NcButton
-						:aria-label="labels.flipHorizontal"
-						:title="labels.flipHorizontal"
-						:disabled="!loaded"
-						variant="tertiary"
-						@click="emit('flipHorizontal')">
-						<template #icon>
-							<FlipHorizontal :size="20" />
-						</template>
-					</NcButton>
-					<NcButton
-						:aria-label="labels.flipVertical"
-						:title="labels.flipVertical"
-						:disabled="!loaded"
-						variant="tertiary"
-						@click="emit('flipVertical')">
-						<template #icon>
-							<FlipVertical :size="20" />
-						</template>
-					</NcButton>
-				</div>
+	<!-- Filter mode gets a vertical preview strip, everything else the
+		bottom control card -->
+	<div v-if="context.activeMode.value === 'filter'" class="editor-strip">
+		<button
+			v-for="preset in presetPreviews"
+			:key="preset.id"
+			type="button"
+			class="editor-strip__chip"
+			:class="{ 'editor-strip__chip--active': context.state.value.preset === preset.id }"
+			:data-test="`preset-${preset.id}`"
+			:disabled="!loaded"
+			:aria-pressed="context.state.value.preset === preset.id"
+			:title="preset.label"
+			@click="setPreset(preset.id)">
+			<img :src="preset.url" :alt="preset.label">
+			<span>{{ preset.label }}</span>
+		</button>
+	</div>
 
-				<label class="editor-panel__row">
-					<span>{{ labels.rotation }}</span>
-					<output>{{ context.state.value.fineRotation }}°</output>
-					<input
-						:value="context.state.value.fineRotation"
-						data-test="fine-rotation"
-						:disabled="!loaded"
-						type="range"
-						min="-45"
-						max="45"
-						step="1"
-						@input="onTransformInput('fineRotation', $event)"
-						@change="onSliderCommit">
-				</label>
-				<label class="editor-panel__row">
-					<span>{{ labels.scale }}</span>
-					<output>×{{ context.state.value.zoom.toFixed(2) }}</output>
-					<input
-						:value="context.state.value.zoom"
-						data-test="zoom"
-						:disabled="!loaded"
-						type="range"
-						min="1"
-						max="3"
-						step="0.05"
-						@input="onTransformInput('zoom', $event)"
-						@change="onSliderCommit">
-				</label>
-			</section>
-			<section class="editor-panel__section editor-panel__section--actions">
+	<div v-else class="editor-card">
+		<!-- Crop -->
+		<template v-if="context.activeMode.value === 'crop'">
+			<div class="editor-card__tabs">
+				<NcButton
+					:aria-label="labels.rotateLeft"
+					:title="labels.rotateLeft"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="emit('rotateCcw')">
+					<template #icon>
+						<RotateLeft :size="20" />
+					</template>
+				</NcButton>
+				<NcButton
+					:aria-label="labels.rotateRight"
+					:title="labels.rotateRight"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="emit('rotateCw')">
+					<template #icon>
+						<RotateRight :size="20" />
+					</template>
+				</NcButton>
+				<NcButton
+					:aria-label="labels.flipHorizontal"
+					:title="labels.flipHorizontal"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="emit('flipHorizontal')">
+					<template #icon>
+						<FlipHorizontal :size="20" />
+					</template>
+				</NcButton>
+				<NcButton
+					:aria-label="labels.flipVertical"
+					:title="labels.flipVertical"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="emit('flipVertical')">
+					<template #icon>
+						<FlipVertical :size="20" />
+					</template>
+				</NcButton>
+
+				<span class="editor-card__divider" />
+
+				<NcButton
+					v-for="control in cropControls"
+					:key="control.id"
+					:data-test="`tab-${control.id}`"
+					:pressed="activeCropControl === control.id"
+					:disabled="!loaded"
+					variant="tertiary"
+					@click="activeCropControl = control.id">
+					{{ control.label }}
+				</NcButton>
+
+				<span class="editor-card__divider" />
+
 				<NcButton
 					data-test="reset-crop"
 					variant="tertiary"
@@ -240,224 +244,262 @@ function setPreset(preset: FilterPreset) {
 					@click="emit('applyCrop')">
 					{{ labels.applyCrop }}
 				</NcButton>
-			</section>
+			</div>
+			<div class="editor-card__slider">
+				<input
+					v-if="activeCropControl === 'rotation'"
+					:value="context.state.value.fineRotation"
+					data-test="fine-rotation"
+					:disabled="!loaded"
+					:aria-label="labels.rotation"
+					type="range"
+					min="-45"
+					max="45"
+					step="1"
+					@input="onTransformInput"
+					@change="onSliderCommit">
+				<input
+					v-else
+					:value="context.state.value.zoom"
+					data-test="zoom"
+					:disabled="!loaded"
+					:aria-label="labels.scale"
+					type="range"
+					min="1"
+					max="3"
+					step="0.05"
+					@input="onTransformInput"
+					@change="onSliderCommit">
+				<output>{{
+					activeCropControl === 'rotation'
+						? `${context.state.value.fineRotation}°`
+						: `×${context.state.value.zoom.toFixed(2)}`
+				}}</output>
+			</div>
 		</template>
 
-		<!-- Finetune: all adjustment sliders stacked -->
-		<section v-else-if="context.activeMode.value === 'finetune'" class="editor-panel__section">
-			<h3>{{ labels.light }}</h3>
-			<label
-				v-for="adjustment in adjustments"
-				:key="adjustment.id"
-				class="editor-panel__row">
-				<span>{{ adjustment.label }}</span>
-				<output>{{ context.state.value.adjustments[adjustment.id] > 0 ? '+' : '' }}{{ context.state.value.adjustments[adjustment.id] }}</output>
-				<input
-					:value="context.state.value.adjustments[adjustment.id]"
-					:data-test="`adjust-${adjustment.id}`"
+		<!-- Adjust -->
+		<template v-else-if="context.activeMode.value === 'finetune'">
+			<div class="editor-card__tabs">
+				<button
+					v-for="adjustment in adjustments"
+					:key="adjustment.id"
+					type="button"
+					class="editor-card__tab"
+					:class="{ 'editor-card__tab--active': activeAdjustment === adjustment.id }"
+					:data-test="`tab-${adjustment.id}`"
 					:disabled="!loaded"
+					:aria-pressed="activeAdjustment === adjustment.id"
+					@click="activeAdjustment = adjustment.id">
+					<component :is="adjustment.icon" :size="20" />
+					<span>{{ adjustment.label }}</span>
+				</button>
+			</div>
+			<div class="editor-card__slider">
+				<input
+					:value="context.state.value.adjustments[activeAdjustment]"
+					:data-test="`adjust-${activeAdjustment}`"
+					:disabled="!loaded"
+					:aria-label="adjustments.find((entry) => entry.id === activeAdjustment)!.label"
 					type="range"
 					min="-100"
 					max="100"
 					step="1"
-					@input="onAdjustInput(adjustment.id, $event)"
+					@input="onAdjustInput"
 					@change="onSliderCommit">
-			</label>
-		</section>
-
-		<!-- Filter: preset preview grid -->
-		<section v-else-if="context.activeMode.value === 'filter'" class="editor-panel__section">
-			<div class="editor-panel__chips">
-				<button
-					v-for="preset in presetPreviews"
-					:key="preset.id"
-					type="button"
-					class="editor-panel__chip"
-					:class="{ 'editor-panel__chip--active': context.state.value.preset === preset.id }"
-					:data-test="`preset-${preset.id}`"
-					:disabled="!loaded"
-					:aria-pressed="context.state.value.preset === preset.id"
-					@click="setPreset(preset.id)">
-					<img :src="preset.url" alt="">
-					<span>{{ preset.label }}</span>
-				</button>
+				<output>{{ context.state.value.adjustments[activeAdjustment] > 0 ? '+' : '' }}{{ context.state.value.adjustments[activeAdjustment] }}</output>
 			</div>
-		</section>
+		</template>
 
-		<!-- Annotate: sub-tools plus stroke options -->
+		<!-- Annotate -->
 		<template v-else-if="context.activeMode.value === 'annotate'">
-			<section class="editor-panel__section">
-				<h3>{{ labels.tool }}</h3>
-				<div class="editor-panel__grid">
-					<NcButton
-						v-for="tool in subTools"
-						:key="tool.id"
-						:aria-label="tool.label"
-						:title="tool.label"
-						:disabled="!loaded"
-						:pressed="context.activeTool.value === tool.id"
-						variant="tertiary"
-						@click="context.activeTool.value = tool.id">
-						<template #icon>
-							<component :is="tool.icon" :size="20" />
-						</template>
-					</NcButton>
-				</div>
-				<label class="editor-panel__row editor-panel__row--inline">
-					<span>{{ labels.color }}</span>
+			<div class="editor-card__tabs">
+				<NcButton
+					v-for="tool in subTools"
+					:key="tool.id"
+					:aria-label="tool.label"
+					:title="tool.label"
+					:disabled="!loaded"
+					:pressed="context.activeTool.value === tool.id"
+					variant="tertiary"
+					@click="context.activeTool.value = tool.id">
+					<template #icon>
+						<component :is="tool.icon" :size="20" />
+					</template>
+				</NcButton>
+
+				<span class="editor-card__divider" />
+
+				<label class="editor-card__option">
+					{{ labels.color }}
 					<!-- Native input: @nextcloud/vue offers no compact color field -->
 					<input v-model="context.drawColor.value" type="color">
 				</label>
-				<label v-if="showStrokeOptions" class="editor-panel__row">
-					<span>{{ labels.strokeWidth }}</span>
-					<output>{{ context.strokeWidth.value }}</output>
-					<input
-						v-model.number="context.strokeWidth.value"
-						type="range"
-						min="1"
-						max="32"
-						step="1">
-				</label>
-				<label v-if="context.activeTool.value === 'text'" class="editor-panel__row">
-					<span>{{ labels.fontSize }}</span>
-					<output>{{ context.fontSize.value }}</output>
-					<input
-						v-model.number="context.fontSize.value"
-						type="range"
-						min="8"
-						max="128"
-						step="1">
-				</label>
-			</section>
-			<section
-				v-if="context.selectedId.value !== null"
-				class="editor-panel__section editor-panel__section--actions">
-				<NcButton variant="tertiary" @click="emit('deleteSelection')">
-					<template #icon>
-						<Delete :size="20" />
-					</template>
-					{{ labels.deleteSelection }}
-				</NcButton>
-			</section>
+			</div>
+			<div v-if="showStrokeOptions" class="editor-card__slider">
+				<input
+					v-model.number="context.strokeWidth.value"
+					:aria-label="labels.strokeWidth"
+					type="range"
+					min="1"
+					max="32"
+					step="1">
+				<output>{{ context.strokeWidth.value }}</output>
+			</div>
+			<div v-else-if="context.activeTool.value === 'text'" class="editor-card__slider">
+				<input
+					v-model.number="context.fontSize.value"
+					:aria-label="labels.fontSize"
+					type="range"
+					min="8"
+					max="128"
+					step="1">
+				<output>{{ context.fontSize.value }}</output>
+			</div>
 		</template>
 
-		<!-- Sticker: emoji grid -->
-		<section v-else-if="context.activeMode.value === 'sticker'" class="editor-panel__section">
-			<h3>{{ labels.sticker }}</h3>
-			<div class="editor-panel__grid">
-				<NcButton
-					v-for="sticker in STICKERS"
-					:key="sticker"
-					:aria-label="sticker"
-					:pressed="context.sticker.value === sticker"
-					variant="tertiary"
-					@click="context.sticker.value = sticker">
-					{{ sticker }}
-				</NcButton>
-			</div>
-		</section>
+		<!-- Sticker -->
+		<div v-else-if="context.activeMode.value === 'sticker'" class="editor-card__tabs">
+			<NcButton
+				v-for="sticker in STICKERS"
+				:key="sticker"
+				:aria-label="sticker"
+				:pressed="context.sticker.value === sticker"
+				variant="tertiary"
+				@click="context.sticker.value = sticker">
+				{{ sticker }}
+			</NcButton>
+		</div>
 
-		<!-- Redact: obfuscation style -->
-		<section v-else-if="context.activeMode.value === 'redact'" class="editor-panel__section">
-			<h3>{{ labels.style }}</h3>
-			<div class="editor-panel__grid">
-				<NcButton
-					data-test="redact-pixelate"
-					:pressed="context.redactStyle.value === 'pixelate'"
-					:disabled="!loaded"
-					variant="tertiary"
-					@click="context.redactStyle.value = 'pixelate'">
-					{{ labels.pixelate }}
-				</NcButton>
-				<NcButton
-					data-test="redact-blur"
-					:pressed="context.redactStyle.value === 'blur'"
-					:disabled="!loaded"
-					variant="tertiary"
-					@click="context.redactStyle.value = 'blur'">
-					{{ labels.blur }}
-				</NcButton>
-			</div>
-		</section>
-	</aside>
+		<!-- Redact -->
+		<div v-else-if="context.activeMode.value === 'redact'" class="editor-card__tabs">
+			<NcButton
+				data-test="redact-pixelate"
+				:pressed="context.redactStyle.value === 'pixelate'"
+				:disabled="!loaded"
+				variant="tertiary"
+				@click="context.redactStyle.value = 'pixelate'">
+				{{ labels.pixelate }}
+			</NcButton>
+			<NcButton
+				data-test="redact-blur"
+				:pressed="context.redactStyle.value === 'blur'"
+				:disabled="!loaded"
+				variant="tertiary"
+				@click="context.redactStyle.value = 'blur'">
+				{{ labels.blur }}
+			</NcButton>
+		</div>
+	</div>
 </template>
 
 <style scoped lang="scss">
-.editor-panel {
-	width: 264px;
-	flex-shrink: 0;
-	overflow-y: auto;
-	padding: calc(var(--default-grid-baseline) * 3);
+%glass {
+	background: var(--editor-glass, rgba(22, 22, 26, 0.65));
+	backdrop-filter: blur(24px) saturate(1.4);
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.editor-card {
+	@extend %glass;
 	display: flex;
 	flex-direction: column;
-	gap: calc(var(--default-grid-baseline) * 4);
-	border-inline-start: 1px solid var(--color-border);
+	align-items: center;
+	gap: calc(var(--default-grid-baseline) * 2);
+	min-width: 420px;
+	max-width: min(680px, 90%);
+	padding: calc(var(--default-grid-baseline) * 3) calc(var(--default-grid-baseline) * 5);
+	border-radius: 20px;
 
-	&__section {
+	&__tabs {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: calc(var(--default-grid-baseline) * 2);
+	}
+
+	// Icon-above-label adjustment tab, reference style
+	&__tab {
 		display: flex;
 		flex-direction: column;
-		gap: calc(var(--default-grid-baseline) * 2);
+		align-items: center;
+		gap: 4px;
+		min-width: 64px;
+		padding: calc(var(--default-grid-baseline) * 2) var(--default-grid-baseline);
+		border: none;
+		border-radius: var(--border-radius-large, 12px);
+		background: transparent;
+		color: var(--color-main-text);
+		font-size: 11px;
+		cursor: pointer;
+		transition: background-color 0.12s ease, color 0.12s ease;
 
-		h3 {
-			margin: 0;
-			font-size: 13px;
-			font-weight: 600;
-			opacity: 0.9;
+		&:hover:not(:disabled) {
+			background-color: rgba(255, 255, 255, 0.07);
 		}
 
-		&--actions {
-			flex-direction: row;
-			justify-content: flex-end;
-			gap: var(--default-grid-baseline);
+		&--active {
+			background-color: rgba(255, 255, 255, 0.1);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary-element);
+			outline-offset: 2px;
+		}
+
+		&:disabled {
+			opacity: 0.5;
+			cursor: default;
 		}
 	}
 
-	&__grid {
+	&__divider {
+		width: 1px;
+		height: 24px;
+		background-color: rgba(255, 255, 255, 0.12);
+	}
+
+	&__option {
 		display: flex;
-		flex-wrap: wrap;
+		align-items: center;
 		gap: var(--default-grid-baseline);
+		font-size: 12px;
+		opacity: 0.9;
 	}
 
-	// "Label ······· value" row with a full-width slider below
-	&__row {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		row-gap: 2px;
-		font-size: 12px;
-
-		span {
-			opacity: 0.75;
-		}
-
-		output {
-			font-variant-numeric: tabular-nums;
-			opacity: 0.9;
-		}
+	// Thin line slider with a round thumb and the value to its right
+	&__slider {
+		display: flex;
+		align-items: center;
+		gap: calc(var(--default-grid-baseline) * 3);
+		width: 100%;
 
 		input[type='range'] {
-			grid-column: 1 / -1;
 			appearance: none;
-			width: 100%;
+			flex: 1;
 			height: 20px;
 			margin: 0;
-			background:
-				linear-gradient(var(--color-border), var(--color-border)) center / 100% 2px no-repeat;
+			background: linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)) center / 100% 2px no-repeat;
 			cursor: ew-resize;
 
 			&::-webkit-slider-thumb {
 				appearance: none;
-				width: 12px;
-				height: 12px;
+				width: 14px;
+				height: 14px;
 				border-radius: 50%;
-				background: var(--color-main-text);
+				background: #fff;
+				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 			}
 
 			&::-moz-range-thumb {
-				width: 12px;
-				height: 12px;
+				width: 14px;
+				height: 14px;
 				border: none;
 				border-radius: 50%;
-				background: var(--color-main-text);
+				background: #fff;
+				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 			}
 
 			&:focus-visible {
@@ -466,41 +508,49 @@ function setPreset(preset: FilterPreset) {
 			}
 		}
 
-		&--inline {
-			grid-template-columns: 1fr auto;
-			align-items: center;
+		output {
+			min-width: 44px;
+			text-align: end;
+			font-size: 13px;
+			font-variant-numeric: tabular-nums;
 		}
 	}
+}
 
-	&__chips {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: calc(var(--default-grid-baseline) * 2);
-	}
+// Vertical preset strip on the right, the reference's layer-strip style
+.editor-strip {
+	@extend %glass;
+	display: flex;
+	flex-direction: column;
+	gap: calc(var(--default-grid-baseline) * 2);
+	padding: calc(var(--default-grid-baseline) * 2);
+	border-radius: 16px;
+	overflow-y: auto;
+	max-height: 100%;
 
 	&__chip {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
+		gap: 2px;
 		padding: 0;
 		border: none;
 		background: transparent;
 		color: var(--color-main-text);
-		font-size: 11px;
+		font-size: 10px;
 		cursor: pointer;
 
 		img {
-			width: 100%;
+			width: 64px;
 			aspect-ratio: 4 / 3;
 			object-fit: cover;
-			border-radius: 8px;
-			box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-			transition: transform 0.12s ease, box-shadow 0.12s ease;
+			border-radius: 10px;
+			box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+			transition: box-shadow 0.12s ease, transform 0.12s ease;
 		}
 
 		&:hover img {
-			transform: translateY(-1px);
+			transform: scale(1.03);
 		}
 
 		&--active img,

@@ -11,6 +11,9 @@ msgstr ""
 msgid "Annotate"
 msgstr ""
 
+msgid "Adjust"
+msgstr ""
+
 msgid "Arrow"
 msgstr ""
 
@@ -51,9 +54,6 @@ msgid "Ellipse"
 msgstr ""
 
 msgid "Filter"
-msgstr ""
-
-msgid "Finetune"
 msgstr ""
 
 msgid "Flip horizontal"

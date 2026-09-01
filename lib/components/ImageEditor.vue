@@ -12,6 +12,7 @@ import type { ExportOptions, ExportResult } from '../types/index.ts'
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import EditorPanel from './EditorPanel.vue'
@@ -24,11 +25,12 @@ import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
 import { renderScene, renderToCanvas, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
-import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
+import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW, translateAnnotation } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { fitContain } from '../utils/geometry.ts'
 import { canvasToBlob, loadImage } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
+import { ambientBackdrop, ambientColor } from '../utils/theme.ts'
 
 const props = defineProps<{
 	/** Image to edit: Blob, File or URL */
@@ -51,8 +53,13 @@ const deleteLabel = t('Delete')
 const context = createEditorContext()
 const container = useTemplateRef<HTMLDivElement>('container')
 const loaded = ref(false)
+const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
+// Dominant image color tinting the chrome, as an "r, g, b" triplet
+const ambient = ref('88, 86, 112')
+// Tiny blurred copy of the image, the wallpaper behind the editor card
+const backdrop = ref('')
 
 interface TextEdit {
 	sceneX: number
@@ -219,6 +226,8 @@ function refreshOrientedCanvas(): void {
 		return
 	}
 	orientedCanvas.value = orientImage(sourceImage, context.state.value)
+	ambient.value = ambientColor(orientedCanvas.value)
+	backdrop.value = ambientBackdrop(orientedCanvas.value)
 }
 
 /**
@@ -226,6 +235,7 @@ function refreshOrientedCanvas(): void {
  */
 async function load(): Promise<void> {
 	loaded.value = false
+	errored.value = false
 	try {
 		sourceImage = await loadImage(props.src)
 		context.reset()
@@ -236,6 +246,7 @@ async function load(): Promise<void> {
 		refreshOrientedCanvas()
 		loaded.value = true
 	} catch (error) {
+		errored.value = true
 		emit('error', error instanceof Error ? error : new Error(String(error)))
 	}
 }
@@ -410,13 +421,74 @@ function onDeleteSelection(): void {
 	})
 }
 
+// Arrow-key nudges preview live and commit once on key release, so
+// holding a key stays a single undo step
+let nudging = false
+
+const NUDGE_KEYS: Record<string, [number, number]> = {
+	ArrowLeft: [-1, 0],
+	ArrowRight: [1, 0],
+	ArrowUp: [0, -1],
+	ArrowDown: [0, 1],
+}
+
 /**
- * Delete the selection or leave the current tool/selection via keyboard.
+ * Move the selected annotation with the arrow keys.
+ *
+ * @param event the keyboard event
+ */
+function nudgeSelection(event: KeyboardEvent): void {
+	const id = context.selectedId.value
+	const direction = NUDGE_KEYS[event.key]
+	if (id === null || direction === undefined) {
+		return
+	}
+	event.preventDefault()
+	const step = event.shiftKey ? 10 : 1
+	const state = context.state.value
+	nudging = true
+	context.preview({
+		...state,
+		annotations: state.annotations.map((annotation) => annotation.id === id
+			? translateAnnotation(annotation, direction[0] * step, direction[1] * step)
+			: annotation),
+	})
+}
+
+/**
+ *
+ * @param event
+ */
+function onKeyup(event: KeyboardEvent): void {
+	if (nudging && event.key in NUDGE_KEYS) {
+		nudging = false
+		context.commit(context.state.value)
+	}
+}
+
+/**
+ * Keyboard shortcuts: undo/redo, delete, nudge and escape.
  *
  * @param event the keyboard event
  */
 function onKeydown(event: KeyboardEvent): void {
 	if (textEdit.value !== null) {
+		return
+	}
+	const meta = event.ctrlKey || event.metaKey
+	if (meta && !event.shiftKey && event.key.toLowerCase() === 'z') {
+		event.preventDefault()
+		context.undo()
+		return
+	}
+	if ((meta && event.shiftKey && event.key.toLowerCase() === 'z')
+		|| (meta && event.key.toLowerCase() === 'y')) {
+		event.preventDefault()
+		context.redo()
+		return
+	}
+	if (event.key in NUDGE_KEYS && context.selectedId.value !== null) {
+		nudgeSelection(event)
 		return
 	}
 	if ((event.key === 'Delete' || event.key === 'Backspace') && context.selectedId.value !== null) {
@@ -467,8 +539,28 @@ watch(
 	},
 	refreshOrientedCanvas,
 )
-watch([context.state, context.activeTool, context.viewZoom, orientedCanvas, containerSize], renderView)
+watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.state, (state) => emit('change', structuredClone(state)))
+
+/**
+ * Ctrl/cmd + wheel zooms the view, a plain wheel pans it while zoomed.
+ *
+ * @param event the wheel event
+ */
+function onWheel(event: WheelEvent): void {
+	if (event.ctrlKey || event.metaKey) {
+		event.preventDefault()
+		const next = context.viewZoom.value * (event.deltaY < 0 ? 1.1 : 1 / 1.1)
+		context.viewZoom.value = next < 1.05 ? 1 : Math.min(4, next)
+		if (context.viewZoom.value === 1) {
+			context.viewPan.value = { x: 0, y: 0 }
+		}
+	} else if (context.viewZoom.value > 1) {
+		event.preventDefault()
+		const pan = context.viewPan.value
+		context.viewPan.value = { x: pan.x - event.deltaX, y: pan.y - event.deltaY }
+	}
+}
 
 onMounted(() => {
 	stage = new Konva.Stage({ container: container.value!, width: 1, height: 1 })
@@ -478,11 +570,15 @@ onMounted(() => {
 	})
 	resizeObserver.observe(container.value!)
 	window.addEventListener('keydown', onKeydown)
+	window.addEventListener('keyup', onKeyup)
+	container.value!.addEventListener('wheel', onWheel, { passive: false })
 	load()
 })
 
 onBeforeUnmount(() => {
 	window.removeEventListener('keydown', onKeydown)
+	window.removeEventListener('keyup', onKeyup)
+	container.value?.removeEventListener('wheel', onWheel)
 	resizeObserver?.disconnect()
 	detachTool?.()
 	cropOverlay?.destroy()
@@ -494,14 +590,13 @@ defineExpose({ exportImage })
 </script>
 
 <template>
-	<div class="image-editor">
-		<EditorTopBar
-			:loaded="loaded"
-			@save="onSave"
-			@cancel="emit('cancel')"
-			@revert="onRevert" />
-		<div class="image-editor__body">
-			<EditorSidebar :loaded="loaded" />
+	<div
+		class="image-editor"
+		:style="{
+			'--editor-ambient': ambient,
+			'--editor-backdrop': backdrop ? `url(${backdrop})` : 'none',
+		}">
+		<div class="image-editor__frame">
 			<div class="image-editor__viewport">
 				<div
 					ref="container"
@@ -509,6 +604,10 @@ defineExpose({ exportImage })
 					:style="{ cursor: canvasCursor }"
 					role="img"
 					:aria-label="label ?? canvasLabel" />
+				<NcLoadingIcon
+					v-if="!loaded && !errored"
+					class="image-editor__loading"
+					:size="44" />
 				<TextOverlay
 					v-if="textEdit !== null"
 					:x="textEdit.screenX"
@@ -548,7 +647,18 @@ defineExpose({ exportImage })
 					</NcButton>
 				</div>
 			</div>
+
+			<EditorTopBar
+				class="image-editor__topbar"
+				:loaded="loaded"
+				@save="onSave"
+				@cancel="emit('cancel')"
+				@revert="onRevert" />
+
 			<EditorPanel
+				:class="context.activeMode.value === 'filter'
+					? 'image-editor__strip'
+					: 'image-editor__controls'"
 				:loaded="loaded"
 				:oriented="orientedCanvas"
 				@rotateCw="onRotateCW"
@@ -556,50 +666,106 @@ defineExpose({ exportImage })
 				@flipHorizontal="onFlipHorizontal"
 				@flipVertical="onFlipVertical"
 				@applyCrop="onApplyCrop"
-				@resetCrop="onResetCrop"
-				@deleteSelection="onDeleteSelection" />
+				@resetCrop="onResetCrop" />
+
+			<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 		</div>
 	</div>
 </template>
 
 <style scoped lang="scss">
 .image-editor {
-	// The editor is always dark, whatever the surrounding theme:
-	// the image is the hero and the chrome recedes
+	// Always-dark chrome floating over the image, every surface tinted
+	// by the image itself: --editor-ambient carries its dominant color,
+	// --editor-backdrop a tiny blurred copy used as the wallpaper
 	--color-main-text: #f2f2f7;
-	--color-main-background: #161618;
-	--color-background-hover: #26262a;
-	--color-background-dark: #2e2e33;
-	--color-border: rgba(255, 255, 255, 0.08);
-	--color-element-hover: #26262a;
+	--color-main-background: #141416;
+	--color-background-hover: rgba(255, 255, 255, 0.08);
+	--color-background-dark: rgba(255, 255, 255, 0.14);
+	--color-border: rgba(255, 255, 255, 0.09);
+	--color-element-hover: rgba(255, 255, 255, 0.08);
+	--editor-glass: rgba(20, 20, 26, 0.6);
 	font-size: 13px;
 
-	display: flex;
-	flex-direction: column;
+	position: relative;
 	height: 100%;
 	width: 100%;
+	overflow: hidden;
+	padding: calc(var(--default-grid-baseline) * 5);
 	color: var(--color-main-text);
 	background-color: var(--color-main-background);
 
-	&__body {
-		display: flex;
-		flex: 1;
-		min-height: 0;
+	// Blurred image wallpaper bleeding around the editor card
+	&::before {
+		content: '';
+		position: absolute;
+		inset: -10%;
+		background-image: var(--editor-backdrop);
+		background-size: cover;
+		background-position: center;
+		filter: blur(64px) saturate(1.3) brightness(0.55);
+		transform: scale(1.15);
+	}
+
+	&__frame {
+		position: relative;
+		height: 100%;
+		width: 100%;
+		overflow: hidden;
+		border-radius: 24px;
+		background: rgba(14, 14, 18, 0.55);
+		backdrop-filter: blur(40px);
+		box-shadow:
+			0 24px 80px rgba(0, 0, 0, 0.5),
+			inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 	}
 
 	&__viewport {
-		position: relative;
-		flex: 1;
-		min-width: 0;
-		min-height: 0;
-		padding: calc(var(--default-grid-baseline) * 6);
-		// The stage sits slightly darker than the chrome
-		background-color: #101012;
+		position: absolute;
+		inset: 0;
+		// Keep the fitted image clear of the floating chrome
+		padding: 76px 120px 140px;
 	}
 
 	&__canvas {
 		height: 100%;
 		width: 100%;
+	}
+
+	&__topbar {
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline: 0;
+		// Legibility scrim over bright images
+		background: linear-gradient(rgba(8, 8, 12, 0.5), transparent);
+	}
+
+	&__rail {
+		position: absolute;
+		inset-inline-start: calc(var(--default-grid-baseline) * 4);
+		inset-block-start: 50%;
+		transform: translateY(-50%);
+	}
+
+	&__controls {
+		position: absolute;
+		inset-block-end: calc(var(--default-grid-baseline) * 5);
+		inset-inline-start: 50%;
+		transform: translateX(-50%);
+	}
+
+	&__strip {
+		position: absolute;
+		inset-inline-end: calc(var(--default-grid-baseline) * 4);
+		inset-block-start: 50%;
+		transform: translateY(-50%);
+		max-height: calc(100% - 160px);
+	}
+
+	&__loading {
+		position: absolute;
+		inset: 0;
+		margin: auto;
 	}
 
 	&__selection-toolbar {
@@ -609,8 +775,8 @@ defineExpose({ exportImage })
 		padding: 2px;
 		transform: translateX(-50%);
 		border-radius: var(--border-radius-pill, 100px);
-		background-color: rgba(28, 28, 30, 0.85);
-		backdrop-filter: blur(12px);
+		background: var(--editor-glass);
+		backdrop-filter: blur(16px) saturate(1.4);
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 		z-index: 1;
 	}
