@@ -2,10 +2,55 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+msgid "Adjust"
+msgstr ""
+
+msgid "Annotation text"
+msgstr ""
+
+msgid "Apply crop"
+msgstr ""
+
+msgid "Arrow"
+msgstr ""
+
+msgid "Brightness"
+msgstr ""
+
 msgid "Cancel"
 msgstr ""
 
 msgid "Canvas could not be encoded"
+msgstr ""
+
+msgid "Color"
+msgstr ""
+
+msgid "Contrast"
+msgstr ""
+
+msgid "Crop"
+msgstr ""
+
+msgid "Delete selection"
+msgstr ""
+
+msgid "Draw"
+msgstr ""
+
+msgid "Ellipse"
+msgstr ""
+
+msgid "Flip horizontal"
+msgstr ""
+
+msgid "Flip vertical"
+msgstr ""
+
+msgid "Font size"
+msgstr ""
+
+msgid "Grayscale"
 msgstr ""
 
 msgid "Image could not be decoded"
@@ -14,5 +59,44 @@ msgstr ""
 msgid "Image editor"
 msgstr ""
 
+msgid "No filter"
+msgstr ""
+
+msgid "Rectangle"
+msgstr ""
+
+msgid "Redo"
+msgstr ""
+
+msgid "Reset crop"
+msgstr ""
+
+msgid "Rotate left"
+msgstr ""
+
+msgid "Rotate right"
+msgstr ""
+
+msgid "Saturation"
+msgstr ""
+
 msgid "Save"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Sepia"
+msgstr ""
+
+msgid "Sticker"
+msgstr ""
+
+msgid "Stroke width"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Undo"
 msgstr ""
