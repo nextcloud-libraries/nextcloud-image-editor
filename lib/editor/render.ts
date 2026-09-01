@@ -102,16 +102,22 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 			return new Konva.Rect({
 				...base,
 				...annotation.rect,
+				rotation: annotation.rotation,
 				stroke: annotation.color,
 				strokeWidth: annotation.strokeWidth,
 			})
 		case 'ellipse':
+			// Positioned at the rect's top-left with a negative offset so
+			// the rotation pivots on the same anchor as rectangles
 			return new Konva.Ellipse({
 				...base,
-				x: annotation.rect.x + annotation.rect.width / 2,
-				y: annotation.rect.y + annotation.rect.height / 2,
+				x: annotation.rect.x,
+				y: annotation.rect.y,
+				offsetX: -annotation.rect.width / 2,
+				offsetY: -annotation.rect.height / 2,
 				radiusX: annotation.rect.width / 2,
 				radiusY: annotation.rect.height / 2,
+				rotation: annotation.rotation,
 				stroke: annotation.color,
 				strokeWidth: annotation.strokeWidth,
 			})

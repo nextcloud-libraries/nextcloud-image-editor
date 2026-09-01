@@ -21,7 +21,7 @@ const ORIENTED = { width: 200, height: 100 }
 
 const draw: DrawAnnotation = { id: 'd', type: 'draw', points: [10, 20, 30, 40], color: '#f00', strokeWidth: 4 }
 const arrow: ArrowAnnotation = { id: 'a', type: 'arrow', points: [0, 0, 50, 50], color: '#f00', strokeWidth: 4 }
-const box: BoxAnnotation = { id: 'b', type: 'rectangle', rect: { x: 10, y: 20, width: 30, height: 40 }, color: '#f00', strokeWidth: 4 }
+const box: BoxAnnotation = { id: 'b', type: 'rectangle', rect: { x: 10, y: 20, width: 30, height: 40 }, rotation: 0, color: '#f00', strokeWidth: 4 }
 const text: TextAnnotation = { id: 't', type: 'text', x: 50, y: 60, text: 'hi', color: '#f00', fontSize: 24, rotation: 0 }
 
 function stateWith(partial: Partial<EditorState>): EditorState {
@@ -83,7 +83,10 @@ describe('rotateCW', () => {
 	it('remaps boxes and turns text anchors', () => {
 		const state = stateWith({ annotations: [box, text] })
 		const rotated = rotateCW(state, ORIENTED)
-		expect((rotated.annotations[0] as BoxAnnotation).rect).toEqual({ x: 40, y: 10, width: 40, height: 30 })
+		// The anchor maps like a point, dims stay, rotation absorbs the turn
+		const rotatedBox = rotated.annotations[0] as BoxAnnotation
+		expect(rotatedBox.rect).toEqual({ x: 80, y: 10, width: 30, height: 40 })
+		expect(rotatedBox.rotation).toBe(90)
 		const rotatedText = rotated.annotations[1] as TextAnnotation
 		expect(rotatedText.x).toBe(40)
 		expect(rotatedText.y).toBe(50)
@@ -120,6 +123,17 @@ describe('flipHorizontal', () => {
 		expect((flipped.annotations[0] as DrawAnnotation).points).toEqual([190, 20, 170, 40])
 		expect((flipped.annotations[1] as BoxAnnotation).rect.x).toBe(160)
 		expect((flipped.annotations[2] as TextAnnotation).x).toBe(150)
+	})
+
+	it('mirrors a rotated box onto its exact reflection', () => {
+		const rotated: BoxAnnotation = { ...box, rotation: 90 }
+		const flipped = flipHorizontal(stateWith({ annotations: [rotated] }), ORIENTED)
+		const result = flipped.annotations[0] as BoxAnnotation
+		// The rotated box occupies x in [-30, 10] locally: its mirror
+		// starts at W - 10 with the rotation direction negated
+		expect(result.rotation).toBe(270)
+		expect(result.rect.x).toBeCloseTo(190, 8)
+		expect(result.rect.y).toBeCloseTo(50, 8)
 	})
 
 	it('is its own inverse', () => {
@@ -166,6 +180,42 @@ describe('flip axis under rotation', () => {
 		const flipped = flipVertical(state, { width: 100, height: 200 })
 		expect(flipped.flipX).toBe(true)
 		expect(flipped.flipY).toBe(false)
+	})
+})
+
+describe('rotated boxes survive round trips', () => {
+	it('returns after four clockwise turns', () => {
+		const rotated: BoxAnnotation = { ...box, rotation: 30 }
+		let state = stateWith({ annotations: [rotated] })
+		let oriented = { ...ORIENTED }
+		for (let i = 0; i < 4; i++) {
+			state = rotateCW(state, oriented)
+			oriented = orientedSize(ORIENTED, state.rotation)
+		}
+		const result = state.annotations[0] as BoxAnnotation
+		expect(result.rotation).toBe(30)
+		expect(result.rect.x).toBeCloseTo(10, 8)
+		expect(result.rect.y).toBeCloseTo(20, 8)
+	})
+
+	it('double horizontal flip is identity', () => {
+		const rotated: BoxAnnotation = { ...box, rotation: 30 }
+		const state = stateWith({ annotations: [rotated] })
+		const twice = flipHorizontal(flipHorizontal(state, ORIENTED), ORIENTED)
+		const result = twice.annotations[0] as BoxAnnotation
+		expect(result.rotation).toBe(30)
+		expect(result.rect.x).toBeCloseTo(10, 8)
+		expect(result.rect.y).toBeCloseTo(20, 8)
+	})
+
+	it('double vertical flip is identity', () => {
+		const rotated: BoxAnnotation = { ...box, rotation: 30 }
+		const state = stateWith({ annotations: [rotated] })
+		const twice = flipVertical(flipVertical(state, ORIENTED), ORIENTED)
+		const result = twice.annotations[0] as BoxAnnotation
+		expect(result.rotation).toBe(30)
+		expect(result.rect.x).toBeCloseTo(10, 8)
+		expect(result.rect.y).toBeCloseTo(20, 8)
 	})
 })
 

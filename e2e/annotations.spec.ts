@@ -212,3 +212,35 @@ test('the color control recolors the selected annotation', async ({ page }) => {
 	await page.getByRole('button', { name: 'Undo' }).click()
 	expect((await readState(page)).annotations[0].color).toBe('#ff0000')
 })
+
+test('rectangle rotation survives rebuilds and round trips', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 60, y: corner.y + 30 }, { x: corner.x + 140, y: corner.y + 70 })
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 100, corner.y + 30)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+
+	// Rotate through the transformer pipeline; the synthetic pointer
+	// drag on the tiny rotater handle is too flaky across engines
+	await page.evaluate(() => {
+		const stage = window.Konva.stages[0]
+		const node = stage.find('.annotation')[0]
+		node.rotation(33)
+		node.fire('transformend', { target: node }, true)
+	})
+	expect((await readState(page)).annotations[0].rotation).toBeCloseTo(33, 5)
+
+	// Deselect (rebuild) and confirm the angle survived
+	await page.mouse.click(corner.x + 20, corner.y + 90)
+	expect((await readState(page)).annotations[0].rotation).toBeCloseTo(33, 5)
+
+	// A 90° image turn adds a quarter turn to the annotation
+	await page.getByRole('button', { name: 'Crop', exact: true }).click()
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	expect((await readState(page)).annotations[0].rotation).toBeCloseTo(123, 5)
+})

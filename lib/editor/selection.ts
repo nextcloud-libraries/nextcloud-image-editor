@@ -52,7 +52,6 @@ function applyNodeTransform(annotation: Annotation, node: Konva.Node): Annotatio
 			const points = translatePoints(annotation.points, node.x(), node.y())
 			return { ...annotation, points } as Annotation
 		}
-		case 'rectangle':
 		case 'redact':
 			return {
 				...annotation,
@@ -63,12 +62,20 @@ function applyNodeTransform(annotation: Annotation, node: Konva.Node): Annotatio
 					height: Math.max(1, annotation.rect.height * node.scaleY()),
 				},
 			}
-		case 'ellipse': {
-			const width = Math.max(1, annotation.rect.width * node.scaleX())
-			const height = Math.max(1, annotation.rect.height * node.scaleY())
-			// The ellipse node anchors at its center
-			return { ...annotation, rect: { x: node.x() - width / 2, y: node.y() - height / 2, width, height } }
-		}
+		case 'rectangle':
+		case 'ellipse':
+			// Both shapes anchor at the rect's top-left (the ellipse via
+			// its negative offset), so the fold is identical
+			return {
+				...annotation,
+				rect: {
+					x: node.x(),
+					y: node.y(),
+					width: Math.max(1, annotation.rect.width * node.scaleX()),
+					height: Math.max(1, annotation.rect.height * node.scaleY()),
+				},
+				rotation: node.rotation(),
+			}
 		case 'text':
 		case 'sticker':
 			return {
@@ -129,11 +136,10 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		}
 		const annotation = findAnnotation(id!)
 		// Freehand and arrow annotations only move; resizing them would
-		// distort stroke geometry unpredictably. Boxes cannot rotate:
-		// their state stores no angle, so the gesture would be lost on
-		// the next rebuild.
+		// distort stroke geometry unpredictably. Redactions stay
+		// axis-aligned: their pixel sampling has no notion of an angle.
 		const movableOnly = annotation?.type === 'draw' || annotation?.type === 'arrow'
-		const rotatable = annotation?.type === 'text' || annotation?.type === 'sticker'
+		const rotatable = annotation !== undefined && 'rotation' in annotation && annotation.type !== 'redact'
 		transformer.resizeEnabled(!movableOnly)
 		transformer.rotateEnabled(rotatable)
 		transformer.nodes([node])
