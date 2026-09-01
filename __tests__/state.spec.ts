@@ -255,3 +255,36 @@ describe('duplicateAnnotation', () => {
 		expect((copy as BoxAnnotation).rect.y).toBe(box.rect.y + 16)
 	})
 })
+
+describe('kitchen-sink state survives four quarter turns', () => {
+	it('round-trips crop, fine rotation, zoom and every annotation type', () => {
+		const redact = { id: 'r', type: 'redact', rect: { x: 5, y: 5, width: 20, height: 10 }, style: 'blur' } as const
+		const sticker = { ...text, id: 's', type: 'sticker' as const, text: '⭐' }
+		const rotatedBox = { ...box, id: 'rb', rotation: 45 }
+		let state = stateWith({
+			crop: { x: 20, y: 10, width: 60, height: 30 },
+			fineRotation: -15,
+			zoom: 1.5,
+			annotations: [draw, arrow, box, rotatedBox, text, sticker, redact],
+		})
+		let oriented = { ...ORIENTED }
+		for (let i = 0; i < 4; i++) {
+			state = rotateCW(state, oriented)
+			oriented = orientedSize(ORIENTED, state.rotation)
+		}
+
+		expect(state.rotation).toBe(0)
+		expect(state.fineRotation).toBe(-15)
+		expect(state.zoom).toBe(1.5)
+		expect(state.crop).toEqual({ x: 20, y: 10, width: 60, height: 30 })
+		expect(state.annotations[0]).toEqual(draw)
+		expect(state.annotations[1]).toEqual(arrow)
+		expect(state.annotations[2]).toEqual(box)
+		const roundTripped = state.annotations[3] as BoxAnnotation
+		expect(roundTripped.rotation).toBe(45)
+		expect(roundTripped.rect.x).toBeCloseTo(10, 8)
+		expect(state.annotations[4]).toEqual(text)
+		expect(state.annotations[5]).toEqual(sticker)
+		expect(state.annotations[6]).toEqual(redact)
+	})
+})

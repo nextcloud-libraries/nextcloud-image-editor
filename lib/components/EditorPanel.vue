@@ -99,7 +99,12 @@ const activeCropControl = shallowRef<CropControl>('rotation')
 
 const presets: { id: FilterPreset, label: string }[] = [
 	{ id: 'none', label: t('No filter') },
+	{ id: 'pop', label: t('Pop') },
+	{ id: 'warm', label: t('Warm') },
+	{ id: 'cool', label: t('Cool') },
+	{ id: 'fade', label: t('Fade') },
 	{ id: 'grayscale', label: t('Grayscale') },
+	{ id: 'noir', label: t('Noir') },
 	{ id: 'sepia', label: t('Sepia') },
 	{ id: 'invert', label: t('Invert') },
 	{ id: 'solarize', label: t('Solarize') },
