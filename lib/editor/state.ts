@@ -24,7 +24,18 @@ export interface Adjustments {
 	saturation: number
 }
 
-export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'invert' | 'solarize' | 'posterize'
+export type FilterPreset
+	= | 'none'
+		| 'grayscale'
+		| 'noir'
+		| 'sepia'
+		| 'fade'
+		| 'warm'
+		| 'cool'
+		| 'invert'
+		| 'solarize'
+		| 'posterize'
+		| 'pop'
 
 export interface DrawAnnotation {
 	id: string

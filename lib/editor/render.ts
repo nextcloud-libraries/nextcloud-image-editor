@@ -5,6 +5,7 @@
 import type { Annotation, EditorState, Size } from './state.ts'
 
 import Konva from 'konva'
+import { cool, fade, noir, warm } from './filters.ts'
 
 /**
  * The part of the oriented image currently visible: the crop, or all of it.
@@ -174,10 +175,15 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	const presetFilters = {
 		none: null,
 		grayscale: Konva.Filters.Grayscale,
+		noir,
 		sepia: Konva.Filters.Sepia,
+		fade,
+		warm,
+		cool,
 		invert: Konva.Filters.Invert,
 		solarize: Konva.Filters.Solarize,
 		posterize: Konva.Filters.Posterize,
+		pop: Konva.Filters.Enhance,
 	}[state.preset]
 	if (presetFilters !== null) {
 		filters.push(presetFilters)
@@ -194,7 +200,11 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	node.contrast(contrast)
 	node.saturation(saturation / 100)
 	if (state.preset === 'posterize') {
-		node.levels(0.5)
+		// Konva maps levels() over 254 steps: 0.02 gives about six bands
+		node.levels(0.02)
+	}
+	if (state.preset === 'pop') {
+		node.enhance(0.25)
 	}
 	node.cache({ pixelRatio })
 }

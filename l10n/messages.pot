@@ -35,6 +35,9 @@ msgstr ""
 msgid "Contrast"
 msgstr ""
 
+msgid "Cool"
+msgstr ""
+
 msgid "Crop"
 msgstr ""
 
@@ -48,6 +51,9 @@ msgid "Duplicate"
 msgstr ""
 
 msgid "Ellipse"
+msgstr ""
+
+msgid "Fade"
 msgstr ""
 
 msgid "Filter"
@@ -80,10 +86,16 @@ msgstr ""
 msgid "No filter"
 msgstr ""
 
+msgid "Noir"
+msgstr ""
+
 msgid "Original"
 msgstr ""
 
 msgid "Pixelate"
+msgstr ""
+
+msgid "Pop"
 msgstr ""
 
 msgid "Posterize"
@@ -141,6 +153,9 @@ msgid "Text"
 msgstr ""
 
 msgid "Undo"
+msgstr ""
+
+msgid "Warm"
 msgstr ""
 
 msgid "Zoom in"
