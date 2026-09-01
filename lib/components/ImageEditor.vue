@@ -103,8 +103,31 @@ const viewOptions = computed<SceneOptions | null>(() => {
 	const visible = showCropped
 		? visibleRect(state, { width: oriented.width, height: oriented.height })
 		: { x: 0, y: 0, width: oriented.width, height: oriented.height }
-	const fit = fitContain({ width: visible.width, height: visible.height }, containerSize.value)
-	return { scale: fit.scale, offset: { x: fit.x, y: fit.y }, showCropped }
+	// Small stage margin so crop handles at the image edge stay visible
+	const margin = 16
+	const fit = fitContain(
+		{ width: visible.width, height: visible.height },
+		{
+			width: Math.max(1, containerSize.value.width - margin * 2),
+			height: Math.max(1, containerSize.value.height - margin * 2),
+		},
+	)
+	// View zoom magnifies around the center; panning shifts the view
+	// but content edges never pass the container edges
+	const scale = fit.scale * context.viewZoom.value
+	const pan = context.viewPan.value
+	const boundX = Math.max(0, (visible.width * scale - containerSize.value.width) / 2 + margin)
+	const boundY = Math.max(0, (visible.height * scale - containerSize.value.height) / 2 + margin)
+	return {
+		scale,
+		offset: {
+			x: (containerSize.value.width - visible.width * scale) / 2
+				+ Math.min(boundX, Math.max(-boundX, pan.x)),
+			y: (containerSize.value.height - visible.height * scale) / 2
+				+ Math.min(boundY, Math.max(-boundY, pan.y)),
+		},
+		showCropped,
+	}
 })
 
 /**
@@ -487,6 +510,26 @@ watch(
 )
 watch([context.state, context.activeTool, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.cropAspect, applyCropAspect)
+
+// The color control follows the selection and edits it in place
+watch(context.selectedId, (id) => {
+	const annotation = context.state.value.annotations.find((entry) => entry.id === id)
+	if (annotation !== undefined && 'color' in annotation) {
+		context.drawColor.value = annotation.color
+	}
+})
+watch(context.drawColor, (color) => {
+	const id = context.selectedId.value
+	const state = context.state.value
+	const annotation = state.annotations.find((entry) => entry.id === id)
+	if (annotation === undefined || !('color' in annotation) || annotation.color === color) {
+		return
+	}
+	context.commit({
+		...state,
+		annotations: state.annotations.map((entry) => entry.id === id ? { ...entry, color } : entry),
+	})
+})
 watch(context.state, (state) => emit('change', structuredClone(state)))
 
 onMounted(() => {

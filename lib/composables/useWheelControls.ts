@@ -62,10 +62,28 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 	function onWheel(event: WheelEvent): void {
 		if (event.ctrlKey || event.metaKey) {
 			event.preventDefault()
-			const next = context.viewZoom.value * (event.deltaY < 0 ? 1.1 : 1 / 1.1)
-			context.viewZoom.value = next < 1.05 ? 1 : Math.min(4, next)
-			if (context.viewZoom.value === 1) {
+			const previous = context.viewZoom.value
+			const next = previous * (event.deltaY < 0 ? 1.1 : 1 / 1.1)
+			const zoom = next < 1.05 ? 1 : Math.min(4, next)
+			context.viewZoom.value = zoom
+			if (zoom === 1) {
 				context.viewPan.value = { x: 0, y: 0 }
+				return
+			}
+			// Keep the point under the cursor fixed: pan scales with the
+			// zoom and shifts by the cursor's offset from the center
+			const rect = element.value?.getBoundingClientRect()
+			if (rect !== undefined) {
+				const factor = zoom / previous
+				const cursor = {
+					x: event.clientX - rect.x - rect.width / 2,
+					y: event.clientY - rect.y - rect.height / 2,
+				}
+				const pan = context.viewPan.value
+				context.viewPan.value = {
+					x: cursor.x - factor * (cursor.x - pan.x),
+					y: cursor.y - factor * (cursor.y - pan.y),
+				}
 			}
 		} else if (context.viewZoom.value > 1) {
 			event.preventDefault()

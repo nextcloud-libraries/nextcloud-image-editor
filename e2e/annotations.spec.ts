@@ -191,3 +191,24 @@ test('switching tools drops the selection instead of hiding it', async ({ page }
 	await page.keyboard.press('Delete')
 	expect((await readState(page)).annotations).toHaveLength(1)
 })
+
+test('the color control recolors the selected annotation', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 80, y: corner.y + 60 })
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 50, corner.y + 20)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+
+	await setInputValue(page.locator('input[type="color"]'), '#00ff00')
+	const state = await readState(page)
+	expect(state.annotations[0].color).toBe('#00ff00')
+
+	// One undo step returns the original color
+	await page.getByRole('button', { name: 'Undo' }).click()
+	expect((await readState(page)).annotations[0].color).toBe('#ff0000')
+})

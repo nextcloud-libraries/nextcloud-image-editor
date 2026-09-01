@@ -101,6 +101,8 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		anchorStroke: accent,
 		borderStroke: accent,
 		rotateAnchorOffset: 24,
+		rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
+		rotationSnapTolerance: 6,
 	})
 	const layer = new Konva.Layer({ name: 'selection' })
 	layer.add(transformer)
@@ -127,10 +129,13 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		}
 		const annotation = findAnnotation(id!)
 		// Freehand and arrow annotations only move; resizing them would
-		// distort stroke geometry unpredictably
+		// distort stroke geometry unpredictably. Boxes cannot rotate:
+		// their state stores no angle, so the gesture would be lost on
+		// the next rebuild.
 		const movableOnly = annotation?.type === 'draw' || annotation?.type === 'arrow'
+		const rotatable = annotation?.type === 'text' || annotation?.type === 'sticker'
 		transformer.resizeEnabled(!movableOnly)
-		transformer.rotateEnabled(!movableOnly)
+		transformer.rotateEnabled(rotatable)
 		transformer.nodes([node])
 		deps.onSelectionRect(node.getClientRect())
 	}

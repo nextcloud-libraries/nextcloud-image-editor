@@ -66,3 +66,16 @@ test('adapts to a phone-sized container', async ({ page }) => {
 	expect(result.width).toBe(200)
 	expect(result.height).toBe(100)
 })
+
+test('view zoom actually magnifies the stage content', async ({ page }) => {
+	await waitLoaded(page)
+
+	const scaleOf = () => page.evaluate(() => {
+		const stage = window.Konva.stages[0]
+		return stage.findOne('Group').scaleX()
+	})
+	const before = await scaleOf()
+	await page.locator('[data-test="zoom-in"]').click()
+	const after = await scaleOf()
+	expect(after).toBeGreaterThan(before * 1.4)
+})

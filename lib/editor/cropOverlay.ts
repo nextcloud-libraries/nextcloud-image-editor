@@ -124,12 +124,45 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		anchorStroke: '#111',
 		anchorStrokeWidth: 1,
 		borderStroke: 'rgba(255, 255, 255, 0.7)',
+		// Clamp each edge to the image instead of rejecting the whole
+		// gesture: the handle keeps following the cursor's direction and
+		// only stops at the image border
 		boundBoxFunc: (oldBox, newBox) => {
-			const inX = newBox.x >= imageBounds.x - 0.5
-				&& newBox.x + newBox.width <= imageBounds.x + imageBounds.width + 0.5
-			const inY = newBox.y >= imageBounds.y - 0.5
-				&& newBox.y + newBox.height <= imageBounds.y + imageBounds.height + 0.5
-			return (inX && inY && newBox.width >= 8 && newBox.height >= 8) ? newBox : oldBox
+			const right = imageBounds.x + imageBounds.width
+			const bottom = imageBounds.y + imageBounds.height
+			let { x, y, width, height } = newBox
+
+			if (x < imageBounds.x) {
+				width -= imageBounds.x - x
+				x = imageBounds.x
+			}
+			if (y < imageBounds.y) {
+				height -= imageBounds.y - y
+				y = imageBounds.y
+			}
+			width = Math.min(width, right - x)
+			height = Math.min(height, bottom - y)
+
+			// Under an aspect lock the clamped box must keep its ratio,
+			// anchored on the edge that is not being dragged
+			if (transformer.keepRatio() && oldBox.height > 0) {
+				const ratio = oldBox.width / oldBox.height
+				if (width / height > ratio) {
+					width = height * ratio
+				} else {
+					height = width / ratio
+				}
+				if (Math.abs(newBox.x - oldBox.x) > 0.01) {
+					x = Math.min(newBox.x + newBox.width, right) - width
+				}
+				if (Math.abs(newBox.y - oldBox.y) > 0.01) {
+					y = Math.min(newBox.y + newBox.height, bottom) - height
+				}
+			}
+
+			width = Math.max(8, width)
+			height = Math.max(8, height)
+			return { ...newBox, x, y, width, height }
 		},
 	})
 	layer.add(transformer)
