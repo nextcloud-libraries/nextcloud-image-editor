@@ -30,7 +30,11 @@ const deleteLabel = t('Delete')
 		data-test="selection-toolbar"
 		:style="{
 			insetInlineStart: `${box.x + box.width / 2}px`,
-			insetBlockStart: `${box.y + box.height + 12}px`,
+			// Above the selection as designed, clearing the rotate handle;
+			// below only when the top edge would clip it
+			insetBlockStart: box.y - 76 >= 4
+				? `${box.y - 76}px`
+				: `${box.y + box.height + 12}px`,
 		}">
 		<NcButton
 			data-test="duplicate"
