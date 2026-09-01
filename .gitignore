@@ -6,5 +6,5 @@ coverage/
 *.log
 *.tsbuildinfo
 .eslintcache
-cypress/videos
-cypress/screenshots
+test-results/
+playwright-report/
