@@ -7,7 +7,7 @@ import { readState, save, setInputValue, waitLoaded } from './utils.ts'
 
 test('darkening brightness changes the exported pixels', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.getByRole('button', { name: 'Finetune' }).click()
 	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '-50')
 
 	expect((await readState(page)).adjustments.brightness).toBe(-50)
@@ -21,7 +21,8 @@ test('darkening brightness changes the exported pixels', async ({ page }) => {
 
 test('adjustment sliders record a single undo step on release', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.getByRole('button', { name: 'Finetune' }).click()
+	await page.locator('[data-test="tab-contrast"]').click()
 	await setInputValue(page.locator('[data-test="adjust-contrast"]'), '40')
 
 	await page.getByRole('button', { name: 'Undo' }).click()
@@ -30,7 +31,7 @@ test('adjustment sliders record a single undo step on release', async ({ page })
 
 test('grayscale preset removes color', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.getByRole('button', { name: 'Filter', exact: true }).click()
 	await page.locator('[data-test="preset-grayscale"]').click()
 
 	expect((await readState(page)).preset).toBe('grayscale')

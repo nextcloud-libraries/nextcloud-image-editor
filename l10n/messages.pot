@@ -2,13 +2,13 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
-msgid "Adjust"
-msgstr ""
-
 msgid "Annotation text"
 msgstr ""
 
 msgid "Apply crop"
+msgstr ""
+
+msgid "Annotate"
 msgstr ""
 
 msgid "Arrow"
@@ -39,6 +39,12 @@ msgid "Draw"
 msgstr ""
 
 msgid "Ellipse"
+msgstr ""
+
+msgid "Filter"
+msgstr ""
+
+msgid "Finetune"
 msgstr ""
 
 msgid "Flip horizontal"

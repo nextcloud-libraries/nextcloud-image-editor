@@ -20,9 +20,25 @@ export type Tool
 		| 'text'
 		| 'sticker'
 
+/** Top-level editor sections, presented as sidebar tabs */
+export type EditorMode = 'crop' | 'finetune' | 'filter' | 'annotate' | 'sticker'
+
+/** The canvas tool each mode starts with */
+export const MODE_DEFAULT_TOOL: Record<EditorMode, Tool> = {
+	crop: 'crop',
+	finetune: 'adjust',
+	filter: 'adjust',
+	annotate: 'select',
+	sticker: 'sticker',
+}
+
 export interface EditorContext {
 	state: Readonly<ShallowRef<EditorState>>
+	/** Active sidebar section */
+	activeMode: ShallowRef<EditorMode>
 	activeTool: ShallowRef<Tool>
+	/** Switch section and select its default canvas tool */
+	setMode(mode: EditorMode): void
 	/** Stroke and text color for new annotations */
 	drawColor: ShallowRef<string>
 	/** Stroke width for new annotations */
@@ -53,12 +69,19 @@ const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('nextcloud:image-edit
 export function createEditorContext(): EditorContext {
 	const history = useHistory<EditorState>()
 	const state = shallowRef(createInitialState())
-	const activeTool = shallowRef<Tool>('select')
+	const activeMode = shallowRef<EditorMode>('crop')
+	const activeTool = shallowRef<Tool>(MODE_DEFAULT_TOOL.crop)
 	history.push(structuredClone(state.value))
 
 	const context: EditorContext = {
 		state,
+		activeMode,
 		activeTool,
+		setMode(mode) {
+			activeMode.value = mode
+			activeTool.value = MODE_DEFAULT_TOOL[mode]
+			context.selectedId.value = null
+		},
 		drawColor: shallowRef('#ff0000'),
 		strokeWidth: shallowRef(6),
 		fontSize: shallowRef(24),
@@ -88,7 +111,8 @@ export function createEditorContext(): EditorContext {
 		reset() {
 			history.clear()
 			state.value = createInitialState()
-			activeTool.value = 'select'
+			activeMode.value = 'crop'
+			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
 			history.push(structuredClone(state.value))
 		},

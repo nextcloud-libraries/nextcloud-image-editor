@@ -61,12 +61,22 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 
 	const cropNode = new Konva.Rect({
 		...toStage(clampRect(deps.initial ?? { x: 0, y: 0, ...deps.oriented }, deps.oriented)),
-		stroke: '#fff',
+		stroke: 'rgba(255, 255, 255, 0.9)',
 		strokeWidth: 1,
 		draggable: true,
 		strokeScaleEnabled: false,
 	})
 	layer.add(cropNode)
+
+	// Rule-of-thirds guides inside the crop rect
+	const gridLines = Array.from({ length: 4 }, () => new Konva.Line({
+		stroke: 'rgba(255, 255, 255, 0.35)',
+		strokeWidth: 1,
+		listening: false,
+	}))
+	for (const line of gridLines) {
+		layer.add(line)
+	}
 
 	const clampToImage = (rect: Rect): Rect => {
 		const x = Math.min(Math.max(rect.x, imageBounds.x), imageBounds.x + imageBounds.width - rect.width)
@@ -74,7 +84,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		return { ...rect, x, y }
 	}
 
-	const updateShades = () => {
+	const updateOverlay = () => {
 		const rect = {
 			x: cropNode.x(),
 			y: cropNode.y(),
@@ -86,6 +96,12 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		shadeLeft.setAttrs({ x, y: rect.y, width: rect.x - x, height: rect.height })
 		shadeRight.setAttrs({ x: rect.x + rect.width, y: rect.y, width: x + width - rect.x - rect.width, height: rect.height })
 		shadeBottom.setAttrs({ x, y: rect.y + rect.height, width, height: y + height - rect.y - rect.height })
+
+		// Thirds guides: two vertical, two horizontal
+		gridLines[0]!.points([rect.x + rect.width / 3, rect.y, rect.x + rect.width / 3, rect.y + rect.height])
+		gridLines[1]!.points([rect.x + (rect.width * 2) / 3, rect.y, rect.x + (rect.width * 2) / 3, rect.y + rect.height])
+		gridLines[2]!.points([rect.x, rect.y + rect.height / 3, rect.x + rect.width, rect.y + rect.height / 3])
+		gridLines[3]!.points([rect.x, rect.y + (rect.height * 2) / 3, rect.x + rect.width, rect.y + (rect.height * 2) / 3])
 	}
 
 	const transformer = new Konva.Transformer({
@@ -93,6 +109,14 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		rotateEnabled: false,
 		flipEnabled: false,
 		keepRatio: false,
+		// Pintura-style round corner dots
+		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+		anchorSize: 16,
+		anchorCornerRadius: 8,
+		anchorFill: '#222',
+		anchorStroke: '#fff',
+		anchorStrokeWidth: 2,
+		borderStroke: 'rgba(255, 255, 255, 0.9)',
 		boundBoxFunc: (oldBox, newBox) => {
 			const inX = newBox.x >= imageBounds.x - 0.5
 				&& newBox.x + newBox.width <= imageBounds.x + imageBounds.width + 0.5
@@ -108,9 +132,9 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		width: cropNode.width() * cropNode.scaleX(),
 		height: cropNode.height() * cropNode.scaleY(),
 	}))
-	cropNode.on('dragmove transform', updateShades)
+	cropNode.on('dragmove transform', updateOverlay)
 
-	updateShades()
+	updateOverlay()
 	deps.stage.add(layer)
 
 	return {
