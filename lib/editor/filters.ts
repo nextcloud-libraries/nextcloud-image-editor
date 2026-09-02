@@ -8,10 +8,23 @@ export interface PixelData {
 	data: Uint8ClampedArray
 }
 
+/** The pixels plus the dimensions a convolution needs */
+export interface PixelImage extends PixelData {
+	width: number
+	height: number
+}
+
 /** Konva calls a filter with the node it belongs to as `this` */
 export interface FilterNode {
 	/** Amount between -1 and 1, 0 meaning unchanged */
 	saturation(): number
+	/**
+	 * The adjustments Konva has no attribute of its own for, read back
+	 * from the node they were set on.
+	 *
+	 * @param name the attribute name
+	 */
+	getAttr(name: string): number | undefined
 }
 
 /**
@@ -23,6 +36,82 @@ export interface FilterNode {
  */
 function luma(r: number, g: number, b: number): number {
 	return 0.299 * r + 0.587 * g + 0.114 * b
+}
+
+/** Stops of exposure at either end of the slider */
+const EXPOSURE_RANGE = 2
+
+/** How far the warm and green axes push each channel, at either end */
+const TEMPERATURE_RANGE = 0.25
+const TINT_RANGE = 0.25
+
+/**
+ * Exposure, temperature and tint in a single pass.
+ *
+ * These three are per-pixel channel scaling, so running them as one
+ * filter costs one walk over the pixels instead of three. Konva has no
+ * attributes of its own for them, so they are read from the node they
+ * were set on.
+ *
+ * Exposure is multiplicative in stops, the way a camera means it, so
+ * the slider's halves are symmetrical: -100 is two stops down, +100 is
+ * two stops up. Temperature moves red against blue, tint moves green
+ * against the other two, which is the pair of axes a white balance is
+ * expressed in.
+ *
+ * @param imageData the pixels to mutate in place
+ */
+export function tone(this: FilterNode, imageData: PixelData): void {
+	const { data } = imageData
+	const exposure = 2 ** ((this.getAttr('exposure') ?? 0) * EXPOSURE_RANGE)
+	const temperature = (this.getAttr('temperature') ?? 0) * TEMPERATURE_RANGE
+	const tint = (this.getAttr('tint') ?? 0) * TINT_RANGE
+
+	const red = exposure * (1 + temperature) * (1 + tint / 2)
+	const green = exposure * (1 - tint)
+	const blue = exposure * (1 - temperature) * (1 + tint / 2)
+
+	for (let i = 0; i < data.length; i += 4) {
+		data[i] = data[i]! * red
+		data[i + 1] = data[i + 1]! * green
+		data[i + 2] = data[i + 2]! * blue
+	}
+}
+
+/** Weight the centre pixel gains at the top of the slider */
+const SHARPEN_RANGE = 1.2
+
+/**
+ * Unsharp masking with a four-neighbour Laplacian: the centre pixel
+ * gains what its neighbours lose, which lifts edges and leaves flat
+ * areas alone.
+ *
+ * Unlike the other filters this one reads pixels it is not writing, so
+ * it works from a copy and needs the row width to find a neighbour.
+ * Only the interior is processed; a one pixel border is left as it is
+ * rather than inventing neighbours for it.
+ *
+ * @param imageData the pixels to mutate in place
+ */
+export function sharpen(this: FilterNode, imageData: PixelImage): void {
+	const amount = (this.getAttr('sharpen') ?? 0) * SHARPEN_RANGE
+	if (amount === 0) {
+		return
+	}
+	const { data, width, height } = imageData
+	const source = new Uint8ClampedArray(data)
+	const stride = width * 4
+
+	for (let y = 1; y < height - 1; y++) {
+		for (let x = 1; x < width - 1; x++) {
+			const centre = y * stride + x * 4
+			for (let channel = 0; channel < 3; channel++) {
+				const i = centre + channel
+				const neighbours = source[i - 4]! + source[i + 4]! + source[i - stride]! + source[i + stride]!
+				data[i] = source[i]! * (1 + 4 * amount) - amount * neighbours
+			}
+		}
+	}
 }
 
 /**

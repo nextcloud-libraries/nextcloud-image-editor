@@ -5,7 +5,7 @@
 import type { Annotation, EditorState, Size } from './state.ts'
 
 import Konva from 'konva'
-import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, warm } from './filters.ts'
+import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tone, warm } from './filters.ts'
 
 /**
  * The part of the oriented image currently visible: the crop, or all of it.
@@ -205,9 +205,13 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
  * interactive rendering so slider drags stay smooth on large images
  */
 export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio = 1): void {
-	const { brightness, contrast, saturation } = state.adjustments
+	const { exposure, brightness, contrast, saturation, temperature, tint } = state.adjustments
 	const filters = []
 
+	// Exposure, temperature and tint are one filter over the pixels
+	if (exposure !== 0 || temperature !== 0 || tint !== 0) {
+		filters.push(tone)
+	}
 	if (brightness !== 0) {
 		filters.push(Konva.Filters.Brighten)
 	}
@@ -239,6 +243,11 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	if (presetFilters !== null) {
 		filters.push(presetFilters)
 	}
+	// Last, so it sharpens the image the user is actually looking at
+	// rather than the one before the preset graded it
+	if (state.adjustments.sharpen !== 0) {
+		filters.push(sharpen)
+	}
 
 	if (filters.length === 0) {
 		node.filters([])
@@ -250,6 +259,11 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	node.brightness(brightness / 100)
 	node.contrast(contrast)
 	node.saturation(saturation / 100)
+	// Konva owns no attribute for these, so they ride along on the node
+	node.setAttr('exposure', exposure / 100)
+	node.setAttr('temperature', temperature / 100)
+	node.setAttr('tint', tint / 100)
+	node.setAttr('sharpen', state.adjustments.sharpen / 100)
 	if (state.preset === 'posterize') {
 		// Konva maps levels() over 254 steps: 0.02 gives about six bands
 		node.levels(0.02)
@@ -275,9 +289,7 @@ export function thumbnailKey(state: EditorState): string {
 		crop?.y,
 		crop?.width,
 		crop?.height,
-		adjustments.brightness,
-		adjustments.contrast,
-		adjustments.saturation,
+		...Object.values(adjustments),
 	].join('|')
 }
 
@@ -396,8 +408,8 @@ export function createScene(stage: Konva.Stage): Scene {
 		const pixelRatio = options.fastFilters
 			? Math.min(1, options.scale * (globalThis.devicePixelRatio || 1))
 			: 1
-		const { brightness, contrast, saturation } = state.adjustments
-		const nextFilterKey = `${brightness}|${contrast}|${saturation}|${state.preset}|${pixelRatio}`
+		// Every adjustment, so a change to any of them redoes the cache
+		const nextFilterKey = `${Object.values(state.adjustments).join('|')}|${state.preset}|${pixelRatio}`
 		if (orientedChanged || nextFilterKey !== filterKey) {
 			applyFilters(imageNode, state, pixelRatio)
 			filterKey = nextFilterKey

@@ -3,9 +3,15 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { EditorState } from '../../editor/state.ts'
+
 import { computed, shallowRef } from 'vue'
+import CameraIris from 'vue-material-design-icons/CameraIris.vue'
 import ContrastCircle from 'vue-material-design-icons/ContrastCircle.vue'
+import ImageFilterCenterFocus from 'vue-material-design-icons/ImageFilterCenterFocus.vue'
 import InvertColors from 'vue-material-design-icons/InvertColors.vue'
+import Thermometer from 'vue-material-design-icons/Thermometer.vue'
+import WhiteBalanceIridescent from 'vue-material-design-icons/WhiteBalanceIridescent.vue'
 import WhiteBalanceSunny from 'vue-material-design-icons/WhiteBalanceSunny.vue'
 import EditorSlider from '../base/EditorSlider.vue'
 import IconTab from '../base/IconTab.vue'
@@ -19,13 +25,20 @@ defineProps<{
 
 const context = useEditorContext()
 
-type AdjustmentKey = 'brightness' | 'contrast' | 'saturation'
+type AdjustmentKey = keyof EditorState['adjustments']
+
+// Photographic order: light first, then contrast, then colour, with
+// sharpening last because it works on whatever the rest produced
 const adjustments: { id: AdjustmentKey, label: string, icon: unknown }[] = [
+	{ id: 'exposure', label: t('Exposure'), icon: CameraIris },
 	{ id: 'brightness', label: t('Brightness'), icon: WhiteBalanceSunny },
 	{ id: 'contrast', label: t('Contrast'), icon: ContrastCircle },
 	{ id: 'saturation', label: t('Saturation'), icon: InvertColors },
+	{ id: 'temperature', label: t('Temperature'), icon: Thermometer },
+	{ id: 'tint', label: t('Tint'), icon: WhiteBalanceIridescent },
+	{ id: 'sharpen', label: t('Sharpen'), icon: ImageFilterCenterFocus },
 ]
-const activeAdjustment = shallowRef<AdjustmentKey>('brightness')
+const activeAdjustment = shallowRef<AdjustmentKey>('exposure')
 
 const display = computed(() => {
 	const value = context.state.value.adjustments[activeAdjustment.value]
@@ -93,6 +106,8 @@ function onSliderCommit() {
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		// Seven of them do not fit one row on a narrow card
+		flex-wrap: wrap;
 		gap: calc(var(--default-grid-baseline) * 2);
 	}
 }

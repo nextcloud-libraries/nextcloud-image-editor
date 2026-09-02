@@ -65,12 +65,21 @@ describe('createEditorContext', () => {
 		expect(context.canUndo.value).toBe(false)
 	})
 
-	it('undo returns deep copies so stored snapshots stay intact', () => {
+	it('records a distinct snapshot per commit', () => {
 		const { context } = setupContext()
-		context.commit({ ...context.state.value, adjustments: { brightness: 50, contrast: 0, saturation: 0 } })
+		const initial = context.state.value
+		context.commit({
+			...initial,
+			adjustments: { ...initial.adjustments, brightness: 50 },
+		})
+
+		// Snapshots are held by reference and treated as immutable, so
+		// what undo and redo move between are separate objects rather
+		// than copies of one
 		context.undo()
-		context.state.value.adjustments.brightness = 99
+		expect(context.state.value).toBe(initial)
 		context.redo()
+		expect(context.state.value).not.toBe(initial)
 		expect(context.state.value.adjustments.brightness).toBe(50)
 	})
 
