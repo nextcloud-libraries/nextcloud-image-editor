@@ -117,13 +117,27 @@ test('fine rotation and zoom scrub without changing export size', async ({ page 
 	expect((await readState(page)).fineRotation).toBe(0)
 })
 
+test('dismissing the revert confirmation keeps every edit', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	await page.locator('[data-test="revert"]').click()
+	const dialog = page.getByRole('dialog')
+	await dialog.getByRole('button', { name: 'Cancel' }).click()
+	await expect(dialog).toBeHidden()
+
+	expect((await readState(page)).rotation).toBe(90)
+})
+
 test('revert clears every edit as one undoable step', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	await page.getByRole('button', { name: 'Flip horizontal' }).click()
 
 	await page.locator('[data-test="revert"]').click()
-	await page.locator('[data-test="revert-confirm"]').click()
+	// The shared confirmation dialog is spawned outside the editor
+	await page.getByRole('dialog').getByRole('button', { name: 'Revert all changes' }).click()
 	const state = await readState(page)
 	expect(state.rotation).toBe(0)
 	expect(state.flipX).toBe(false)

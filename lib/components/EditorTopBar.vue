@@ -3,9 +3,8 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { showConfirmation } from '@nextcloud/dialogs'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import NcDialog from '@nextcloud/vue/components/NcDialog'
 import Close from 'vue-material-design-icons/Close.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
@@ -42,8 +41,6 @@ const labels = {
 	cancel: t('Cancel'),
 }
 
-const confirmRevert = ref(false)
-
 /**
  * Step the view magnification, snapping back to the fitted view.
  *
@@ -62,11 +59,20 @@ function resetZoom() {
 }
 
 /**
- * The user confirmed the revert.
+ * Confirm before discarding every edit. The shared dialog keeps this
+ * consistent with the destructive confirmations the rest of Nextcloud
+ * puts in front of the user.
  */
-function onConfirmRevert() {
-	confirmRevert.value = false
-	commands.revert()
+async function onRevert() {
+	if (await showConfirmation({
+		name: labels.revert,
+		text: labels.revertText,
+		labelConfirm: labels.revert,
+		labelReject: labels.cancel,
+		severity: 'warning',
+	})) {
+		commands.revert()
+	}
 }
 </script>
 
@@ -81,7 +87,7 @@ function onConfirmRevert() {
 				:title="labels.revert"
 				:disabled="!loaded || !context.canUndo.value"
 				variant="tertiary"
-				@click="confirmRevert = true">
+				@click="onRevert">
 				<template #icon>
 					<Restore :size="20" />
 				</template>
@@ -173,24 +179,6 @@ function onConfirmRevert() {
 				{{ labels.save }}
 			</NcButton>
 		</div>
-
-		<NcDialog
-			v-model:open="confirmRevert"
-			:name="labels.revert"
-			data-test="revert-dialog">
-			<p>{{ labels.revertText }}</p>
-			<template #actions>
-				<NcButton variant="tertiary" @click="confirmRevert = false">
-					{{ labels.cancel }}
-				</NcButton>
-				<NcButton
-					data-test="revert-confirm"
-					variant="error"
-					@click="onConfirmRevert">
-					{{ labels.revert }}
-				</NcButton>
-			</template>
-		</NcDialog>
 	</div>
 </template>
 
