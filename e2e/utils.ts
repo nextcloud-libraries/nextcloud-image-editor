@@ -82,18 +82,59 @@ export async function imageTopLeft(page: Page, width = 200, height = 100) {
 }
 
 /**
+ * The crop rectangle's box in stage pixels, read from Konva.
+ *
+ * @param page the test page
+ */
+export async function cropStageRect(page: Page) {
+	return page.evaluate(() => {
+		const node = window.Konva.stages[0]?.findOne('.crop-rect')
+		if (node === undefined) {
+			return null
+		}
+		return {
+			x: node.x(),
+			y: node.y(),
+			width: node.width() * node.scaleX(),
+			height: node.height() * node.scaleY(),
+		}
+	})
+}
+
+/**
  * On-screen position of a crop transformer anchor, read from Konva.
+ *
+ * The overlay is only attached once the container has been measured,
+ * and a late resize observation moves it, so the position is only
+ * trustworthy after it stops changing. Reading it too early makes a
+ * drag miss the 14px anchor and grab the rectangle instead, which
+ * silently moves the crop rather than resizing it.
  *
  * @param page the test page
  * @param name anchor name, e.g. 'top-left'
  */
 export async function cropAnchor(page: Page, name: string) {
-	return page.evaluate((anchorName) => {
-		const stage = window.Konva.stages[0]!
+	const read = () => page.evaluate((anchorName) => {
+		const stage = window.Konva.stages[0]
+		const anchor = stage?.findOne(`.${anchorName}`)
+		if (stage === undefined || anchor === undefined) {
+			return null
+		}
 		const rect = stage.container().getBoundingClientRect()
-		const anchor = stage.findOne(`.${anchorName}`)!.getAbsolutePosition()
-		return { x: rect.x + anchor.x, y: rect.y + anchor.y }
+		const position = anchor.getAbsolutePosition()
+		return { x: rect.x + position.x, y: rect.y + position.y }
 	}, name)
+
+	let previous: { x: number, y: number } | null = null
+	await expect.poll(async () => {
+		const current = await read()
+		const stable = current !== null && previous !== null
+			&& current.x === previous.x && current.y === previous.y
+		previous = current
+		return stable
+	}, { message: `The ${name} crop anchor never settled` }).toBe(true)
+
+	return previous!
 }
 
 /**

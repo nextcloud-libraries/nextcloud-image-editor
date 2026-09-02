@@ -149,6 +149,8 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	}
 
 	const cropNode = new Konva.Rect({
+		// Named so it can be told apart from the four shade rects
+		name: 'crop-rect',
 		...toStage(clampRect(deps.initial ?? { x: 0, y: 0, ...view.oriented }, view.oriented)),
 		stroke: 'rgba(255, 255, 255, 0.9)',
 		strokeWidth: 1,
