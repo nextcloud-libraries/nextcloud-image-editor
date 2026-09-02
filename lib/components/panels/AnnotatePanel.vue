@@ -12,6 +12,7 @@ import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
+import VectorLine from 'vue-material-design-icons/VectorLine.vue'
 import EditorSlider from '../base/EditorSlider.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useEditorContext } from '../../editor/context.ts'
@@ -40,10 +41,11 @@ const subTools: { id: Tool, label: string, icon: unknown }[] = [
 	{ id: 'rectangle', label: t('Rectangle'), icon: RectangleOutline },
 	{ id: 'ellipse', label: t('Ellipse'), icon: EllipseOutline },
 	{ id: 'arrow', label: t('Arrow'), icon: ArrowTopRight },
+	{ id: 'line', label: t('Line'), icon: VectorLine },
 	{ id: 'text', label: t('Text'), icon: FormatText },
 ]
 
-const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow'].includes(context.activeTool.value))
+const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow', 'line'].includes(context.activeTool.value))
 
 /** Largest preview that still fits the control card */
 const PREVIEW_CAP = 44

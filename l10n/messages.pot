@@ -128,6 +128,9 @@ msgstr ""
 msgid "Invert"
 msgstr ""
 
+msgid "Line"
+msgstr ""
+
 msgid "Luna"
 msgstr ""
 

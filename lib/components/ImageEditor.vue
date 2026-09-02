@@ -116,7 +116,7 @@ const canvasCursor = computed(() => {
 		return 'grab'
 	}
 	const tool = context.activeTool.value
-	if (['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)) {
+	if (['draw', 'rectangle', 'ellipse', 'arrow', 'line', 'text', 'sticker', 'redact'].includes(tool)) {
 		return 'crosshair'
 	}
 	return 'default'

@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ArrowAnnotation, BoxAnnotation, DrawAnnotation, EditorState, RedactAnnotation, TextAnnotation } from '../lib/editor/state.ts'
+import type { ArrowAnnotation, BoxAnnotation, DrawAnnotation, EditorState, LineAnnotation, RedactAnnotation, TextAnnotation } from '../lib/editor/state.ts'
 import type { PointerToolDeps } from '../lib/editor/tools.ts'
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -292,5 +292,21 @@ describe('attachPointerTools', () => {
 		// A further move belongs to no gesture and must not reach it
 		stage.fire('pointermove', { x: 9, y: 9 })
 		expect((stage.committed()!.annotations[0] as DrawAnnotation).points).toHaveLength(committed)
+	})
+
+	it('draws a straight line between the two ends of the drag', () => {
+		const stage = harness()
+		attach('line', stage.deps)
+
+		stage.fire('pointerdown', { x: 10, y: 20 })
+		stage.fire('pointermove', { x: 40, y: 30 })
+		// Only the ends matter: the path between them is not recorded
+		stage.fire('pointermove', { x: 90, y: 70 })
+		stage.fire('pointerup')
+
+		const line = stage.committed()!.annotations[0] as LineAnnotation
+		expect(line.type).toBe('line')
+		expect(line.points).toEqual([10, 20, 90, 70])
+		expect(line).toMatchObject({ color: '#123456', strokeWidth: 7 })
 	})
 })
