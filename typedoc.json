@@ -4,7 +4,7 @@
 	"out": "dist/doc",
 	"excludePrivate": true,
 	"navigationLinks": {
-		"GitHub": "https://github.com/skjnldsv/image-editor/",
-		"Demo": "https://skjnldsv.github.io/image-editor/demo/"
+		"GitHub": "https://github.com/nextcloud-libraries/nextcloud-image-editor/",
+		"Demo": "https://nextcloud-libraries.github.io/nextcloud-image-editor/demo/"
 	}
 }

@@ -7,8 +7,8 @@
 Vue 3 image editor component for Nextcloud apps. Replacement for the
 unmaintained Filerobot editor.
 
-- 📖 [API documentation](https://skjnldsv.github.io/image-editor/)
-- 🎨 [Live demo](https://skjnldsv.github.io/image-editor/demo/)
+- 📖 [API documentation](https://nextcloud-libraries.github.io/nextcloud-image-editor/)
+- 🎨 [Live demo](https://nextcloud-libraries.github.io/nextcloud-image-editor/demo/)
 
 ## Features
 
