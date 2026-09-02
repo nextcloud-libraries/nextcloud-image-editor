@@ -27,6 +27,15 @@ export interface SelectionDeps {
 	onSelectionRect(rect: { x: number, y: number, width: number, height: number } | null): void
 }
 
+export interface Selection {
+	/**
+	 * Re-bind to the scene after it reconciled: a changed annotation is
+	 * rendered by a new node, and the transformer has to follow it.
+	 */
+	sync(): void
+	detach(): void
+}
+
 /**
  * Map a flat point list through the node's transform, in Konva's
  * application order: scale, then rotation, then translation.
@@ -109,11 +118,11 @@ export function applyNodeTransform(
 
 /**
  * Attach click-to-select, drag and transform behavior for annotation
- * nodes. Returns a cleanup function.
+ * nodes.
  *
  * @param deps stage access and state callbacks
  */
-export function attachSelection(deps: SelectionDeps): () => void {
+export function attachSelection(deps: SelectionDeps): Selection {
 	const accent = primaryColor()
 	const transformer = new Konva.Transformer({
 		rotateEnabled: true,
@@ -162,11 +171,11 @@ export function attachSelection(deps: SelectionDeps): () => void {
 		deps.onSelectionRect(node.getClientRect())
 	}
 
-	const makeDraggable = () => {
+	const sync = () => {
 		deps.stage.find('.annotation').forEach((node) => node.draggable(true))
+		syncTransformer()
 	}
-	makeDraggable()
-	syncTransformer()
+	sync()
 
 	const onWriteBack = (event: Konva.KonvaEventObject<Event>) => {
 		const node = event.target
@@ -202,11 +211,14 @@ export function attachSelection(deps: SelectionDeps): () => void {
 	deps.stage.on('dragend.selection transformend.selection', onWriteBack)
 	deps.stage.on('dragmove.selection transform.selection', reportRect)
 
-	return () => {
-		deps.stage.off('.selection')
-		deps.stage.find('.annotation').forEach((node) => node.draggable(false))
-		deps.onSelectionRect(null)
-		transformer.destroy()
-		layer.destroy()
+	return {
+		sync,
+		detach() {
+			deps.stage.off('.selection')
+			deps.stage.find('.annotation').forEach((node) => node.draggable(false))
+			deps.onSelectionRect(null)
+			transformer.destroy()
+			layer.destroy()
+		},
 	}
 }

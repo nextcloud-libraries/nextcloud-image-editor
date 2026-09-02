@@ -75,9 +75,25 @@ export function clampCropBox(bounds: CropBox, oldBox: CropBox, newBox: CropBox, 
 	}
 }
 
+/** The view transform the overlay projects its rectangle through */
+export interface CropView {
+	/** Oriented image size in scene coordinates */
+	oriented: Size
+	scale: number
+	offset: { x: number, y: number }
+}
+
 export interface CropOverlay {
 	/** Current crop rectangle in scene coordinates */
 	getRect(): Rect
+	/**
+	 * Follow a view change, keeping the rectangle on the same scene
+	 * coordinates. Panning, zooming or resizing the container must not
+	 * cost the user the selection they were drawing.
+	 *
+	 * @param view the new view transform
+	 */
+	update(view: CropView): void
 	/**
 	 * Lock the crop to an aspect ratio, resizing the current rect to
 	 * match, or free it again with null.
@@ -95,20 +111,23 @@ export interface CropOverlay {
  * @param deps stage, view transform and initial rect
  */
 export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
+	// Mutable: the overlay outlives the view it was built for
+	const view: CropView = { oriented: deps.oriented, scale: deps.scale, offset: deps.offset }
+
 	const toStage = (rect: Rect): Rect => ({
-		x: deps.offset.x + rect.x * deps.scale,
-		y: deps.offset.y + rect.y * deps.scale,
-		width: rect.width * deps.scale,
-		height: rect.height * deps.scale,
+		x: view.offset.x + rect.x * view.scale,
+		y: view.offset.y + rect.y * view.scale,
+		width: rect.width * view.scale,
+		height: rect.height * view.scale,
 	})
 	const toScene = (rect: Rect): Rect => ({
-		x: (rect.x - deps.offset.x) / deps.scale,
-		y: (rect.y - deps.offset.y) / deps.scale,
-		width: rect.width / deps.scale,
-		height: rect.height / deps.scale,
+		x: (rect.x - view.offset.x) / view.scale,
+		y: (rect.y - view.offset.y) / view.scale,
+		width: rect.width / view.scale,
+		height: rect.height / view.scale,
 	})
 
-	const imageBounds = toStage({ x: 0, y: 0, ...deps.oriented })
+	let imageBounds = toStage({ x: 0, y: 0, ...view.oriented })
 	const layer = new Konva.Layer({ name: 'crop' })
 
 	const makeShade = () => new Konva.Rect({
@@ -124,13 +143,21 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	}
 
 	const cropNode = new Konva.Rect({
-		...toStage(clampRect(deps.initial ?? { x: 0, y: 0, ...deps.oriented }, deps.oriented)),
+		...toStage(clampRect(deps.initial ?? { x: 0, y: 0, ...view.oriented }, view.oriented)),
 		stroke: 'rgba(255, 255, 255, 0.9)',
 		strokeWidth: 1,
 		draggable: true,
 		strokeScaleEnabled: false,
 	})
 	layer.add(cropNode)
+
+	/** The crop node's box in stage coordinates, scale folded in */
+	const stageRect = (): Rect => ({
+		x: cropNode.x(),
+		y: cropNode.y(),
+		width: cropNode.width() * cropNode.scaleX(),
+		height: cropNode.height() * cropNode.scaleY(),
+	})
 
 	// Rule-of-thirds guides inside the crop rect
 	const gridLines = Array.from({ length: 4 }, () => new Konva.Line({
@@ -149,12 +176,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	}
 
 	const updateOverlay = () => {
-		const rect = {
-			x: cropNode.x(),
-			y: cropNode.y(),
-			width: cropNode.width() * cropNode.scaleX(),
-			height: cropNode.height() * cropNode.scaleY(),
-		}
+		const rect = stageRect()
 		const { x, y, width, height } = imageBounds
 		shadeTop.setAttrs({ x, y, width, height: rect.y - y })
 		shadeLeft.setAttrs({ x, y: rect.y, width: rect.x - x, height: rect.height })
@@ -209,12 +231,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		if (aspect === null) {
 			return
 		}
-		const current = {
-			x: cropNode.x(),
-			y: cropNode.y(),
-			width: cropNode.width() * cropNode.scaleX(),
-			height: cropNode.height() * cropNode.scaleY(),
-		}
+		const current = stageRect()
 		// Largest rect with the wanted ratio that fits the image bounds,
 		// no bigger than the current selection's longest edge
 		const width = Math.min(
@@ -240,19 +257,25 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 
 	return {
 		setAspect,
+		update(next) {
+			// Read the selection in scene units before the transform moves
+			const scene = toScene(stageRect())
+			view.oriented = next.oriented
+			view.scale = next.scale
+			view.offset = next.offset
+			imageBounds = toStage({ x: 0, y: 0, ...view.oriented })
+			cropNode.setAttrs({ ...toStage(scene), scaleX: 1, scaleY: 1 })
+			transformer.forceUpdate()
+			updateOverlay()
+		},
 		getRect() {
-			const scene = toScene({
-				x: cropNode.x(),
-				y: cropNode.y(),
-				width: cropNode.width() * cropNode.scaleX(),
-				height: cropNode.height() * cropNode.scaleY(),
-			})
+			const scene = toScene(stageRect())
 			return clampRect({
 				x: Math.round(scene.x),
 				y: Math.round(scene.y),
 				width: Math.round(scene.width),
 				height: Math.round(scene.height),
-			}, deps.oriented)
+			}, view.oriented)
 		},
 		destroy() {
 			transformer.destroy()

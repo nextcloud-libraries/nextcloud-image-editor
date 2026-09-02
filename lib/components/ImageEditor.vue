@@ -4,9 +4,11 @@
 -->
 <script setup lang="ts">
 import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
+import type { Tool } from '../editor/context.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
-import type { EditorState, Size } from '../editor/state.ts'
+import type { Selection } from '../editor/selection.ts'
+import type { EditorState, Rect, Size } from '../editor/state.ts'
 import type { ViewFit } from '../editor/view.ts'
 import type { ExportResult } from '../types/export.ts'
 
@@ -73,7 +75,13 @@ const selectionBox = shallowRef<{ x: number, y: number, width: number, height: n
 let stage: Konva.Stage | null = null
 let scene: Scene | null = null
 let cropOverlay: CropOverlay | null = null
+let selection: Selection | null = null
 let detachTool: (() => void) | null = null
+// What the attached tool was built for. A view change is no reason to
+// rebuild it: tearing the crop overlay down on every render cost the
+// user the rectangle they were drawing as soon as they zoomed or the
+// container resized.
+let attached: { tool: Tool, oriented: HTMLCanvasElement, crop: Rect | null } | null = null
 let resizeObserver: ResizeObserver | null = null
 let pendingTransition: { kind: TransitionKind, context: TransitionContext } | null = null
 // The view metrics of the last completed render: transition capture
@@ -181,11 +189,6 @@ function renderView(): void {
 		return
 	}
 
-	detachTool?.()
-	detachTool = null
-	cropOverlay?.destroy()
-	cropOverlay = null
-
 	stage.size(containerSize.value)
 	scene ??= createScene(stage)
 	scene.update(oriented, context.state.value, options)
@@ -214,9 +217,50 @@ function renderView(): void {
 		previousOrigin: { x: renderedOrigin.x, y: renderedOrigin.y },
 	}
 
+	syncTools(oriented, options)
+}
+
+/**
+ * Bring the attached tool in line with the rendered scene. Only a
+ * different tool, a re-baked source canvas or a committed crop is a
+ * reason to rebuild it; a pan, a zoom or a resize is not, and neither
+ * is a commit that merely changed the annotations.
+ *
+ * @param oriented the orientation-baked source canvas
+ * @param options the view transform just rendered
+ */
+function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
+	if (stage === null) {
+		return
+	}
 	const tool = context.activeTool.value
+	const crop = context.state.value.crop
+	const fresh = attached !== null
+		&& attached.tool === tool
+		&& attached.oriented === oriented
+		&& attached.crop === crop
+
+	if (fresh) {
+		// The scene reconciled, so the selection has to re-find its node
+		selection?.sync()
+		cropOverlay?.update({
+			oriented: { width: oriented.width, height: oriented.height },
+			scale: options.scale,
+			offset: options.offset,
+		})
+		return
+	}
+
+	detachTool?.()
+	detachTool = null
+	selection?.detach()
+	selection = null
+	cropOverlay?.destroy()
+	cropOverlay = null
+	attached = { tool, oriented, crop }
+
 	if (tool === 'select') {
-		detachTool = attachSelection({
+		selection = attachSelection({
 			stage,
 			getState: () => context.state.value,
 			commit: context.commit,
@@ -235,7 +279,7 @@ function renderView(): void {
 			oriented: { width: oriented.width, height: oriented.height },
 			scale: options.scale,
 			offset: options.offset,
-			initial: context.state.value.crop,
+			initial: crop,
 		})
 		applyCropAspect()
 	} else if (tool !== 'adjust') {
@@ -245,11 +289,13 @@ function renderView(): void {
 			oriented: () => orientedCanvas.value,
 			getState: () => context.state.value,
 			commit: context.commit,
+			// Read the live view: the tool outlives the transform it was
+			// attached under
 			toScene: (pointer) => toImageCoords(
 				pointer,
 				context.state.value,
 				{ width: oriented.width, height: oriented.height },
-				options,
+				viewOptions.value ?? options,
 			),
 			panning: () => context.panning.value,
 			options: () => ({
@@ -496,6 +542,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	resizeObserver?.disconnect()
 	detachTool?.()
+	selection?.detach()
 	cropOverlay?.destroy()
 	scene?.destroy()
 	scene = null
