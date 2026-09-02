@@ -266,16 +266,121 @@ export interface SceneOptions {
 }
 
 export interface Scene {
+	/** Carries the view transform and the crop clip; owned by update() */
+	viewGroup: Konva.Group
+	/**
+	 * The group transitions animate: identity outside a transition, so
+	 * tweens and reconciliation never write the same attributes
+	 */
 	contentGroup: Konva.Group
 	imageNode: Konva.Image
-	annotationNodes: Konva.Shape[]
+	/** Reconcile the stage content with the given state and view */
+	update(oriented: HTMLCanvasElement, state: EditorState, options: SceneOptions): void
+	destroy(): void
 }
 
 /**
- * Rebuild the stage content from the edit state. One code path renders
- * both the interactive view and the export, keeping them identical.
+ * Create a persistent scene on the stage. update() reconciles instead
+ * of rebuilding: the image node survives every call, annotation nodes
+ * are keyed by id and only rebuilt when their state entry changed, and
+ * the filter cache is only redone when its inputs changed. One code
+ * path still renders both the interactive view and the export.
  *
- * @param stage the target stage, cleared before building
+ * @param stage the target stage
+ */
+export function createScene(stage: Konva.Stage): Scene {
+	const layer = new Konva.Layer()
+	const viewGroup = new Konva.Group({ name: 'view' })
+	const contentGroup = new Konva.Group({ name: 'content' })
+	const imageNode = new Konva.Image({ image: undefined, listening: false })
+	contentGroup.add(imageNode)
+	viewGroup.add(contentGroup)
+	layer.add(viewGroup)
+	stage.add(layer)
+
+	// Which state entry each node was built from, and the inputs of the
+	// current filter cache: reference equality decides whether work is due
+	const built = new Map<string, { annotation: Annotation, node: Konva.Shape }>()
+	let filterKey = ''
+
+	const update = (oriented: HTMLCanvasElement, state: EditorState, options: SceneOptions): void => {
+		const orientedChanged = imageNode.image() !== oriented
+		if (orientedChanged) {
+			imageNode.image(oriented)
+		}
+
+		// While the crop tool shows the full image for context, the view
+		// origin is the image corner instead of the crop corner
+		const origin = options.showCropped
+			? visibleRect(state, { width: oriented.width, height: oriented.height })
+			: { x: 0, y: 0 }
+		viewGroup.position({
+			x: options.offset.x - origin.x * options.scale,
+			y: options.offset.y - origin.y * options.scale,
+		})
+		viewGroup.scale({ x: options.scale, y: options.scale })
+		if (options.showCropped && state.crop !== null) {
+			viewGroup.clip(state.crop)
+		} else {
+			// Konva clips whenever clipWidth is set: unset it to disable
+			viewGroup.clipWidth(undefined as unknown as number)
+			viewGroup.clipHeight(undefined as unknown as number)
+		}
+
+		const pixelRatio = options.fastFilters
+			? Math.min(1, options.scale * (globalThis.devicePixelRatio || 1))
+			: 1
+		const { brightness, contrast, saturation } = state.adjustments
+		const nextFilterKey = `${brightness}|${contrast}|${saturation}|${state.preset}|${pixelRatio}`
+		if (orientedChanged || nextFilterKey !== filterKey) {
+			applyFilters(imageNode, state, pixelRatio)
+			filterKey = nextFilterKey
+		}
+
+		// Keyed reconciliation: a changed entry reference means the node
+		// is stale; a new oriented canvas invalidates every node because
+		// redactions sample its pixels
+		const seen = new Set<string>()
+		for (const annotation of state.annotations) {
+			seen.add(annotation.id)
+			const entry = built.get(annotation.id)
+			if (entry !== undefined && entry.annotation === annotation && !orientedChanged) {
+				continue
+			}
+			entry?.node.destroy()
+			const node = buildAnnotationNode(annotation, oriented)
+			contentGroup.add(node)
+			built.set(annotation.id, { annotation, node })
+		}
+		for (const [id, entry] of built) {
+			if (!seen.has(id)) {
+				entry.node.destroy()
+				built.delete(id)
+			}
+		}
+
+		// Stacking order: image at the bottom, annotations in state order
+		imageNode.zIndex(0)
+		state.annotations.forEach((annotation, index) => built.get(annotation.id)!.node.zIndex(index + 1))
+	}
+
+	return {
+		viewGroup,
+		contentGroup,
+		imageNode,
+		update,
+		destroy: () => {
+			built.clear()
+			layer.destroy()
+		},
+	}
+}
+
+/**
+ * One-shot render of the edit state onto a fresh stage, for exports and
+ * thumbnails where nothing needs to persist.
+ *
+ * @param stage the target stage, expected to be empty
  * @param oriented the orientation-baked source canvas
  * @param state the edit state
  * @param options view transform and crop behavior
@@ -286,38 +391,9 @@ export function renderScene(
 	state: EditorState,
 	options: SceneOptions,
 ): Scene {
-	stage.destroyChildren()
-
-	// While the crop tool shows the full image for context, the view
-	// origin is the image corner instead of the crop corner
-	const origin = options.showCropped
-		? visibleRect(state, { width: oriented.width, height: oriented.height })
-		: { x: 0, y: 0 }
-	const contentGroup = new Konva.Group({
-		x: options.offset.x - origin.x * options.scale,
-		y: options.offset.y - origin.y * options.scale,
-		scaleX: options.scale,
-		scaleY: options.scale,
-	})
-	if (options.showCropped && state.crop !== null) {
-		contentGroup.clip(state.crop)
-	}
-
-	const imageNode = new Konva.Image({ image: oriented, listening: false })
-	const pixelRatio = options.fastFilters
-		? Math.min(1, options.scale * (globalThis.devicePixelRatio || 1))
-		: 1
-	applyFilters(imageNode, state, pixelRatio)
-	contentGroup.add(imageNode)
-
-	const annotationNodes = state.annotations.map((annotation) => buildAnnotationNode(annotation, oriented))
-	annotationNodes.forEach((node) => contentGroup.add(node))
-
-	const layer = new Konva.Layer()
-	layer.add(contentGroup)
-	stage.add(layer)
-
-	return { contentGroup, imageNode, annotationNodes }
+	const scene = createScene(stage)
+	scene.update(oriented, state, options)
+	return scene
 }
 
 /**
