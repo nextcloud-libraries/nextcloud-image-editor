@@ -16,3 +16,9 @@ path = ["package-lock.json", "package.json", "tsconfig.json", "typedoc.json", ".
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = ["playground/demo.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Bro Takes Photos"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
