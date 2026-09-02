@@ -107,3 +107,15 @@ test('phone layout keeps the rail and controls apart', async ({ page }) => {
 	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 	expect(overflow).toBe(0)
 })
+
+test('state changes are announced to assistive tech', async ({ page }) => {
+	await waitLoaded(page)
+	const live = page.locator('[role="status"][aria-live]')
+
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await expect(live).toContainText('mode')
+
+	await page.getByRole('button', { name: 'Filter', exact: true }).click()
+	await page.locator('[data-test="preset-sepia"]').click()
+	await expect(live).toHaveText('Filter applied')
+})

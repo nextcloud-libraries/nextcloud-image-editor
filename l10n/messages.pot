@@ -2,6 +2,9 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+msgid "{mode} mode"
+msgstr ""
+
 msgid "Adjust"
 msgstr ""
 
@@ -9,6 +12,12 @@ msgid "All edits will be discarded. This cannot be undone by closing the dialog.
 msgstr ""
 
 msgid "Annotate"
+msgstr ""
+
+msgid "Annotation added"
+msgstr ""
+
+msgid "Annotation removed"
 msgstr ""
 
 msgid "Annotation text"
@@ -65,6 +74,12 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
+msgid "Filter applied"
+msgstr ""
+
+msgid "Filter removed"
+msgstr ""
+
 msgid "Flip horizontal"
 msgstr ""
 
@@ -89,10 +104,10 @@ msgstr ""
 msgid "Invert"
 msgstr ""
 
-msgid "No filter"
+msgid "More emojis"
 msgstr ""
 
-msgid "More emojis"
+msgid "No filter"
 msgstr ""
 
 msgid "Noir"
