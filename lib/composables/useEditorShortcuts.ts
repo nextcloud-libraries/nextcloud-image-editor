@@ -7,6 +7,7 @@ import type { EditorContext } from '../editor/context.ts'
 import { onBeforeUnmount, onMounted } from 'vue'
 import { translateAnnotation } from '../editor/state.ts'
 import { ownsTextEntry } from '../utils/dom.ts'
+import { t } from '../utils/l10n.ts'
 
 export interface ShortcutDeps {
 	context: EditorContext
@@ -111,7 +112,7 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 		}
 		if (nudging && event.key in NUDGE_KEYS) {
 			nudging = false
-			context.commit(context.state.value)
+			context.commit(context.state.value, t('Move or resize'))
 		}
 	}
 

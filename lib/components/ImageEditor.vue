@@ -189,10 +189,11 @@ function captureView(): TransitionContext {
  *
  * @param kind which transition to play
  * @param next the state to commit
+ * @param label what the user did, for the history list
  */
-function commitWithTransition(kind: TransitionKind, next: EditorState): void {
+function commitWithTransition(kind: TransitionKind, next: EditorState, label: string): void {
 	pendingTransition = { kind, context: captureView() }
-	context.commit(next)
+	context.commit(next, label)
 }
 
 /**
@@ -417,7 +418,7 @@ function currentOriented(): Size {
  * Rotate the image 90° clockwise.
  */
 function onRotateCW(): void {
-	commitWithTransition('rotate-cw', rotateCW(context.state.value, currentOriented()))
+	commitWithTransition('rotate-cw', rotateCW(context.state.value, currentOriented()), t('Rotate right'))
 }
 
 /**
@@ -430,21 +431,21 @@ function onRotateCCW(): void {
 		state = rotateCW(state, oriented)
 		oriented = { width: oriented.height, height: oriented.width }
 	}
-	commitWithTransition('rotate-ccw', state)
+	commitWithTransition('rotate-ccw', state, t('Rotate left'))
 }
 
 /**
  * Mirror the image horizontally.
  */
 function onFlipHorizontal(): void {
-	commitWithTransition('flip-h', flipHorizontal(context.state.value, currentOriented()))
+	commitWithTransition('flip-h', flipHorizontal(context.state.value, currentOriented()), t('Flip horizontal'))
 }
 
 /**
  * Mirror the image vertically.
  */
 function onFlipVertical(): void {
-	commitWithTransition('flip-v', flipVertical(context.state.value, currentOriented()))
+	commitWithTransition('flip-v', flipVertical(context.state.value, currentOriented()), t('Flip vertical'))
 }
 
 /**
@@ -456,7 +457,7 @@ function onApplyCrop(): void {
 		// Capture before the mode switches so the zoom starts from the
 		// full-image crop view
 		pendingTransition = { kind: 'crop', context: captureView() }
-		context.commit({ ...context.state.value, crop })
+		context.commit({ ...context.state.value, crop }, t('Crop'))
 		context.setMode('annotate')
 	}
 }
@@ -472,7 +473,7 @@ function onDuplicateSelection(): void {
 		return
 	}
 	const copy = duplicateAnnotation(annotation)
-	context.commit({ ...state, annotations: [...state.annotations, copy] })
+	context.commit({ ...state, annotations: [...state.annotations, copy] }, t('Duplicate'))
 	context.selectedId.value = copy.id
 	renderView()
 }
@@ -481,14 +482,14 @@ function onDuplicateSelection(): void {
  * Revert every edit as one undoable step.
  */
 function onRevert(): void {
-	context.commit(createInitialState())
+	context.commit(createInitialState(), t('Revert all changes'))
 }
 
 /**
  * Drop the crop and return to the full image.
  */
 function onResetCrop(): void {
-	context.commit({ ...context.state.value, crop: null })
+	context.commit({ ...context.state.value, crop: null }, t('Reset crop'))
 }
 
 /**
@@ -504,7 +505,7 @@ function onDeleteSelection(): void {
 	context.commit({
 		...state,
 		annotations: state.annotations.filter((annotation) => annotation.id !== id),
-	})
+	}, t('Delete'))
 }
 
 useEditorShortcuts({

@@ -49,7 +49,7 @@ function onAdjustInput(value: number) {
  * Record the current preview as one undo step on release.
  */
 function onSliderCommit() {
-	context.commit(context.state.value)
+	context.commit(context.state.value, adjustments.find((entry) => entry.id === activeAdjustment.value)!.label)
 }
 </script>
 

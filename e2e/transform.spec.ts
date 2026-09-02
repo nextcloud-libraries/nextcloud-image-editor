@@ -163,3 +163,46 @@ test('aspect presets lock the crop ratio', async ({ page }) => {
 	const result = await save(page)
 	expect(result.width).toBe(result.height)
 })
+
+test('the history lists every step and jumps to one', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await page.getByRole('button', { name: 'Flip horizontal' }).click()
+	await expect.poll(async () => (await readState(page)).flipY).toBe(true)
+
+	await page.locator('[data-test="history"] button').click()
+	const steps = page.locator('[data-test^="history-step-"]')
+
+	// Newest first, with the state on screen at the top
+	await expect(steps).toHaveCount(3)
+	await expect(steps.nth(0)).toContainText('Flip horizontal')
+	await expect(steps.nth(1)).toContainText('Rotate right')
+	await expect(steps.nth(2)).toContainText('Original')
+
+	// Two steps back in one go, rather than two undos
+	await page.locator('[data-test="history-step-0"]').click()
+	const state = await readState(page)
+	expect(state.rotation).toBe(0)
+	expect(state.flipX).toBe(false)
+	expect(state.flipY).toBe(false)
+})
+
+test('a step taken after a jump replaces the abandoned ones', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(180)
+
+	await page.locator('[data-test="history"] button').click()
+	await page.locator('[data-test="history-step-1"]').click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	await page.getByRole('button', { name: 'Flip vertical' }).click()
+	await page.locator('[data-test="history"] button').click()
+
+	// The second rotation is gone: the flip took its place
+	const steps = page.locator('[data-test^="history-step-"]')
+	await expect(steps).toHaveCount(3)
+	await expect(steps.nth(0)).toContainText('Flip vertical')
+	await expect(steps.nth(1)).toContainText('Rotate right')
+})

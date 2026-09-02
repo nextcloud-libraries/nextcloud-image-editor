@@ -10,6 +10,7 @@ import type { TextAnnotation } from '../editor/state.ts'
 import { ref } from 'vue'
 import { visibleRect } from '../editor/render.ts'
 import { newId } from '../utils/id.ts'
+import { t } from '../utils/l10n.ts'
 
 export interface TextEdit {
 	sceneX: number
@@ -111,7 +112,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 				annotations: trimmed === ''
 					? state.annotations.filter((annotation) => annotation.id !== edit.id)
 					: state.annotations.map((annotation) => annotation.id === edit.id ? { ...annotation, text: trimmed } : annotation),
-			})
+			}, trimmed === '' ? t('Delete') : t('Text'))
 		} else if (trimmed !== '') {
 			context.commit({
 				...state,
@@ -125,7 +126,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 					fontSize: context.fontSize.value,
 					rotation: 0,
 				}],
-			})
+			}, t('Text'))
 		}
 	}
 

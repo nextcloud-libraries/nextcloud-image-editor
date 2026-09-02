@@ -68,10 +68,19 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+msgid "Drag to move, use the handles to resize"
+msgstr ""
+
 msgid "Draw"
 msgstr ""
 
 msgid "Duplicate"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Edit history"
 msgstr ""
 
 msgid "Ellipse"
@@ -123,6 +132,9 @@ msgid "Mist"
 msgstr ""
 
 msgid "More emojis"
+msgstr ""
+
+msgid "Move or resize"
 msgstr ""
 
 msgid "No filter"
@@ -195,6 +207,12 @@ msgid "Stroke width"
 msgstr ""
 
 msgid "Text"
+msgstr ""
+
+msgid "The image could not be loaded"
+msgstr ""
+
+msgid "Try again"
 msgstr ""
 
 msgid "Undo"

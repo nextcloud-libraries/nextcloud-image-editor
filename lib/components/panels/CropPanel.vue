@@ -67,7 +67,7 @@ function onTransformInput(value: number) {
  * Record the current preview as one undo step on release.
  */
 function onSliderCommit() {
-	context.commit(context.state.value)
+	context.commit(context.state.value, activeCropControl.value === 'rotation' ? labels.rotation : labels.scale)
 }
 </script>
 

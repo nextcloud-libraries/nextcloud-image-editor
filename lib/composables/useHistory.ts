@@ -6,6 +6,16 @@ import type { ComputedRef } from 'vue'
 
 import { computed, shallowRef } from 'vue'
 
+export interface HistoryEntry<T> {
+	/** The recorded state */
+	snapshot: T
+	/**
+	 * What the user did to get here, already translated. Undefined for
+	 * a step whose call site did not name it.
+	 */
+	label?: string
+}
+
 export interface UseHistory<T> {
 	/** Whether an older snapshot is available */
 	canUndo: ComputedRef<boolean>
@@ -13,12 +23,29 @@ export interface UseHistory<T> {
 	canRedo: ComputedRef<boolean>
 	/** The active snapshot, undefined while the history is empty */
 	current: ComputedRef<T | undefined>
-	/** Append a snapshot after the active one, discarding any redoable entries */
-	push(snapshot: T): void
+	/** Every recorded step, oldest first */
+	entries: ComputedRef<readonly HistoryEntry<T>[]>
+	/** Position of the active step in entries, -1 while empty */
+	index: ComputedRef<number>
+	/**
+	 * Append a snapshot after the active one, discarding any redoable
+	 * entries.
+	 *
+	 * @param snapshot the state to record
+	 * @param label what the user did, for a history list
+	 */
+	push(snapshot: T, label?: string): void
 	/** Move back one snapshot and return it, or undefined at the oldest entry */
 	undo(): T | undefined
 	/** Move forward one snapshot and return it, or undefined at the newest entry */
 	redo(): T | undefined
+	/**
+	 * Move to an arbitrary step and return its snapshot, or undefined
+	 * where there is no such step or it is the active one already.
+	 *
+	 * @param target position in entries
+	 */
+	jumpTo(target: number): T | undefined
 	/** Drop all snapshots */
 	clear(): void
 }
@@ -38,44 +65,50 @@ export function useHistory<T>(capacity = 100): UseHistory<T> {
 		throw new RangeError('History capacity must be a positive integer')
 	}
 
-	const entries = shallowRef<T[]>([])
+	const entries = shallowRef<HistoryEntry<T>[]>([])
 	const index = shallowRef(-1)
 
 	const canUndo = computed(() => index.value > 0)
 	const canRedo = computed(() => index.value < entries.value.length - 1)
-	const current = computed<T | undefined>(() => entries.value[index.value])
+	const current = computed<T | undefined>(() => entries.value[index.value]?.snapshot)
 
 	/**
 	 * Append a snapshot after the active one, discarding any redoable entries.
 	 *
 	 * @param snapshot the state to record
+	 * @param label what the user did, for a history list
 	 */
-	function push(snapshot: T): void {
-		const kept = [...entries.value.slice(0, index.value + 1), snapshot]
+	function push(snapshot: T, label?: string): void {
+		const kept = [...entries.value.slice(0, index.value + 1), { snapshot, label }]
 		entries.value = kept.slice(Math.max(0, kept.length - capacity))
 		index.value = entries.value.length - 1
+	}
+
+	/**
+	 * Move to an arbitrary step and return its snapshot.
+	 *
+	 * @param target position in entries
+	 */
+	function jumpTo(target: number): T | undefined {
+		if (target === index.value || target < 0 || target >= entries.value.length) {
+			return undefined
+		}
+		index.value = target
+		return current.value
 	}
 
 	/**
 	 * Move back one snapshot and return it, or undefined at the oldest entry.
 	 */
 	function undo(): T | undefined {
-		if (!canUndo.value) {
-			return undefined
-		}
-		index.value -= 1
-		return current.value
+		return canUndo.value ? jumpTo(index.value - 1) : undefined
 	}
 
 	/**
 	 * Move forward one snapshot and return it, or undefined at the newest entry.
 	 */
 	function redo(): T | undefined {
-		if (!canRedo.value) {
-			return undefined
-		}
-		index.value += 1
-		return current.value
+		return canRedo.value ? jumpTo(index.value + 1) : undefined
 	}
 
 	/**
@@ -86,5 +119,16 @@ export function useHistory<T>(capacity = 100): UseHistory<T> {
 		index.value = -1
 	}
 
-	return { canUndo, canRedo, current, push, undo, redo, clear }
+	return {
+		canUndo,
+		canRedo,
+		current,
+		entries: computed(() => entries.value),
+		index: computed(() => index.value),
+		push,
+		undo,
+		redo,
+		jumpTo,
+		clear,
+	}
 }

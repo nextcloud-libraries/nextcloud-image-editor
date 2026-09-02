@@ -26,9 +26,10 @@ unmaintained Filerobot editor.
   duplicatable and deletable
 - Redaction that destroys pixels (block averaging or strong blur),
   never just an overlay
-- Full undo/redo with Ctrl+Z/Y, revert-all behind a confirmation,
-  arrow-key nudging, cursor-anchored wheel zoom, drag panning, pinch
-  zoom on touch and a click-to-reset zoom readout
+- Full undo/redo with Ctrl+Z/Y, a named history list to jump back to any
+  step, revert-all behind a confirmation, arrow-key nudging,
+  cursor-anchored wheel zoom, drag panning, pinch zoom on touch and a
+  click-to-reset zoom readout
 - Ambient glass UI tinted by the image itself, responsive down to
   phone-sized containers (container queries, not viewport media queries)
 - Keyboard accessible, pointer-event based canvas (mouse and touch),
@@ -97,7 +98,10 @@ save button.
 ### `useHistory<T>(capacity?)`
 
 Linear undo/redo history of immutable snapshots, used by the editor and
-exported for standalone use.
+exported for standalone use. Each step carries an optional label, and
+`entries`, `index` and `jumpTo()` let a consumer render a history list
+and move to any step in it. Snapshots are held by reference: whatever
+is pushed must not be mutated afterwards.
 
 ## Development
 

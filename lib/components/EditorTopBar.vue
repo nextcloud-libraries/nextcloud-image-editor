@@ -4,8 +4,13 @@
 -->
 <script setup lang="ts">
 import { showConfirmation } from '@nextcloud/dialogs'
+import { computed } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import Check from 'vue-material-design-icons/Check.vue'
 import Close from 'vue-material-design-icons/Close.vue'
+import HistoryIcon from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
 import Redo from 'vue-material-design-icons/Redo.vue'
@@ -39,7 +44,18 @@ const labels = {
 	resetZoom: t('Reset zoom'),
 	save: t('Save'),
 	cancel: t('Cancel'),
+	history: t('Edit history'),
+	step: t('Edit'),
 }
+
+// Newest first, which is the order the user thinks in when going back
+const historySteps = computed(() => context.historyEntries.value
+	.map((entry, index) => ({
+		index,
+		label: entry.label ?? labels.step,
+		active: index === context.historyIndex.value,
+	}))
+	.reverse())
 
 /**
  * Step the view magnification, snapping back to the fitted view.
@@ -115,6 +131,28 @@ async function onRevert() {
 					<Redo :size="20" />
 				</template>
 			</NcButton>
+
+			<NcActions
+				:aria-label="labels.history"
+				:title="labels.history"
+				:disabled="!loaded"
+				variant="tertiary"
+				data-test="history">
+				<template #icon>
+					<HistoryIcon :size="20" />
+				</template>
+				<NcActionButton
+					v-for="step in historySteps"
+					:key="step.index"
+					:data-test="`history-step-${step.index}`"
+					:aria-current="step.active"
+					@click="context.jumpTo(step.index)">
+					<template #icon>
+						<Check v-if="step.active" :size="20" />
+					</template>
+					{{ step.label }}
+				</NcActionButton>
+			</NcActions>
 
 			<span class="editor-topbar__separator" />
 

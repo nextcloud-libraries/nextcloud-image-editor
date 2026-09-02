@@ -7,6 +7,7 @@ import type { Tool } from './context.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
 import { newId } from '../utils/id.ts'
+import { t } from '../utils/l10n.ts'
 import { buildAnnotationNode } from './render.ts'
 
 export interface ToolOptions {
@@ -22,7 +23,7 @@ export interface PointerToolDeps {
 	/** Content group receiving the live preview node while dragging */
 	contentGroup(): Konva.Group | null
 	getState(): EditorState
-	commit(state: EditorState): void
+	commit(state: EditorState, label?: string): void
 	/** Convert a stage pointer position to oriented image coordinates */
 	toScene(pointer: { x: number, y: number }): { x: number, y: number }
 	/** The orientation-baked source canvas, needed by redact previews */
@@ -32,6 +33,16 @@ export interface PointerToolDeps {
 	panning(): boolean
 	/** Open the text editing overlay at the given scene position */
 	startTextEdit(position: { x: number, y: number }): void
+}
+
+/** What each tool calls the step it records, for the history list */
+const TOOL_LABELS: Partial<Record<Tool, string>> = {
+	draw: t('Draw'),
+	rectangle: t('Rectangle'),
+	ellipse: t('Ellipse'),
+	arrow: t('Arrow'),
+	sticker: t('Sticker'),
+	redact: t('Redact'),
 }
 
 /**
@@ -137,7 +148,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 					fontSize: options.fontSize * 2,
 					rotation: 0,
 				}
-				deps.commit({ ...state, annotations: [...state.annotations, sticker] })
+				deps.commit({ ...state, annotations: [...state.annotations, sticker] }, TOOL_LABELS.sticker)
 				return
 			}
 		}
@@ -195,7 +206,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			return
 		}
 		const state = deps.getState()
-		deps.commit({ ...state, annotations: [...state.annotations, active] })
+		deps.commit({ ...state, annotations: [...state.annotations, active] }, TOOL_LABELS[tool])
 		discard()
 	}
 

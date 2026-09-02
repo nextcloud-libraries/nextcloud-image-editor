@@ -65,9 +65,10 @@ watch(
  * Apply a filter preset.
  *
  * @param preset the preset to apply
+ * @param label the preset's translated name, for the history list
  */
-function setPreset(preset: FilterPreset) {
-	context.commit({ ...context.state.value, preset })
+function setPreset(preset: FilterPreset, label: string) {
+	context.commit({ ...context.state.value, preset }, label)
 }
 </script>
 
@@ -81,7 +82,7 @@ function setPreset(preset: FilterPreset) {
 			:active="context.state.value.preset === preset.id"
 			:disabled="!loaded"
 			:data-test="`preset-${preset.id}`"
-			@click="setPreset(preset.id)" />
+			@click="setPreset(preset.id, preset.label)" />
 	</GlassSurface>
 </template>
 

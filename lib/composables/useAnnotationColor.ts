@@ -4,6 +4,8 @@
  */
 import type { EditorContext } from '../editor/context.ts'
 
+import { t } from '../utils/l10n.ts'
+
 export interface AnnotationColor {
 	/**
 	 * Follow the color control while it is being dragged: the selected
@@ -73,7 +75,7 @@ export function useAnnotationColor(context: EditorContext): AnnotationColor {
 			// Nothing to record where the color only affects the next
 			// annotation the user draws
 			if (recolorable() !== undefined) {
-				context.commit(context.state.value)
+				context.commit(context.state.value, t('Color'))
 			}
 		},
 	}

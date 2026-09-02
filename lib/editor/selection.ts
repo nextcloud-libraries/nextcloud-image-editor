@@ -5,12 +5,13 @@
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
 import Konva from 'konva'
+import { t } from '../utils/l10n.ts'
 import { primaryColor } from '../utils/theme.ts'
 
 export interface SelectionDeps {
 	stage: Konva.Stage
 	getState(): EditorState
-	commit(state: EditorState): void
+	commit(state: EditorState, label?: string): void
 	select(id: string | null): void
 	getSelectedId(): string | null
 	/** Open the text overlay to edit an existing annotation */
@@ -195,7 +196,7 @@ export function attachSelection(deps: SelectionDeps): Selection {
 		deps.commit({
 			...state,
 			annotations: state.annotations.map((entry) => entry.id === annotation.id ? applyNodeTransform(annotation, node) : entry),
-		})
+		}, t('Move or resize'))
 	}
 
 	const onClick = (event: Konva.KonvaEventObject<MouseEvent>) => {

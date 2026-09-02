@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
+import type { HistoryEntry } from '../composables/useHistory.ts'
 import type { EditorState } from './state.ts'
 import type { Point, ViewFit } from './view.ts'
 
 import { inject, provide, shallowRef, watch } from 'vue'
 import { useHistory } from '../composables/useHistory.ts'
+import { t } from '../utils/l10n.ts'
 import { createInitialState } from './state.ts'
 import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
 
@@ -90,12 +92,27 @@ export interface EditorContext {
 	selectedId: ShallowRef<string | null>
 	canUndo: ComputedRef<boolean>
 	canRedo: ComputedRef<boolean>
-	/** Apply a new state and record it as an undoable step */
-	commit(next: EditorState): void
+	/** Every recorded step, oldest first, for a history list */
+	historyEntries: ComputedRef<readonly HistoryEntry<EditorState>[]>
+	/** Position of the state on screen within historyEntries */
+	historyIndex: ComputedRef<number>
+	/**
+	 * Apply a new state and record it as an undoable step.
+	 *
+	 * @param next the state to apply
+	 * @param label what the user did, translated, for the history list
+	 */
+	commit(next: EditorState, label?: string): void
 	/** Apply a new state without recording it (live slider previews) */
 	preview(next: EditorState): void
 	undo(): void
 	redo(): void
+	/**
+	 * Go to an arbitrary recorded step.
+	 *
+	 * @param index position in historyEntries
+	 */
+	jumpTo(index: number): void
 	/** Reset to a fresh state and empty history, e.g. when the source changes */
 	reset(): void
 }
@@ -131,7 +148,7 @@ export function createEditorContext(): EditorContext {
 	// than mutating, so a snapshot is already frozen in practice, and
 	// keeping the identities lets the renderer skip the annotations an
 	// undo did not touch
-	history.push(state.value)
+	history.push(state.value, t('Original'))
 
 	const context: EditorContext = {
 		state,
@@ -173,10 +190,12 @@ export function createEditorContext(): EditorContext {
 		selectedId: shallowRef<string | null>(null),
 		canUndo: history.canUndo,
 		canRedo: history.canRedo,
-		commit(next) {
+		historyEntries: history.entries,
+		historyIndex: history.index,
+		commit(next, label) {
 			context.interacting.value = false
 			state.value = next
-			history.push(next)
+			history.push(next, label)
 		},
 		preview(next) {
 			context.interacting.value = true
@@ -194,6 +213,12 @@ export function createEditorContext(): EditorContext {
 				state.value = snapshot
 			}
 		},
+		jumpTo(index) {
+			const snapshot = history.jumpTo(index)
+			if (snapshot !== undefined) {
+				state.value = snapshot
+			}
+		},
 		reset() {
 			history.clear()
 			state.value = createInitialState()
@@ -203,7 +228,7 @@ export function createEditorContext(): EditorContext {
 			viewZoom.value = MIN_ZOOM
 			viewPan.value = { x: 0, y: 0 }
 			context.panning.value = false
-			history.push(state.value)
+			history.push(state.value, t('Original'))
 		},
 	}
 
