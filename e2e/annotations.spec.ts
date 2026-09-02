@@ -177,6 +177,33 @@ test('redact can blur instead of pixelate', async ({ page }) => {
 	expect(result.center[2]).toBeGreaterThan(15)
 })
 
+test('blur redaction falls back to pixelation without canvas filter support', async ({ page }) => {
+	// Emulate an engine that ignores the 2D context filter property, as
+	// WebKit did before Safari 18. The region must still be destroyed:
+	// drawing it untouched would export the pixels the user redacted.
+	await page.addInitScript(() => {
+		Object.defineProperty(CanvasRenderingContext2D.prototype, 'filter', {
+			configurable: true,
+			get: () => 'none',
+			set: () => {},
+		})
+	})
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.locator('[data-test="redact-blur"]').click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })
+
+	expect((await readState(page)).annotations[0].style).toBe('blur')
+
+	// The fixture boundary sits on the probed center pixel: pixelation
+	// averages red into blue there, an untouched copy stays pure blue
+	const result = await save(page)
+	expect(result.center[0]).toBeGreaterThan(15)
+	expect(result.center[2]).toBeGreaterThan(15)
+})
+
 test('switching tools drops the selection instead of hiding it', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()

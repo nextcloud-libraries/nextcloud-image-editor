@@ -32,9 +32,40 @@ function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
 }
 
 /**
+ * Whether a 2D context honors the `filter` property. WebKit only
+ * shipped it in Safari 18; where it is missing, the assignment is
+ * ignored and the getter keeps reporting 'none'.
+ *
+ * @param context the context to probe, null when none is available
+ */
+export function supportsContextFilter(context: Pick<CanvasRenderingContext2D, 'filter'> | null): boolean {
+	if (context === null) {
+		return false
+	}
+	context.filter = 'blur(1px)'
+	return context.filter !== 'none'
+}
+
+/** Probed once: the answer cannot change within a document */
+let contextFilterSupport: boolean | null = null
+
+/**
+ * Memoized probe of canvas filter support in this browser.
+ */
+function contextFilterAvailable(): boolean {
+	contextFilterSupport ??= supportsContextFilter(document.createElement('canvas').getContext('2d'))
+	return contextFilterSupport
+}
+
+/**
  * Obfuscate a region of the oriented image: pixelate averages it into
  * coarse blocks, blur applies a strong gaussian. Either way the
  * information is destroyed in the exported pixels, not overlaid.
+ *
+ * Blur needs canvas filter support. Without it the region would be
+ * drawn untouched while the interface claims it is redacted, so the
+ * style silently degrades to pixelation: obfuscating differently than
+ * asked is recoverable, exporting readable pixels is not.
  *
  * @param oriented the orientation-baked source canvas
  * @param rect the region to obfuscate
@@ -55,7 +86,7 @@ function obfuscate(
 	out.height = Math.max(1, Math.ceil(rect.height))
 	const context = context2d(out)
 
-	if (style === 'blur') {
+	if (style === 'blur' && contextFilterAvailable()) {
 		// Draw with padding so the blur does not bleed transparency in
 		// from the edges, the canvas bounds crop the padding again
 		const pad = strength * 2
