@@ -52,7 +52,11 @@ function onInput(event: Event) {
 			:step="step"
 			@input="onInput"
 			@change="emit('commit')">
-		<output>{{ display ?? props.value }}</output>
+		<output>
+			<!-- Defaults to the raw value; size controls show what the
+				value looks like on the canvas instead -->
+			<slot name="preview">{{ display ?? props.value }}</slot>
+		</output>
 	</div>
 </template>
 
@@ -97,7 +101,11 @@ function onInput(event: Event) {
 	}
 
 	output {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
 		min-width: 44px;
+		min-height: 44px;
 		text-align: end;
 		font-size: 13px;
 		font-variant-numeric: tabular-nums;

@@ -29,6 +29,10 @@ const labels = {
 	fontSize: t('Font size'),
 }
 
+// Stands in for the text being sized. Deliberately not translated: it
+// is a glyph whose shape shows a size, not a word to read.
+const FONT_SAMPLE = 'A'
+
 const subTools: { id: Tool, label: string, icon: unknown }[] = [
 	{ id: 'draw', label: t('Draw'), icon: Pencil },
 	{ id: 'rectangle', label: t('Rectangle'), icon: RectangleOutline },
@@ -38,6 +42,17 @@ const subTools: { id: Tool, label: string, icon: unknown }[] = [
 ]
 
 const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow'].includes(context.activeTool.value))
+
+/** Largest preview that still fits the control card */
+const PREVIEW_CAP = 44
+
+/** On-screen pixels per image pixel, so previews match the canvas */
+const viewScale = computed(() => (context.viewFit.value?.scale ?? 1) * context.viewZoom.value)
+
+// Stroke width and font size are image pixels, which say nothing on
+// their own: show the mark at the size it will be drawn instead
+const strokePreview = computed(() => Math.min(PREVIEW_CAP, Math.max(2, context.strokeWidth.value * viewScale.value)))
+const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fontSize.value * viewScale.value)))
 </script>
 
 <template>
@@ -73,7 +88,18 @@ const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow
 			:step="1"
 			:aria-label="labels.strokeWidth"
 			@input="context.strokeWidth.value = $event"
-			@commit="() => {}" />
+			@commit="() => {}">
+			<template #preview>
+				<span
+					class="annotate-panel__dot"
+					data-test="stroke-preview"
+					:style="{
+						inlineSize: `${strokePreview}px`,
+						blockSize: `${strokePreview}px`,
+						backgroundColor: context.drawColor.value,
+					}" />
+			</template>
+		</EditorSlider>
 		<EditorSlider
 			v-else-if="context.activeTool.value === 'text'"
 			:value="context.fontSize.value"
@@ -82,7 +108,17 @@ const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow
 			:step="1"
 			:aria-label="labels.fontSize"
 			@input="context.fontSize.value = $event"
-			@commit="() => {}" />
+			@commit="() => {}">
+			<template #preview>
+				<span
+					class="annotate-panel__glyph"
+					data-test="font-preview"
+					:style="{
+						fontSize: `${fontPreview}px`,
+						color: context.drawColor.value,
+					}">{{ FONT_SAMPLE }}</span>
+			</template>
+		</EditorSlider>
 	</div>
 </template>
 
@@ -114,6 +150,20 @@ const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow
 		gap: var(--default-grid-baseline);
 		font-size: 12px;
 		opacity: 0.9;
+	}
+
+	// A ring so the mark stays visible whatever color it is drawn in
+	&__dot {
+		display: block;
+		border-radius: 50%;
+		box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+	}
+
+	&__glyph {
+		// Matches the canvas text nodes so the sample is honest
+		font-family: Helvetica, Arial, sans-serif;
+		line-height: 1;
+		text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
 	}
 }
 </style>

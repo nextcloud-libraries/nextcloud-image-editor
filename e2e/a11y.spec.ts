@@ -5,7 +5,7 @@
 import type { Locator } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { waitLoaded } from './utils.ts'
+import { setInputValue, waitLoaded } from './utils.ts'
 
 /** The pointer target size Nextcloud sizes its controls to */
 const CLICKABLE_AREA = 44
@@ -68,4 +68,26 @@ test('the rail keeps its pointer target on a phone-sized container', async ({ pa
 	for (const mode of ['Select', 'Crop', 'Annotate', 'Redact']) {
 		await expectClickable(page.getByRole('button', { name: mode, exact: true }), `the ${mode} tab`)
 	}
+})
+
+test('the size sliders preview the mark at its drawn size', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw', exact: true }).click()
+
+	const dot = page.locator('[data-test="stroke-preview"]')
+	await expect(dot).toBeVisible()
+
+	await setInputValue(page.locator('[aria-label="Stroke width"]'), '4')
+	const thin = (await dot.boundingBox())!.width
+	await setInputValue(page.locator('[aria-label="Stroke width"]'), '32')
+	const thick = (await dot.boundingBox())!.width
+
+	// The preview follows the value rather than being a fixed swatch
+	expect(thick).toBeGreaterThan(thin)
+
+	// The text tool previews a glyph at the font size instead
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+	await expect(page.locator('[data-test="font-preview"]')).toBeVisible()
+	await expect(dot).toBeHidden()
 })
