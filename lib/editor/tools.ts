@@ -192,9 +192,17 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	deps.stage.on('pointerdown.tool', onPointerDown)
 	deps.stage.on('pointermove.tool', onPointerMove)
 	deps.stage.on('pointerup.tool', onPointerUp)
+	// Konva only hears about pointers over its own container, so a
+	// release that lands anywhere else would leave the shape stranded
+	// as a preview and lose it on the next press
+	window.addEventListener('pointerup', onPointerUp)
+	// An interrupted gesture is not a finished one
+	window.addEventListener('pointercancel', discard)
 
 	return () => {
 		deps.stage.off('.tool')
+		window.removeEventListener('pointerup', onPointerUp)
+		window.removeEventListener('pointercancel', discard)
 		previewNode?.destroy()
 	}
 }

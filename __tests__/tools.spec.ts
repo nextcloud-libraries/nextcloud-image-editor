@@ -5,7 +5,7 @@
 import type { ArrowAnnotation, BoxAnnotation, DrawAnnotation, EditorState, RedactAnnotation, TextAnnotation } from '../lib/editor/state.ts'
 import type { PointerToolDeps } from '../lib/editor/tools.ts'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createInitialState } from '../lib/editor/state.ts'
 import { attachPointerTools } from '../lib/editor/tools.ts'
 
@@ -24,6 +24,29 @@ beforeAll(() => {
 			getImageData: () => ({ data: new Uint8ClampedArray(64) }),
 		} as never
 	} as never
+})
+
+/** Tools attached by the current test, detached again afterwards */
+const attachments: (() => void)[] = []
+
+/**
+ * Attach a tool and remember how to detach it. The tools listen on the
+ * window for a release, so a leaked attachment would answer another
+ * test's events.
+ *
+ * @param tool the tool to attach
+ * @param deps the harness dependencies
+ */
+function attach(tool: Parameters<typeof attachPointerTools>[0], deps: PointerToolDeps): () => void {
+	const detach = attachPointerTools(tool, deps)
+	attachments.push(detach)
+	return detach
+}
+
+afterEach(() => {
+	while (attachments.length > 0) {
+		attachments.pop()!()
+	}
 })
 
 interface Harness {
@@ -86,7 +109,7 @@ function harness(): Harness {
 describe('attachPointerTools', () => {
 	it('collects freehand points across the drag', () => {
 		const h = harness()
-		attachPointerTools('draw', h.deps)
+		attach('draw', h.deps)
 		h.fire('pointerdown', { x: 10, y: 10 })
 		h.fire('pointermove', { x: 20, y: 15 })
 		h.fire('pointermove', { x: 30, y: 20 })
@@ -101,7 +124,7 @@ describe('attachPointerTools', () => {
 
 	it('normalizes a reverse rectangle drag', () => {
 		const h = harness()
-		attachPointerTools('rectangle', h.deps)
+		attach('rectangle', h.deps)
 		h.fire('pointerdown', { x: 50, y: 40 })
 		h.fire('pointermove', { x: 10, y: 10 })
 		h.fire('pointerup')
@@ -113,7 +136,7 @@ describe('attachPointerTools', () => {
 
 	it('keeps the arrow anchored at its start', () => {
 		const h = harness()
-		attachPointerTools('arrow', h.deps)
+		attach('arrow', h.deps)
 		h.fire('pointerdown', { x: 5, y: 5 })
 		h.fire('pointermove', { x: 25, y: 10 })
 		h.fire('pointermove', { x: 40, y: 30 })
@@ -125,7 +148,7 @@ describe('attachPointerTools', () => {
 
 	it('stamps redactions with the chosen style', () => {
 		const h = harness()
-		attachPointerTools('redact', h.deps)
+		attach('redact', h.deps)
 		h.fire('pointerdown', { x: 0, y: 0 })
 		h.fire('pointermove', { x: 30, y: 30 })
 		h.fire('pointerup')
@@ -137,7 +160,7 @@ describe('attachPointerTools', () => {
 
 	it('defers text creation to pointerup so the overlay survives the click', () => {
 		const h = harness()
-		attachPointerTools('text', h.deps)
+		attach('text', h.deps)
 		h.fire('pointerdown', { x: 12, y: 34 })
 		expect(h.textEdits).toHaveLength(0)
 		h.fire('pointerup')
@@ -147,7 +170,7 @@ describe('attachPointerTools', () => {
 
 	it('places a sticker immediately with doubled font size', () => {
 		const h = harness()
-		attachPointerTools('sticker', h.deps)
+		attach('sticker', h.deps)
 		h.fire('pointerdown', { x: 60, y: 70 })
 
 		const annotation = h.committed()!.annotations[0] as TextAnnotation
@@ -159,7 +182,7 @@ describe('attachPointerTools', () => {
 
 	it('attaches nothing for non-drawing tools', () => {
 		const h = harness()
-		const detach = attachPointerTools('select', h.deps)
+		const detach = attach('select', h.deps)
 		h.fire('pointerdown', { x: 1, y: 1 })
 		h.fire('pointerup')
 		expect(h.committed()).toBeNull()
@@ -169,7 +192,7 @@ describe('attachPointerTools', () => {
 	it('ignores a press while the view is being panned', () => {
 		const stage = harness()
 		stage.setPanning(true)
-		attachPointerTools('draw', stage.deps)
+		attach('draw', stage.deps)
 
 		stage.fire('pointerdown', { x: 5, y: 5 })
 		stage.fire('pointermove', { x: 20, y: 20 })
@@ -180,7 +203,7 @@ describe('attachPointerTools', () => {
 
 	it('drops the stroke in progress when a pan takes over', () => {
 		const stage = harness()
-		attachPointerTools('draw', stage.deps)
+		attach('draw', stage.deps)
 
 		stage.fire('pointerdown', { x: 5, y: 5 })
 		stage.fire('pointermove', { x: 12, y: 12 })
@@ -195,10 +218,48 @@ describe('attachPointerTools', () => {
 	it('does not place a sticker while the view is being panned', () => {
 		const stage = harness()
 		stage.setPanning(true)
-		attachPointerTools('sticker', stage.deps)
+		attach('sticker', stage.deps)
 
 		stage.fire('pointerdown', { x: 40, y: 40 })
 
 		expect(stage.committed()).toBeNull()
+	})
+
+	it('commits a stroke released outside the canvas', () => {
+		const stage = harness()
+		attach('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 5, y: 5 })
+		stage.fire('pointermove', { x: 20, y: 20 })
+		// The release lands on a panel, so Konva never hears about it
+		window.dispatchEvent(new Event('pointerup'))
+
+		expect(stage.committed()?.annotations).toHaveLength(1)
+	})
+
+	it('drops the stroke when the gesture is cancelled', () => {
+		const stage = harness()
+		attach('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 5, y: 5 })
+		stage.fire('pointermove', { x: 20, y: 20 })
+		window.dispatchEvent(new Event('pointercancel'))
+		window.dispatchEvent(new Event('pointerup'))
+
+		expect(stage.committed()).toBeNull()
+	})
+
+	it('commits once when the release reaches both the stage and the window', () => {
+		const stage = harness()
+		attach('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 5, y: 5 })
+		stage.fire('pointermove', { x: 20, y: 20 })
+		stage.fire('pointerup')
+		const committed = stage.committed()
+		window.dispatchEvent(new Event('pointerup'))
+
+		expect(stage.committed()).toBe(committed)
+		expect(committed?.annotations).toHaveLength(1)
 	})
 })

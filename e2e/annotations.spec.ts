@@ -384,3 +384,24 @@ test('the text overlay grows with its content', async ({ page }) => {
 	await overlay.press('Enter')
 	expect((await readState(page)).annotations[0].text).toBe('growing wide')
 })
+
+test('a stroke released over the controls is still committed', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw', exact: true }).click()
+
+	const canvas = (await page.locator('.image-editor__canvas').boundingBox())!
+	const card = (await page.locator('.editor-card').boundingBox())!
+
+	await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + 120)
+	await page.mouse.down()
+	await page.mouse.move(canvas.x + canvas.width / 2 + 60, canvas.y + 180, { steps: 5 })
+	// The floating control card is not the Konva container, so the
+	// release never reaches the stage
+	await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2, { steps: 5 })
+	await page.mouse.up()
+
+	const { annotations } = await readState(page)
+	expect(annotations).toHaveLength(1)
+	expect(annotations[0].type).toBe('draw')
+})
