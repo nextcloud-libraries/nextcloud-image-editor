@@ -41,6 +41,7 @@ const TOOL_LABELS: Partial<Record<Tool, string>> = {
 	rectangle: t('Rectangle'),
 	ellipse: t('Ellipse'),
 	arrow: t('Arrow'),
+	line: t('Line'),
 	sticker: t('Sticker'),
 	redact: t('Redact'),
 }
@@ -53,7 +54,7 @@ const TOOL_LABELS: Partial<Record<Tool, string>> = {
  * @param deps stage access and state callbacks
  */
 export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => void {
-	if (!['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)) {
+	if (!['draw', 'rectangle', 'ellipse', 'arrow', 'line', 'text', 'sticker', 'redact'].includes(tool)) {
 		return () => {}
 	}
 
@@ -80,7 +81,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			previewNode = null
 			return
 		}
-		if (previewNode !== null && (active.type === 'draw' || active.type === 'arrow')) {
+		if (previewNode !== null && (active.type === 'draw' || active.type === 'arrow' || active.type === 'line')) {
 			(previewNode as Konva.Line).points(active.points)
 			return
 		}
@@ -122,7 +123,8 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				active = { id: newId(), type: 'draw', points: [point.x, point.y], color: options.color, strokeWidth: options.strokeWidth }
 				break
 			case 'arrow':
-				active = { id: newId(), type: 'arrow', points: [point.x, point.y, point.x, point.y], color: options.color, strokeWidth: options.strokeWidth }
+			case 'line':
+				active = { id: newId(), type: tool, points: [point.x, point.y, point.x, point.y], color: options.color, strokeWidth: options.strokeWidth }
 				break
 			case 'rectangle':
 			case 'ellipse':
@@ -177,6 +179,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				active.points.push(point.x, point.y)
 				break
 			case 'arrow':
+			case 'line':
 				active.points = [start.x, start.y, point.x, point.y]
 				break
 			case 'rectangle':
