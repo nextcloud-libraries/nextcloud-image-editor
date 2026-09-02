@@ -9,6 +9,7 @@ import type { TextAnnotation } from '../editor/state.ts'
 
 import { ref } from 'vue'
 import { visibleRect } from '../editor/render.ts'
+import { newId } from '../utils/id.ts'
 
 export interface TextEdit {
 	sceneX: number
@@ -115,7 +116,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 			context.commit({
 				...state,
 				annotations: [...state.annotations, {
-					id: crypto.randomUUID(),
+					id: newId(),
 					type: 'text',
 					x: edit.sceneX,
 					y: edit.sceneY,

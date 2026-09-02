@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { newId } from '../utils/id.ts'
+
 export type Rotation = 0 | 90 | 180 | 270
 
 export interface Size {
@@ -396,5 +398,5 @@ export function translateAnnotation(annotation: Annotation, dx: number, dy: numb
  * @param offset shift applied to the copy, in oriented image pixels
  */
 export function duplicateAnnotation(annotation: Annotation, offset = 16): Annotation {
-	return { ...translateAnnotation(annotation, offset, offset), id: crypto.randomUUID() }
+	return { ...translateAnnotation(annotation, offset, offset), id: newId() }
 }

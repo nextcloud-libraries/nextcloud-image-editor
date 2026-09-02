@@ -6,6 +6,7 @@ import type Konva from 'konva'
 import type { Tool } from './context.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
+import { newId } from '../utils/id.ts'
 import { buildAnnotationNode } from './render.ts'
 
 export interface ToolOptions {
@@ -31,13 +32,6 @@ export interface PointerToolDeps {
 	panning(): boolean
 	/** Open the text editing overlay at the given scene position */
 	startTextEdit(position: { x: number, y: number }): void
-}
-
-/**
- * Random unique annotation id.
- */
-function newId(): string {
-	return crypto.randomUUID()
 }
 
 /**
