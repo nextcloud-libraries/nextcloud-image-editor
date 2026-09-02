@@ -13,11 +13,13 @@ unmaintained Filerobot editor.
 ## Features
 
 - Crop with rule-of-thirds guides, aspect presets (free, original,
-  1:1, 4:3, 16:9), 90° rotation, flips, fine rotation (±45°) and scale
- : the frame stays stable thanks to cover scaling
-- Brightness, contrast and saturation adjustments; eleven filter
-  presets (pop, warm, cool, fade, grayscale, noir, sepia, invert,
-  solarize, posterize) with live preview chips
+  1:1, 4:3, 16:9), 90° rotation, flips, fine rotation (±45°) and
+  scale; the frame stays stable thanks to cover scaling
+- Brightness, contrast and saturation adjustments; sixteen filter
+  presets with live preview chips, from photographic grades (pop,
+  golden, coast, cinema, berry, mist, warm, cool, fade) over
+  monochromes (grayscale, noir, luna, sepia) to effects (invert,
+  solarize, posterize)
 - Annotations: freehand drawing, rectangles, ellipses, arrows, text and
   emoji stickers (the user's frequently used Nextcloud emojis plus the
   full picker): movable, resizable, rotatable, recolorable,
@@ -114,7 +116,7 @@ Regressions are the primary risk for a long-lived canvas library:
   pixels, not just DOM state; jsdom has no real canvas and is never used
   to test Konva code.
 - New tools ship with their tests in the same pull request, no exceptions.
-- Current spread: 80+ unit tests over the pure state, geometry,
-  filter and interaction math; nearly 100 browser scenarios (twice,
+- Current spread: 90+ unit tests over the pure state, geometry,
+  filter and interaction math; over 100 browser scenarios (twice,
   chromium and firefox) asserting exported pixels and end-to-end
   behavior.
