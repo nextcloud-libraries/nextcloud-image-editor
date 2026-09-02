@@ -5,7 +5,7 @@
 import type { Annotation, EditorState, Size } from './state.ts'
 
 import Konva from 'konva'
-import { cool, fade, noir, warm } from './filters.ts'
+import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, warm } from './filters.ts'
 
 /**
  * The part of the oriented image currently visible: the crop, or all of it.
@@ -176,10 +176,16 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 		none: null,
 		grayscale: Konva.Filters.Grayscale,
 		noir,
+		luna,
 		sepia: Konva.Filters.Sepia,
 		fade,
 		warm,
 		cool,
+		golden,
+		coast,
+		mist,
+		berry,
+		cinema,
 		invert: Konva.Filters.Invert,
 		solarize: Konva.Filters.Solarize,
 		posterize: Konva.Filters.Posterize,

@@ -12,7 +12,7 @@ test('every filter preset changes the exported pixels', async ({ page }) => {
 	const baseline = await save(page)
 	// Solarize is covered separately: it only inverts luma above 128 and
 	// this fixture sits entirely below the threshold
-	for (const preset of ['pop', 'warm', 'cool', 'fade', 'grayscale', 'noir', 'sepia', 'invert', 'posterize']) {
+	for (const preset of ['pop', 'golden', 'coast', 'cinema', 'berry', 'mist', 'warm', 'cool', 'fade', 'grayscale', 'noir', 'luna', 'sepia', 'invert', 'posterize']) {
 		await page.locator(`[data-test="preset-${preset}"]`).click()
 		expect((await readState(page)).preset).toBe(preset)
 

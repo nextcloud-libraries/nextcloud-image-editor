@@ -29,6 +29,9 @@ msgstr ""
 msgid "Arrow"
 msgstr ""
 
+msgid "Berry"
+msgstr ""
+
 msgid "Blur"
 msgstr ""
 
@@ -41,7 +44,13 @@ msgstr ""
 msgid "Canvas could not be encoded"
 msgstr ""
 
+msgid "Cinema"
+msgstr ""
+
 msgid "Click an annotation to move, resize or recolor it"
+msgstr ""
+
+msgid "Coast"
 msgstr ""
 
 msgid "Color"
@@ -92,6 +101,9 @@ msgstr ""
 msgid "Free"
 msgstr ""
 
+msgid "Golden"
+msgstr ""
+
 msgid "Grayscale"
 msgstr ""
 
@@ -102,6 +114,12 @@ msgid "Image editor"
 msgstr ""
 
 msgid "Invert"
+msgstr ""
+
+msgid "Luna"
+msgstr ""
+
+msgid "Mist"
 msgstr ""
 
 msgid "More emojis"
