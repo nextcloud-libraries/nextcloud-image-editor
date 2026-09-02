@@ -2,26 +2,12 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * Minimal stand-ins for the Nextcloud server CSS variables so the
- * playground and demo render like they would inside Nextcloud.
+ * The Nextcloud server variables come from server-default.css, a copy
+ * of what the theming app serves. Hand-written stand-ins used to live
+ * here, and they were wrong about the one that matters: the clickable
+ * area is 34px on a server, not the 44px this file assumed.
  */
-:root {
-	--color-main-text: #222;
-	--color-main-background: #ffffff;
-	--color-background-hover: #f5f5f5;
-	--color-background-dark: #ededed;
-	--color-border: #e0e0e0;
-	--color-primary-element: #5b5cf0;
-	--color-primary-element-hover: #4a4bd8;
-	--color-primary-element-text: #ffffff;
-	--color-element-hover: #f5f5f5;
-	--default-grid-baseline: 4px;
-	--border-radius-element: 8px;
-	--border-radius-large: 10px;
-	--border-radius-pill: 100px;
-	--default-font-size: 15px;
-	--font-face: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
+@import './server-default.css';
 
 body {
 	margin: 0;

@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The playground and the published demo render against a copy of the
+# variables a Nextcloud server serves, so the editor is developed and
+# reviewed at the sizes it will actually have. This keeps that copy
+# from drifting: hand-written stand-ins were wrong about the clickable
+# area for a while, which made every control ten pixels too large
+# inside Nextcloud.
+
+name: Update server styling
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  server-styling-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download the theming defaults
+        run: |
+          curl --fail --silent --show-error \
+            https://nextcloud.github.io/server/apps/theming/css/default.css \
+            | sed 's|/apps/theming/img|./img|g' > playground/server-default.css
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.COMMAND_BOT_PAT }}
+          author: nextcloud-command <nextcloud-command@users.noreply.github.com>
+          committer: nextcloud-command <nextcloud-command@users.noreply.github.com>
+          commit-message: 'chore(playground): update the server styling copy'
+          signoff: true
+          branch: 'automated/${{ github.run_id }}/server-styling-update'
+          title: 'chore(playground): automated styling update from server'
+          add-paths: playground/server-default.css
+          body: |
+            Auto-generated update of the server variables the playground
+            and the demo render against, from
+            https://nextcloud.github.io/server/apps/theming/css/default.css
+
+            Worth a glance at the diff rather than a blind merge: a
+            change to `--default-clickable-area` or
+            `--default-grid-baseline` moves the size of every control in
+            the editor, and the accessibility tests assert against those
+            values.
+          labels: |
+            dependencies
