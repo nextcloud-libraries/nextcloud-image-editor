@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import type { EditorState } from '../editor/state.ts'
-import type { ExportOptions, ExportResult } from '../types/index.ts'
+import type { ExportOptions, ExportResult } from '../types/export.ts'
 
 import { renderToCanvas } from '../editor/render.ts'
 import { canvasToBlob } from '../utils/image.ts'

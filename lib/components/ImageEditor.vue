@@ -7,7 +7,7 @@ import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
 import type { EditorState, Size } from '../editor/state.ts'
-import type { ExportResult } from '../types/index.ts'
+import type { ExportResult } from '../types/export.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
