@@ -554,7 +554,15 @@ watch(context.drawColor, (color) => {
 		annotations: state.annotations.map((entry) => entry.id === id ? { ...entry, color } : entry),
 	})
 })
-watch(context.state, (state) => emit('change', structuredClone(state)))
+// Only committed states are reported: a slider preview fires on every
+// pixel of the drag, and a consumer tracking changes wants the step
+// the user settled on, not the sixty on the way there. The payload is
+// a copy so a consumer cannot reach into the editor's own state.
+watch([context.state, context.interacting], () => {
+	if (!context.interacting.value) {
+		emit('change', structuredClone(context.state.value))
+	}
+})
 
 onMounted(() => {
 	stage = new Konva.Stage({ container: container.value!, width: 1, height: 1 })

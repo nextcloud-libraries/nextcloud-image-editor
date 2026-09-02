@@ -26,8 +26,10 @@ export interface UseHistory<T> {
 /**
  * Linear undo/redo history of immutable state snapshots.
  *
- * Snapshots are treated as opaque values: mutating a pushed snapshot
- * afterwards corrupts the history, so push copies, not live objects.
+ * Snapshots are treated as opaque immutable values. Whatever is pushed
+ * must not be mutated afterwards, or the history it sits in changes
+ * under the caller; pushing a reference to a value the caller keeps
+ * building new versions of is fine, and cheaper than copying.
  *
  * @param capacity maximum number of snapshots kept, oldest dropped first
  */

@@ -76,6 +76,7 @@ if (requested === 'broken') {
 
 const saved = ref('')
 const stateJson = ref('')
+const changes = ref(0)
 const cancelled = ref(0)
 const errors = ref<string[]>([])
 
@@ -119,12 +120,14 @@ async function onError(error: Error) {
 }
 
 /**
- * Mirror every state change for the Playwright tests.
+ * Mirror every reported state change for the Playwright tests, and
+ * count them so a test can tell a drag from its release.
  *
  * @param state the new edit state
  */
 function onChange(state: EditorState) {
 	stateJson.value = JSON.stringify(state)
+	changes.value++
 }
 </script>
 
@@ -142,6 +145,7 @@ function onChange(state: EditorState) {
 		<template v-if="requested !== null">
 			<output data-test="saved">{{ saved }}</output>
 			<output data-test="state">{{ stateJson }}</output>
+			<output data-test="changes">{{ changes }}</output>
 			<output data-test="cancelled">{{ cancelled }}</output>
 			<output data-test="errors">{{ errors.join(', ') }}</output>
 		</template>

@@ -80,7 +80,7 @@ function onSave({ blob, mimeType }: ExportResult) {
 | `save` | `ExportResult` | Edited image rendered at natural resolution. |
 | `cancel` | – | User dismissed the editor. |
 | `error` | `Error` | Loading or export failed. |
-| `change` | `EditorState` | Fired on every edit, e.g. for dirty tracking. |
+| `change` | `EditorState` | Fired when an edit is committed, e.g. for dirty tracking. A slider being dragged previews without emitting; releasing it emits once. |
 
 Exposed methods: `exportImage(options?: ExportOptions): Promise<ExportResult>`
 with `format`, `quality` and `maxSize` (longest edge bound) options.

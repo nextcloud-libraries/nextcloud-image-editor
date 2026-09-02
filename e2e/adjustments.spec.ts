@@ -97,3 +97,27 @@ test('the saturation slider reaches grayscale at its floor', async ({ page }) =>
 	expect(Math.abs(g! - b!)).toBeLessThanOrEqual(2)
 	expect(r).toBeLessThan(80)
 })
+
+test('a slider drag reports one change, not one per step', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+
+	const changes = () => page.locator('[data-test="changes"]').innerText()
+	const before = Number(await changes())
+
+	// One event per tick, as a real drag arrives: batched into a single
+	// tick they would collapse into one notification anyway
+	const slider = page.locator('[data-test="adjust-brightness"]')
+	for (const value of ['5', '10', '15', '20', '25', '30']) {
+		await slider.evaluate((element, next) => {
+			const input = element as HTMLInputElement
+			input.value = next
+			input.dispatchEvent(new Event('input', { bubbles: true }))
+		}, value)
+	}
+	await slider.evaluate((element) => element.dispatchEvent(new Event('change', { bubbles: true })))
+
+	// Six previews and one release: the consumer hears about the step
+	// the user settled on
+	await expect.poll(async () => Number(await changes()) - before).toBe(1)
+})

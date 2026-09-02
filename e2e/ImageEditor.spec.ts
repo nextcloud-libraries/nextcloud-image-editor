@@ -160,3 +160,27 @@ test('the scene reconciles instead of rebuilding', async ({ page }) => {
 	expect(afterZoom.annotations).toEqual(afterDelete.annotations)
 	expect(afterZoom.image).toBe(before.image)
 })
+
+test('undo reuses the nodes it did not change', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 90, y: corner.y + 20 })
+	await drag(page, { x: corner.x + 20, y: corner.y + 45 }, { x: corner.x + 90, y: corner.y + 45 })
+
+	const annotationIds = () => page.evaluate(() => window.Konva.stages[0]!.find('.annotation').map((node) => node._id))
+	const before = await annotationIds()
+	expect(before).toHaveLength(2)
+
+	// A third stroke, then undo it away again
+	await drag(page, { x: corner.x + 20, y: corner.y + 70 }, { x: corner.x + 90, y: corner.y + 70 })
+	expect(await annotationIds()).toHaveLength(3)
+	await page.locator('[aria-label="Undo"]').click()
+
+	// The history holds the same annotation objects the scene was built
+	// from, so the two survivors keep their nodes instead of every one
+	// being rebuilt from a copy
+	await expect.poll(annotationIds).toEqual(before)
+})

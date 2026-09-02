@@ -127,7 +127,11 @@ export function createEditorContext(): EditorContext {
 	}
 	const activeMode = shallowRef<EditorMode>('crop')
 	const activeTool = shallowRef<Tool>(MODE_DEFAULT_TOOL.crop)
-	history.push(structuredClone(state.value))
+	// Pushed by reference: every edit path builds new objects rather
+	// than mutating, so a snapshot is already frozen in practice, and
+	// keeping the identities lets the renderer skip the annotations an
+	// undo did not touch
+	history.push(state.value)
 
 	const context: EditorContext = {
 		state,
@@ -172,7 +176,7 @@ export function createEditorContext(): EditorContext {
 		commit(next) {
 			context.interacting.value = false
 			state.value = next
-			history.push(structuredClone(next))
+			history.push(next)
 		},
 		preview(next) {
 			context.interacting.value = true
@@ -181,13 +185,13 @@ export function createEditorContext(): EditorContext {
 		undo() {
 			const snapshot = history.undo()
 			if (snapshot !== undefined) {
-				state.value = structuredClone(snapshot)
+				state.value = snapshot
 			}
 		},
 		redo() {
 			const snapshot = history.redo()
 			if (snapshot !== undefined) {
-				state.value = structuredClone(snapshot)
+				state.value = snapshot
 			}
 		},
 		reset() {
@@ -199,7 +203,7 @@ export function createEditorContext(): EditorContext {
 			viewZoom.value = MIN_ZOOM
 			viewPan.value = { x: 0, y: 0 }
 			context.panning.value = false
-			history.push(structuredClone(state.value))
+			history.push(state.value)
 		},
 	}
 
