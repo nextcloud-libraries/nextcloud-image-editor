@@ -52,6 +52,7 @@ const stickers = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
 			:aria-label="sticker"
 			:pressed="context.sticker.value === sticker"
 			:disabled="!loaded"
+			class="sticker-panel__emoji"
 			variant="tertiary"
 			@click="context.sticker.value = sticker">
 			{{ sticker }}
@@ -71,5 +72,14 @@ const stickers = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
 	justify-content: center;
 	flex-wrap: wrap;
 	gap: calc(var(--default-grid-baseline) * 2);
+
+	// The emoji is the button's label, so it inherits the editor's small
+	// chrome font and leaves the target too short to hit. Size the glyph
+	// to fill the pointer target instead.
+	:deep(.sticker-panel__emoji) {
+		min-height: var(--default-clickable-area, 44px);
+		font-size: 22px;
+		line-height: 1;
+	}
 }
 </style>

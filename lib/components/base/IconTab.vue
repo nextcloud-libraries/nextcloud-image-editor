@@ -41,7 +41,8 @@ const emit = defineEmits<{
 	flex-direction: column;
 	align-items: center;
 	gap: 4px;
-	min-width: 64px;
+	min-width: max(64px, var(--default-clickable-area, 44px));
+	min-height: var(--default-clickable-area, 44px);
 	padding: calc(var(--default-grid-baseline) * 2) var(--default-grid-baseline);
 	border: none;
 	border-radius: var(--border-radius-large, 12px);
@@ -79,7 +80,8 @@ const emit = defineEmits<{
 	}
 
 	@container editor (max-width: 600px) {
-		min-width: 52px;
+		// Narrower, but never under the pointer target
+		min-width: var(--default-clickable-area, 44px);
 		padding: var(--default-grid-baseline) 2px;
 		font-size: 10px;
 	}

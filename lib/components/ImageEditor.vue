@@ -621,6 +621,14 @@ defineExpose({ exportImage })
 	--color-border: rgba(255, 255, 255, 0.09);
 	--color-element-hover: rgba(255, 255, 255, 0.08);
 	--editor-glass: rgba(20, 20, 26, 0.6);
+	// Mirrors of the Nextcloud server constants. The component is also
+	// embedded outside a server page, in the playground, the demo and
+	// host apps that mount it standalone, and @nextcloud/vue sizes its
+	// controls from --default-clickable-area with no fallback of its
+	// own: without these the buttons collapse to their content and fall
+	// under the minimum pointer target.
+	--default-clickable-area: 44px;
+	--default-grid-baseline: 4px;
 	font-size: 13px;
 
 	position: relative;
@@ -685,16 +693,6 @@ defineExpose({ exportImage })
 			padding: 56px 8px 8px;
 		}
 
-		// Anchor the rail under the top bar and cap its height so it can
-		// never collide with the bottom control card
-		&__rail {
-			inset-inline-start: var(--default-grid-baseline);
-			inset-block-start: 64px;
-			transform: none;
-			max-height: calc(100% - 240px);
-			overflow-y: auto;
-		}
-
 		// Doubled class specificity so these beat the card's own sizing
 		& .image-editor__controls {
 			inset-inline: 8px;
@@ -716,9 +714,17 @@ defineExpose({ exportImage })
 			overflow-y: hidden;
 		}
 
-		// The rail floats over the image on phones, so it needs its own
-		// glass backing for contrast
+		// Anchored under the top bar with its height capped so it can
+		// never collide with the bottom control card, and given its own
+		// glass backing since it floats over the image on phones.
+		// Doubled class specificity so this beats the base rail rules
+		// further down the sheet.
 		& .image-editor__rail {
+			inset-inline-start: var(--default-grid-baseline);
+			inset-block-start: 64px;
+			transform: none;
+			max-height: calc(100% - 240px);
+			overflow-y: auto;
 			padding: var(--default-grid-baseline);
 			background: var(--editor-glass);
 			backdrop-filter: blur(24px) saturate(1.4);
