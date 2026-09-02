@@ -8,6 +8,7 @@ import type { ExportOptions, ExportResult } from '../types/export.ts'
 import { renderToCanvas } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { canvasToBlob } from '../utils/image.ts'
+import { t } from '../utils/l10n.ts'
 
 export interface ExportDeps {
 	/** The orientation-baked source canvas */
@@ -69,8 +70,22 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 
 		const canvas = renderToCanvas(oriented, deps.getState(), options.maxSize)
 		const mimeType = options.format ?? 'image/png'
-		const blob = await canvasToBlob(canvas, mimeType, options.quality)
-		return { blob, width: canvas.width, height: canvas.height, mimeType }
+		try {
+			const blob = await canvasToBlob(canvas, mimeType, options.quality)
+			return { blob, width: canvas.width, height: canvas.height, mimeType }
+		} catch (error) {
+			// A canvas holding pixels from an image fetched without CORS
+			// cannot be read back at all. The encoder's SecurityError says
+			// nothing about why, and the answer is in how the source was
+			// served rather than anything the user did.
+			if (error instanceof DOMException && error.name === 'SecurityError') {
+				throw new Error(
+					t('The image cannot be exported because it was loaded without cross-origin access'),
+					{ cause: error },
+				)
+			}
+			throw error
+		}
 	}
 
 	/**

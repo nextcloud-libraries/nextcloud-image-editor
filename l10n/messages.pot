@@ -170,6 +170,9 @@ msgstr ""
 msgid "Reset zoom"
 msgstr ""
 
+msgid "Restored"
+msgstr ""
+
 msgid "Revert all changes"
 msgstr ""
 
@@ -207,6 +210,9 @@ msgid "Stroke width"
 msgstr ""
 
 msgid "Text"
+msgstr ""
+
+msgid "The image cannot be exported because it was loaded without cross-origin access"
 msgstr ""
 
 msgid "The image could not be loaded"

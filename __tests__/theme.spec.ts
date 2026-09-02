@@ -77,6 +77,19 @@ describe('ambientColor', () => {
 		stubCanvas(null)
 		expect(ambientColor(document.createElement('canvas'))).toBe('88, 86, 112')
 	})
+
+	it('falls back rather than throwing on a tainted canvas', () => {
+		// Reading back an image fetched without CORS is a SecurityError,
+		// and the chrome tint is decoration
+		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+			drawImage: () => {},
+			getImageData: () => {
+				throw new DOMException('Tainted canvases may not be read', 'SecurityError')
+			},
+		} as unknown as CanvasRenderingContext2D)
+
+		expect(ambientColor(document.createElement('canvas'))).toBe('88, 86, 112')
+	})
 })
 
 describe('ambientBackdrop', () => {
@@ -102,6 +115,20 @@ describe('ambientBackdrop', () => {
 
 	it('gives up without a context', () => {
 		stubCanvas(null)
+		const source = document.createElement('canvas')
+		source.width = 100
+		source.height = 50
+
+		expect(ambientBackdrop(source)).toBe('')
+	})
+
+	it('gives up rather than throwing on a tainted canvas', () => {
+		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+			drawImage: () => {},
+		} as unknown as CanvasRenderingContext2D)
+		vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => {
+			throw new DOMException('Tainted canvases may not be exported', 'SecurityError')
+		})
 		const source = document.createElement('canvas')
 		source.width = 100
 		source.height = 50

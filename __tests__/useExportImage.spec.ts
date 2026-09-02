@@ -5,8 +5,9 @@
 import type { EditorState } from '../lib/editor/state.ts'
 import type { ExportOptions, ExportResult } from '../lib/types/export.ts'
 
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExportImage } from '../lib/composables/useExportImage.ts'
+import * as render from '../lib/editor/render.ts'
 import { createInitialState } from '../lib/editor/state.ts'
 
 /**
@@ -32,6 +33,8 @@ function setup(source: Blob | null, state: EditorState = createInitialState(), s
 }
 
 describe('useExportImage', () => {
+	afterEach(() => vi.restoreAllMocks())
+
 	it('hands an untouched source straight back', async () => {
 		const source = new Blob(['original bytes'], { type: 'image/jpeg' })
 		const result = await setup(source).exportImage()
@@ -84,6 +87,24 @@ describe('useExportImage', () => {
 			onError: vi.fn(),
 		})
 		await expect(api.exportImage()).rejects.toThrow('No image loaded')
+	})
+
+	it('explains a canvas it is not allowed to read', async () => {
+		const canvas = { width: 10, height: 10, toBlob: () => {
+			throw new DOMException('Tainted canvases may not be exported', 'SecurityError')
+		} } as unknown as HTMLCanvasElement
+		vi.spyOn(render, 'renderToCanvas').mockReturnValue(canvas)
+
+		// The encoder's SecurityError says nothing about why, and the
+		// answer is in how the source was served
+		await expect(setup(null).exportImage()).rejects.toThrow('cross-origin access')
+	})
+
+	it('lets any other export failure through as it is', async () => {
+		const canvas = { width: 10, height: 10, toBlob: (callback: (blob: Blob | null) => void) => callback(null) } as unknown as HTMLCanvasElement
+		vi.spyOn(render, 'renderToCanvas').mockReturnValue(canvas)
+
+		await expect(setup(null).exportImage()).rejects.toThrow('Canvas could not be encoded')
 	})
 
 	it('saves with the options the host asked for', async () => {

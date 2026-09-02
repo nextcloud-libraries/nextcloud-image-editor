@@ -29,7 +29,15 @@ export function ambientColor(canvas: HTMLCanvasElement | HTMLImageElement): stri
 	}
 	context.drawImage(canvas, 0, 0, 8, 8)
 
-	const { data } = context.getImageData(0, 0, 8, 8)
+	// Reading back the pixels of an image fetched without CORS throws:
+	// the chrome tint is decoration, so it takes the neutral one rather
+	// than bringing the editor down with it
+	let data: Uint8ClampedArray
+	try {
+		data = context.getImageData(0, 0, 8, 8).data
+	} catch {
+		return '88, 86, 112'
+	}
 	let r = 0
 	let g = 0
 	let b = 0
@@ -67,5 +75,11 @@ export function ambientBackdrop(canvas: HTMLCanvasElement | HTMLImageElement): s
 		return ''
 	}
 	context.drawImage(canvas, 0, 0, sample.width, sample.height)
-	return sample.toDataURL()
+	try {
+		return sample.toDataURL()
+	} catch {
+		// Same as above: a tainted canvas cannot be exported, and the
+		// wallpaper is not worth an exception
+		return ''
+	}
 }
