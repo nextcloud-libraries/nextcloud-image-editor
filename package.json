@@ -1,6 +1,6 @@
 {
   "name": "@nextcloud/image-editor",
-  "version": "0.1.0",
+  "version": "1.0.0-beta.1",
   "description": "Vue 3 image editor component for Nextcloud apps",
   "keywords": [
     "nextcloud",
@@ -32,6 +32,9 @@
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "**/*.css"
   ],
@@ -47,6 +50,7 @@
     "lint": "eslint lib/ __tests__/ e2e/ playground/",
     "lint:fix": "eslint --fix lib/ __tests__/ e2e/ playground/",
     "playground": "vite serve --config playground/vite.config.ts",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
@@ -92,6 +96,10 @@
     "runtime": {
       "name": "node",
       "version": "^24.0.0"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.5.1"
     }
   }
 }

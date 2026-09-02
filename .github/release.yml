@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Groups the automatically generated release notes by pull request
+# label. The first matching category wins, so the order below is the
+# order a reader cares about: what might break them, then what is new,
+# then what is fixed.
+#
+# Anything without one of these labels lands in "Other changes", which
+# is a prompt to label the pull request rather than a place to leave it.
+
+changelog:
+  exclude:
+    labels:
+      - status: duplicate
+      - status: wontfix
+
+  categories:
+    - title: 💥 Breaking changes
+      labels:
+        - 'type: breaking'
+
+    - title: 🚀 Features
+      labels:
+        - 'type: enhancement'
+
+    - title: 🐛 Fixes
+      labels:
+        - 'type: bug'
+
+    - title: ♿ Accessibility
+      labels:
+        - 'accessibility'
+
+    - title: 📖 Documentation
+      labels:
+        - 'type: documentation'
+
+    - title: 🧰 Maintenance
+      labels:
+        - 'type: refactor'
+        - 'type: tests'
+        - 'type: CI'
+
+    - title: 📦 Dependencies
+      labels:
+        - 'dependencies'
+
+    - title: Other changes
+      labels:
+        - '*'
