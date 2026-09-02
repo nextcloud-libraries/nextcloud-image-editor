@@ -24,6 +24,7 @@ import { useExportImage } from '../composables/useExportImage.ts'
 import { useTextEditing } from '../composables/useTextEditing.ts'
 import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
+import { provideEditorCommands } from '../editor/commands.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
@@ -414,6 +415,16 @@ useEditorShortcuts({
 })
 useWheelControls(container, context)
 
+provideEditorCommands({
+	rotateCW: onRotateCW,
+	rotateCCW: onRotateCCW,
+	flipHorizontal: onFlipHorizontal,
+	flipVertical: onFlipVertical,
+	applyCrop: onApplyCrop,
+	resetCrop: onResetCrop,
+	revert: onRevert,
+})
+
 watch(() => props.src, load)
 watch(
 	() => {
@@ -507,21 +518,14 @@ defineExpose({ exportImage })
 					class="image-editor__topbar"
 					:loaded="loaded"
 					@save="onSave"
-					@cancel="emit('cancel')"
-					@revert="onRevert" />
+					@cancel="emit('cancel')" />
 
 				<EditorPanel
 					:class="context.activeMode.value === 'filter'
 						? 'image-editor__strip'
 						: 'image-editor__controls'"
 					:loaded="loaded"
-					:oriented="orientedCanvas"
-					@rotateCw="onRotateCW"
-					@rotateCcw="onRotateCCW"
-					@flipHorizontal="onFlipHorizontal"
-					@flipVertical="onFlipVertical"
-					@applyCrop="onApplyCrop"
-					@resetCrop="onResetCrop" />
+					:oriented="orientedCanvas" />
 
 				<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 				<span class="hidden-visually" role="status" aria-live="polite">{{ announcement }}</span>

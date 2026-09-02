@@ -20,15 +20,6 @@ defineProps<{
 	oriented?: HTMLCanvasElement | null
 }>()
 
-const emit = defineEmits<{
-	rotateCcw: []
-	rotateCw: []
-	flipHorizontal: []
-	flipVertical: []
-	applyCrop: []
-	resetCrop: []
-}>()
-
 const context = useEditorContext()
 </script>
 
@@ -41,15 +32,7 @@ const context = useEditorContext()
 		:oriented="oriented" />
 
 	<GlassSurface v-else variant="card" class="editor-card">
-		<CropPanel
-			v-if="context.activeMode.value === 'crop'"
-			:loaded="loaded"
-			@rotateCcw="emit('rotateCcw')"
-			@rotateCw="emit('rotateCw')"
-			@flipHorizontal="emit('flipHorizontal')"
-			@flipVertical="emit('flipVertical')"
-			@applyCrop="emit('applyCrop')"
-			@resetCrop="emit('resetCrop')" />
+		<CropPanel v-if="context.activeMode.value === 'crop'" :loaded="loaded" />
 		<AdjustPanel v-else-if="context.activeMode.value === 'finetune'" :loaded="loaded" />
 		<AnnotatePanel v-else-if="context.activeMode.value === 'annotate'" :loaded="loaded" />
 		<SelectPanel v-else-if="context.activeMode.value === 'select'" :loaded="loaded" />

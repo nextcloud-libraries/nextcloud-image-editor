@@ -12,6 +12,7 @@ import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue
 import Redo from 'vue-material-design-icons/Redo.vue'
 import Restore from 'vue-material-design-icons/Restore.vue'
 import Undo from 'vue-material-design-icons/Undo.vue'
+import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -23,10 +24,10 @@ defineProps<{
 const emit = defineEmits<{
 	save: []
 	cancel: []
-	revert: []
 }>()
 
 const context = useEditorContext()
+const commands = useEditorCommands()
 
 const labels = {
 	undo: t('Undo'),
@@ -69,7 +70,7 @@ function resetZoom() {
  */
 function onConfirmRevert() {
 	confirmRevert.value = false
-	emit('revert')
+	commands.revert()
 }
 </script>
 
