@@ -117,4 +117,31 @@ describe('useExportImage', () => {
 		expect(api.saved).toHaveLength(1)
 		expect(api.saved[0]!.blob).toBe(source)
 	})
+
+	it('reports progress across a render that holds the thread', async () => {
+		const source = new Blob(['original bytes'], { type: 'image/jpeg' })
+		const edited = { ...createInitialState(), rotation: 90 as const }
+		const api = setup(source, edited)
+		const seen: boolean[] = []
+
+		// Rendering needs a real canvas, so this fails; what matters is
+		// that the flag went up before the work and came down after it
+		expect(api.exporting.value).toBe(false)
+		const running = api.exportImage().catch(() => seen.push(api.exporting.value))
+		seen.push(api.exporting.value)
+		await running
+
+		expect(seen).toEqual([true, false])
+	})
+
+	it('reports no progress for a source handed straight back', async () => {
+		const source = new Blob(['original bytes'], { type: 'image/jpeg' })
+		const api = setup(source)
+
+		const running = api.exportImage()
+		// The fast path never blocks, so it never claims to be busy
+		expect(api.exporting.value).toBe(false)
+		await running
+		expect(api.exporting.value).toBe(false)
+	})
 })

@@ -58,6 +58,13 @@ const props = defineProps<{
 	 * changing it later has no effect until the source changes too.
 	 */
 	initialState?: EditorState
+	/**
+	 * Raise while the host is storing a saved image. The editor shows
+	 * the same progress it shows for its own export, so one indicator
+	 * covers the whole wait: the editor only knows when it handed the
+	 * blob over, not when the upload finished.
+	 */
+	saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -173,7 +180,7 @@ const { textEdit, startTextEdit, confirmTextEdit } = useTextEditing({
 	oriented: () => orientedCanvas.value,
 })
 
-const { exportImage, save: onSave } = useExportImage({
+const { exporting, exportImage, save: onSave } = useExportImage({
 	oriented: () => orientedCanvas.value,
 	getState: () => context.state.value,
 	source: () => props.src instanceof Blob ? props.src : null,
@@ -678,6 +685,7 @@ defineExpose({
 				<EditorTopBar
 					class="image-editor__topbar"
 					:loaded="loaded"
+					:saving="exporting || saving === true"
 					@save="onSave"
 					@cancel="emit('cancel')" />
 

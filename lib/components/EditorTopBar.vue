@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import Check from 'vue-material-design-icons/Check.vue'
 import Close from 'vue-material-design-icons/Close.vue'
 import HistoryIcon from 'vue-material-design-icons/History.vue'
@@ -24,6 +25,8 @@ import { t } from '../utils/l10n.ts'
 defineProps<{
 	/** Whether an image is loaded and the tools are usable */
 	loaded: boolean
+	/** Whether an export, or the host's own save, is in progress */
+	saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -212,8 +215,14 @@ async function onRevert() {
 			<NcButton
 				data-test="save"
 				variant="primary"
-				:disabled="!loaded"
+				:disabled="!loaded || saving"
 				@click="emit('save')">
+				<!-- Rendering at natural resolution and encoding takes
+					long enough on a photo to need saying, and the host's
+					upload afterwards takes longer still -->
+				<template v-if="saving" #icon>
+					<NcLoadingIcon :size="20" data-test="saving" />
+				</template>
 				{{ labels.save }}
 			</NcButton>
 		</div>

@@ -249,3 +249,22 @@ test('opens on a state the host hands over', async ({ page }) => {
 	expect(result.width).toBe(100)
 	expect(result.height).toBe(200)
 })
+
+test('the save button reports progress until the host is done', async ({ page }) => {
+	await waitLoaded(page)
+	const spinner = page.locator('[data-test="saving"]')
+	const button = page.getByRole('button', { name: 'Save' })
+	await expect(spinner).toBeHidden()
+
+	await button.click()
+
+	// The playground holds saving high for a moment after taking the
+	// blob, as a host storing it would: the editor cannot know when the
+	// upload finished unless it is told
+	await expect(spinner).toBeVisible()
+	await expect(button).toBeDisabled()
+
+	// And lets go again once the host does
+	await expect(spinner).toBeHidden({ timeout: 5000 })
+	await expect(button).toBeEnabled()
+})

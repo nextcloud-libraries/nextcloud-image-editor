@@ -73,15 +73,31 @@ and every Nextcloud app bundles with vite or webpack. See #5.
 ```vue
 <script setup lang="ts">
 import type { ExportResult } from '@nextcloud/image-editor'
+import { ref } from 'vue'
 import { ImageEditor } from '@nextcloud/image-editor'
 
-function onSave({ blob, mimeType }: ExportResult) {
-	// persist the blob, e.g. via @nextcloud/upload or WebDAV PUT
+const saving = ref(false)
+
+async function onSave({ blob, mimeType }: ExportResult) {
+	// The editor knows when it handed the blob over, not when the
+	// upload finished, so tell it: on a photo the upload is the larger
+	// half of the wait
+	saving.value = true
+	try {
+		// persist the blob, e.g. via @nextcloud/upload or WebDAV PUT
+	} finally {
+		saving.value = false
+	}
 }
 </script>
 
 <template>
-	<ImageEditor :src="file" @save="onSave" @cancel="close" @error="showError" />
+	<ImageEditor
+		:src="file"
+		:saving="saving"
+		@save="onSave"
+		@cancel="close"
+		@error="showError" />
 </template>
 ```
 
@@ -95,6 +111,7 @@ function onSave({ blob, mimeType }: ExportResult) {
 | `label` | `string` | Accessible label of the canvas area. |
 | `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to PNG at natural resolution. |
 | `initialState` | `EditorState` | State to open with, as emitted by `change`, for resuming an unfinished edit. Read when the source loads. |
+| `saving` | `boolean` | Raise while your app stores the saved image. The editor shows the same progress it shows for its own export, so one indicator covers the whole wait. |
 
 | Event | Payload | Description |
 |-------|---------|-------------|
