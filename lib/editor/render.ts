@@ -134,6 +134,14 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 				lineCap: 'round',
 				lineJoin: 'round',
 			})
+		case 'line':
+			return new Konva.Line({
+				...base,
+				points: [...annotation.points],
+				stroke: annotation.color,
+				strokeWidth: annotation.strokeWidth,
+				lineCap: 'round',
+			})
 		case 'arrow':
 			return new Konva.Arrow({
 				...base,

@@ -81,7 +81,8 @@ function transformPoints(points: number[], node: NodeTransform): number[] {
 export function applyNodeTransform(annotation: Annotation, node: NodeTransform): Annotation {
 	switch (annotation.type) {
 		case 'draw':
-		case 'arrow': {
+		case 'arrow':
+		case 'line': {
 			// Scale and rotation fold into the point list itself, so the
 			// annotation needs no transform fields of its own
 			const points = transformPoints(annotation.points, node)

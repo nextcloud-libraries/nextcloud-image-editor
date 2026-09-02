@@ -21,6 +21,7 @@ export type Tool
 		| 'rectangle'
 		| 'ellipse'
 		| 'arrow'
+		| 'line'
 		| 'text'
 		| 'sticker'
 		| 'redact'

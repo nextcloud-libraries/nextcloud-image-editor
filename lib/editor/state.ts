@@ -71,6 +71,15 @@ export interface ArrowAnnotation {
 	strokeWidth: number
 }
 
+export interface LineAnnotation {
+	id: string
+	type: 'line'
+	/** [fromX, fromY, toX, toY] in oriented image coordinates */
+	points: [number, number, number, number]
+	color: string
+	strokeWidth: number
+}
+
 export interface BoxAnnotation {
 	id: string
 	type: 'rectangle' | 'ellipse'
@@ -104,7 +113,7 @@ export interface RedactAnnotation {
 	style: 'pixelate' | 'blur'
 }
 
-export type Annotation = DrawAnnotation | ArrowAnnotation | BoxAnnotation | TextAnnotation | RedactAnnotation
+export type Annotation = DrawAnnotation | ArrowAnnotation | LineAnnotation | BoxAnnotation | TextAnnotation | RedactAnnotation
 
 export interface EditorState {
 	rotation: Rotation
@@ -236,6 +245,7 @@ function mapAnnotationCW(annotation: Annotation, height: number): Annotation {
 		case 'draw':
 			return { ...annotation, points: mapPointsCW(annotation.points, height) }
 		case 'arrow':
+		case 'line':
 			return { ...annotation, points: mapPointsCW(annotation.points, height) as ArrowAnnotation['points'] }
 		case 'rectangle':
 		case 'ellipse':
@@ -284,7 +294,8 @@ export function rotateCW(state: EditorState, oriented: Size): EditorState {
 function mapAnnotationFlipX(annotation: Annotation, width: number): Annotation {
 	switch (annotation.type) {
 		case 'draw':
-		case 'arrow': {
+		case 'arrow':
+		case 'line': {
 			const points = annotation.points.map((value, i) => (i % 2 === 0 ? width - value : value))
 			return { ...annotation, points } as Annotation
 		}
@@ -350,7 +361,8 @@ export function flipHorizontal(state: EditorState, oriented: Size): EditorState 
 function mapAnnotationFlipY(annotation: Annotation, height: number): Annotation {
 	switch (annotation.type) {
 		case 'draw':
-		case 'arrow': {
+		case 'arrow':
+		case 'line': {
 			const points = annotation.points.map((value, i) => (i % 2 === 1 ? height - value : value))
 			return { ...annotation, points } as Annotation
 		}
@@ -410,7 +422,8 @@ export function flipVertical(state: EditorState, oriented: Size): EditorState {
 export function translateAnnotation(annotation: Annotation, dx: number, dy: number): Annotation {
 	switch (annotation.type) {
 		case 'draw':
-		case 'arrow': {
+		case 'arrow':
+		case 'line': {
 			const points = annotation.points.map((value, i) => value + (i % 2 === 0 ? dx : dy))
 			return { ...annotation, points } as Annotation
 		}

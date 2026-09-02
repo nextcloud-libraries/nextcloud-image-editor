@@ -434,3 +434,49 @@ test('picking a color records one undo step, not one per shade', async ({ page }
 	await page.locator('[aria-label="Undo"]').click()
 	await expect.poll(async () => (await readState(page)).annotations[0].color).toBe('#ff0000')
 })
+
+test('the line tool draws a straight stroke', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Line', exact: true }).click()
+	await setInputValue(page.locator('[data-test="color"]'), '#00ff00')
+
+	// Drag along the top of the fixture, wandering on the way: only the
+	// ends should matter
+	const corner = await imageTopLeft(page)
+	await page.mouse.move(corner.x + 20, corner.y + 50)
+	await page.mouse.down()
+	await page.mouse.move(corner.x + 60, corner.y + 10, { steps: 4 })
+	await page.mouse.move(corner.x + 180, corner.y + 50, { steps: 4 })
+	await page.mouse.up()
+
+	const { annotations } = await readState(page)
+	expect(annotations).toHaveLength(1)
+	expect(annotations[0].type).toBe('line')
+	expect(annotations[0].points).toHaveLength(4)
+
+	// The midpoint of the drawn line lands on the fixture's centre
+	const result = await save(page)
+	expectColor(result.center, [0, 255, 0], 60)
+})
+
+test('a line survives a rotation in the export', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Line', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 50 }, { x: corner.x + 180, y: corner.y + 50 })
+	const before = (await readState(page)).annotations[0].points
+
+	await page.getByRole('button', { name: 'Crop', exact: true }).click()
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	// Both ends moved into the rotated frame rather than staying put
+	const after = (await readState(page)).annotations[0].points
+	expect(after).not.toEqual(before)
+	const result = await save(page)
+	expect(result.width).toBe(100)
+	expect(result.height).toBe(200)
+})

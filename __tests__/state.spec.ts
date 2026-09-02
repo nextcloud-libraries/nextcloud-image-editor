@@ -334,3 +334,38 @@ describe('isPristine', () => {
 		expect(isPristine({ ...cropped, crop: null })).toBe(true)
 	})
 })
+
+describe('line annotations travel with the image', () => {
+	const line = {
+		id: 'l1',
+		type: 'line' as const,
+		points: [10, 20, 60, 40] as [number, number, number, number],
+		color: '#fff',
+		strokeWidth: 3,
+	}
+	const oriented = { width: 200, height: 100 }
+
+	it('survives four quarter turns unchanged', () => {
+		let state = { ...createInitialState(), annotations: [line] }
+		let size = oriented
+		for (let turn = 0; turn < 4; turn++) {
+			state = rotateCW(state, size)
+			size = { width: size.height, height: size.width }
+		}
+		expect(state.annotations[0]).toEqual(line)
+	})
+
+	it('mirrors both ends horizontally', () => {
+		const state = flipHorizontal({ ...createInitialState(), annotations: [line] }, oriented)
+		expect((state.annotations[0] as typeof line).points).toEqual([190, 20, 140, 40])
+	})
+
+	it('mirrors both ends vertically', () => {
+		const state = flipVertical({ ...createInitialState(), annotations: [line] }, oriented)
+		expect((state.annotations[0] as typeof line).points).toEqual([10, 80, 60, 60])
+	})
+
+	it('moves by a delta like any other annotation', () => {
+		expect((translateAnnotation(line, 5, -5) as typeof line).points).toEqual([15, 15, 65, 35])
+	})
+})
