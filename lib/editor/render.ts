@@ -261,6 +261,27 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 }
 
 /**
+ * What a set of preset thumbnails depends on, the preset aside: the
+ * visible area and the adjustments baked into every one of them.
+ * Picking a preset or editing an annotation changes neither, so the
+ * thumbnails do not have to be redrawn for those.
+ *
+ * @param state the current edit state
+ */
+export function thumbnailKey(state: EditorState): string {
+	const { crop, adjustments } = state
+	return [
+		crop?.x,
+		crop?.y,
+		crop?.width,
+		crop?.height,
+		adjustments.brightness,
+		adjustments.contrast,
+		adjustments.saturation,
+	].join('|')
+}
+
+/**
  * Small data-URL preview of the visible image with a preset applied,
  * for the filter picker chips.
  *

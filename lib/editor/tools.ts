@@ -56,12 +56,26 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		return pointer === null ? null : deps.toScene(pointer)
 	}
 
+	/**
+	 * Follow the active annotation with the live preview node.
+	 *
+	 * Point lists are pushed into the existing node: rebuilding it on
+	 * every pointermove made a long freehand stroke quadratic, since
+	 * each move re-created a shape carrying every point so far.
+	 */
 	const refreshPreview = () => {
-		previewNode?.destroy()
-		previewNode = null
 		if (active === null) {
+			previewNode?.destroy()
+			previewNode = null
 			return
 		}
+		if (previewNode !== null && (active.type === 'draw' || active.type === 'arrow')) {
+			(previewNode as Konva.Line).points(active.points)
+			return
+		}
+
+		previewNode?.destroy()
+		previewNode = null
 		const source = deps.oriented() ?? undefined
 		// A redaction preview needs the image to pixelate; without it the
 		// commit still works, only the live preview is skipped
@@ -147,10 +161,12 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 
 		switch (active.type) {
 			case 'draw':
-				active = { ...active, points: [...active.points, point.x, point.y] }
+				// Grown in place: the array belongs to this gesture until
+				// pointerup hands it to the committed state
+				active.points.push(point.x, point.y)
 				break
 			case 'arrow':
-				active = { ...active, points: [start.x, start.y, point.x, point.y] }
+				active.points = [start.x, start.y, point.x, point.y]
 				break
 			case 'rectangle':
 			case 'ellipse':

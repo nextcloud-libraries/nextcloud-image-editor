@@ -5,11 +5,11 @@
 <script setup lang="ts">
 import type { FilterPreset } from '../../editor/state.ts'
 
-import { computed } from 'vue'
+import { shallowRef, watch } from 'vue'
 import GlassSurface from '../base/GlassSurface.vue'
 import PresetChip from '../base/PresetChip.vue'
 import { useEditorContext } from '../../editor/context.ts'
-import { presetThumbnail } from '../../editor/render.ts'
+import { presetThumbnail, thumbnailKey } from '../../editor/render.ts'
 import { t } from '../../utils/l10n.ts'
 
 const props = defineProps<{
@@ -41,16 +41,25 @@ const presets: { id: FilterPreset, label: string }[] = [
 	{ id: 'posterize', label: t('Posterize') },
 ]
 
-// Live preview chips: each preset applied to the current image
-const presetPreviews = computed(() => {
-	if (!props.oriented) {
-		return []
-	}
-	return presets.map((preset) => ({
-		...preset,
-		url: presetThumbnail(props.oriented!, context.state.value, preset.id),
-	}))
-})
+// Live preview chips: each preset applied to the current image.
+// Redrawing all seventeen means seventeen filter passes and as many
+// data URLs, so they are only redrawn when what they show changes,
+// which is the image, the crop and the adjustments. Picking a preset
+// or drawing an annotation leaves them alone.
+const presetPreviews = shallowRef<{ id: FilterPreset, label: string, url: string }[]>([])
+
+watch(
+	[() => props.oriented, () => thumbnailKey(context.state.value)],
+	([oriented]) => {
+		presetPreviews.value = oriented
+			? presets.map((preset) => ({
+					...preset,
+					url: presetThumbnail(oriented, context.state.value, preset.id),
+				}))
+			: []
+	},
+	{ immediate: true },
+)
 
 /**
  * Apply a filter preset.

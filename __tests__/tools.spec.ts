@@ -262,4 +262,35 @@ describe('attachPointerTools', () => {
 		expect(stage.committed()).toBe(committed)
 		expect(committed?.annotations).toHaveLength(1)
 	})
+
+	it('keeps every point of a long stroke', () => {
+		const stage = harness()
+		attach('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 0, y: 0 })
+		for (let step = 1; step <= 400; step++) {
+			stage.fire('pointermove', { x: step, y: step * 2 })
+		}
+		stage.fire('pointerup')
+
+		const stroke = stage.committed()!.annotations[0] as DrawAnnotation
+		// The first point plus one per move, two numbers each
+		expect(stroke.points).toHaveLength(802)
+		expect(stroke.points.slice(0, 4)).toEqual([0, 0, 1, 2])
+		expect(stroke.points.slice(-2)).toEqual([400, 800])
+	})
+
+	it('leaves the committed points alone once the gesture is over', () => {
+		const stage = harness()
+		attach('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 1, y: 1 })
+		stage.fire('pointermove', { x: 2, y: 2 })
+		stage.fire('pointerup')
+		const committed = (stage.committed()!.annotations[0] as DrawAnnotation).points.length
+
+		// A further move belongs to no gesture and must not reach it
+		stage.fire('pointermove', { x: 9, y: 9 })
+		expect((stage.committed()!.annotations[0] as DrawAnnotation).points).toHaveLength(committed)
+	})
 })
