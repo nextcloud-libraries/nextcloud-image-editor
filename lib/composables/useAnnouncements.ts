@@ -10,8 +10,9 @@ import { t } from '../utils/l10n.ts'
 
 /**
  * Screen-reader announcements for state changes that have no visible
- * text of their own: mode switches, history moves and preset changes.
- * The returned message feeds an aria-live region.
+ * text of their own: mode switches, annotations appearing or
+ * disappearing, and preset changes. The returned message feeds an
+ * aria-live region.
  *
  * @param context the editor context
  */

@@ -37,6 +37,27 @@ test('emits error for an undecodable source', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
 })
 
+test('a failed load says so and offers another attempt', async ({ page }) => {
+	await page.goto('/?src=broken')
+
+	// An empty frame with a stopped spinner leaves the user nowhere
+	await expect(page.locator('[data-test="load-error"]')).toBeVisible()
+	await expect(page.locator('.image-editor__loading')).toBeHidden()
+
+	await page.locator('[data-test="retry"]').click()
+
+	// The same source fails again, and the editor says so again rather
+	// than getting stuck on the attempt
+	await expect(page.locator('[data-test="errors"]'))
+		.toHaveText('Image could not be decoded, Image could not be decoded')
+	await expect(page.locator('[data-test="load-error"]')).toBeVisible()
+})
+
+test('a successful load leaves no failure behind', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="load-error"]')).toBeHidden()
+})
+
 test('view zoom magnifies without touching the edit state', async ({ page }) => {
 	await waitLoaded(page)
 	await expect(page.locator('[data-test="zoom-out"]')).toBeDisabled()

@@ -14,6 +14,7 @@ import type { ExportResult } from '../types/export.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import EditorPanel from './EditorPanel.vue'
 import EditorSidebar from './EditorSidebar.vue'
@@ -54,7 +55,14 @@ const emit = defineEmits<{
 	change: [state: EditorState]
 }>()
 
-const canvasLabel = t('Image editor')
+const labels = {
+	canvas: t('Image editor'),
+	failed: t('The image could not be loaded'),
+	retry: t('Try again'),
+}
+
+/** Guards against an older load publishing over a newer one */
+let loadAttempt = 0
 
 const context = createEditorContext()
 const container = useTemplateRef<HTMLDivElement>('container')
@@ -361,18 +369,29 @@ function refreshOrientedCanvas(): void {
  * Load the source image and reset the editing session.
  */
 async function load(): Promise<void> {
+	// Decoding is asynchronous, so a source switched twice in quick
+	// succession can finish out of order. Only the newest attempt is
+	// allowed to publish anything.
+	const attempt = ++loadAttempt
 	loaded.value = false
 	errored.value = false
 	try {
-		sourceImage.value = await loadImage(props.src)
+		const image = await loadImage(props.src)
+		if (attempt !== loadAttempt) {
+			return
+		}
+		sourceImage.value = image
 		context.reset()
 		// Sensible text size relative to the image resolution
-		const minDimension = Math.min(sourceImage.value.naturalWidth, sourceImage.value.naturalHeight)
+		const minDimension = Math.min(image.naturalWidth, image.naturalHeight)
 		context.fontSize.value = Math.min(128, Math.max(12, Math.round(minDimension / 15)))
 		pendingTransition = { kind: 'load', context: captureView() }
 		refreshOrientedCanvas()
 		loaded.value = true
 	} catch (error) {
+		if (attempt !== loadAttempt) {
+			return
+		}
 		errored.value = true
 		emit('error', error instanceof Error ? error : new Error(String(error)))
 	}
@@ -603,11 +622,17 @@ defineExpose({ exportImage })
 						class="image-editor__canvas"
 						:style="{ cursor: canvasCursor }"
 						role="img"
-						:aria-label="label ?? canvasLabel" />
+						:aria-label="label ?? labels.canvas" />
 					<NcLoadingIcon
 						v-if="!loaded && !errored"
 						class="image-editor__loading"
 						:size="44" />
+					<div v-if="errored" class="image-editor__error" data-test="load-error">
+						<p>{{ labels.failed }}</p>
+						<NcButton variant="secondary" data-test="retry" @click="load()">
+							{{ labels.retry }}
+						</NcButton>
+					</div>
 					<TextOverlay
 						v-if="textEdit !== null"
 						:x="textEdit.screenX"
@@ -817,6 +842,24 @@ defineExpose({ exportImage })
 		position: absolute;
 		inset: 0;
 		margin: auto;
+	}
+
+	// Failing silently leaves an empty frame with no way forward
+	&__error {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: calc(var(--default-grid-baseline) * 3);
+		text-align: center;
+		padding: calc(var(--default-grid-baseline) * 4);
+
+		p {
+			margin: 0;
+			opacity: 0.85;
+		}
 	}
 
 }
