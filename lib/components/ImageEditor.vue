@@ -436,10 +436,12 @@ watch(
 watch([context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
 watch(context.cropAspect, applyCropAspect)
 
-// The color control follows the selection and edits it in place
+// The color control follows the selection and edits it in place.
+// Stickers keep their color field untouched: the emoji glyph never
+// shows it, and a write would only pollute the undo history.
 watch(context.selectedId, (id) => {
 	const annotation = context.state.value.annotations.find((entry) => entry.id === id)
-	if (annotation !== undefined && 'color' in annotation) {
+	if (annotation !== undefined && 'color' in annotation && annotation.type !== 'sticker') {
 		context.drawColor.value = annotation.color
 	}
 })
@@ -447,7 +449,7 @@ watch(context.drawColor, (color) => {
 	const id = context.selectedId.value
 	const state = context.state.value
 	const annotation = state.annotations.find((entry) => entry.id === id)
-	if (annotation === undefined || !('color' in annotation) || annotation.color === color) {
+	if (annotation === undefined || !('color' in annotation) || annotation.type === 'sticker' || annotation.color === color) {
 		return
 	}
 	context.commit({

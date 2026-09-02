@@ -217,6 +217,87 @@ test('the color control recolors the selected annotation', async ({ page }) => {
 	expect((await readState(page)).annotations[0].color).toBe('#ff0000')
 })
 
+test('freehand strokes scale and rotate through the transformer', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 50 }, { x: corner.x + 100, y: corner.y + 50 })
+	const before = (await readState(page)).annotations[0]
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 60, corner.y + 50)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+
+	// Strokes expose the full transformer, rotation handle included
+	const handles = await page.evaluate(() => {
+		const transformer = window.Konva.stages[0].find('Transformer')[0] as unknown as { resizeEnabled(): boolean, rotateEnabled(): boolean }
+		return { resize: transformer.resizeEnabled(), rotate: transformer.rotateEnabled() }
+	})
+	expect(handles).toEqual({ resize: true, rotate: true })
+
+	// Apply scale and rotation through the transformer pipeline; the
+	// synthetic anchor drag is too flaky across engines
+	await page.evaluate(() => {
+		const stage = window.Konva.stages[0]
+		const node = stage.find('.annotation')[0]
+		node.scaleX(2)
+		node.scaleY(2)
+		node.rotation(90)
+		node.fire('transformend', { target: node }, true)
+	})
+
+	const after = (await readState(page)).annotations[0]
+	expect(after.points).toHaveLength(before.points.length)
+	expect(after.strokeWidth).toBeCloseTo(before.strokeWidth * 2, 5)
+
+	// The quarter turn maps the horizontal stroke onto a vertical one:
+	// all x values collapse while the y span doubles
+	const xs = after.points.filter((_: number, i: number) => i % 2 === 0)
+	const ys = after.points.filter((_: number, i: number) => i % 2 === 1)
+	expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(1)
+	const beforeXs = before.points.filter((_: number, i: number) => i % 2 === 0)
+	expect(Math.max(...ys) - Math.min(...ys))
+		.toBeCloseTo((Math.max(...beforeXs) - Math.min(...beforeXs)) * 2, 3)
+
+	// The folded stroke survives a rebuild (deselect renders from state)
+	await page.mouse.click(corner.x + 10, corner.y + 90)
+	expect((await readState(page)).annotations[0].points).toEqual(after.points)
+})
+
+test('the color control hides where color has no effect', async ({ page }) => {
+	await waitLoaded(page)
+
+	// A sticker shows the emoji glyph: no color to edit
+	await page.getByRole('button', { name: 'Sticker', exact: true }).click()
+	await page.locator('.sticker-panel button').nth(1).click()
+	const corner = await imageTopLeft(page)
+	await page.mouse.click(corner.x + 100, corner.y + 50)
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 112, corner.y + 62)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('.select-panel input[type="color"]')).toHaveCount(0)
+	await expect(page.getByText('Drag to move, use the handles to resize')).toBeVisible()
+
+	// A redaction destroys pixels and stays axis-aligned: no color,
+	// and no rotation handle either
+	await page.keyboard.press('Delete')
+	await page.getByRole('button', { name: 'Redact' }).click()
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 90, y: corner.y + 70 })
+
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 55, corner.y + 45)
+	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('.select-panel input[type="color"]')).toHaveCount(0)
+	const rotatable = await page.evaluate(() => {
+		const transformer = window.Konva.stages[0].find('Transformer')[0] as unknown as { rotateEnabled(): boolean }
+		return transformer.rotateEnabled()
+	})
+	expect(rotatable).toBe(false)
+})
+
 test('rectangle rotation survives rebuilds and round trips', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
