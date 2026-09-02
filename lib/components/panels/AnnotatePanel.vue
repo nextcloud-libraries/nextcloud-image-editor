@@ -93,7 +93,7 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 			:min="1"
 			:max="32"
 			:step="1"
-			:aria-label="labels.strokeWidth"
+			:label="labels.strokeWidth"
 			@input="context.strokeWidth.value = $event"
 			@commit="() => {}">
 			<template #preview>
@@ -113,7 +113,7 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 			:min="8"
 			:max="128"
 			:step="1"
-			:aria-label="labels.fontSize"
+			:label="labels.fontSize"
 			@input="context.fontSize.value = $event"
 			@commit="() => {}">
 			<template #preview>

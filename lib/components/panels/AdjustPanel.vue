@@ -72,7 +72,7 @@ function onSliderCommit() {
 			:min="-100"
 			:max="100"
 			:step="1"
-			:aria-label="adjustments.find((entry) => entry.id === activeAdjustment)!.label"
+			:label="adjustments.find((entry) => entry.id === activeAdjustment)!.label"
 			:display="display"
 			:data-test="`adjust-${activeAdjustment}`"
 			:disabled="!loaded"

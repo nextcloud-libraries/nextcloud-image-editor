@@ -51,6 +51,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:watch": "vitest watch",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.check.json",
     "watch": "vite --mode development build --watch"
   },
   "dependencies": {
@@ -76,7 +77,8 @@
     "vite": "^7.1.11",
     "vitest": "^3.2.4",
     "vue": "^3.5.13",
-    "vue-material-design-icons": "^5.3.1"
+    "vue-material-design-icons": "^5.3.1",
+    "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
     "@nextcloud/dialogs": "^7.0.0",

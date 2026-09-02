@@ -107,6 +107,7 @@ npm run test           # unit tests (vitest)
 npm run test:e2e       # Playwright tests (real browser, canvas)
 npm run playground     # dev playground at http://localhost:5173
 npm run lint
+npm run typecheck     # vue-tsc over lib/ and __tests__/
 npm run build
 npm run build:doc      # typedoc API documentation
 npm run build:demo     # static demo page build

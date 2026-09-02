@@ -27,6 +27,20 @@ export interface SelectionDeps {
 	onSelectionRect(rect: { x: number, y: number, width: number, height: number } | null): void
 }
 
+/**
+ * The transform readers the fold needs. Konva's nodes satisfy this, and
+ * so does anything else that can report a transform: picking the
+ * getters off Konva.Node instead drags in its setter overloads, which
+ * makes the type impossible to satisfy by hand.
+ */
+export interface NodeTransform {
+	x(): number
+	y(): number
+	scaleX(): number
+	scaleY(): number
+	rotation(): number
+}
+
 export interface Selection {
 	/**
 	 * Re-bind to the scene after it reconciled: a changed annotation is
@@ -43,10 +57,7 @@ export interface Selection {
  * @param points flat [x1, y1, …] list
  * @param node the transformed Konva node
  */
-function transformPoints(
-	points: number[],
-	node: Pick<Konva.Node, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>,
-): number[] {
+function transformPoints(points: number[], node: NodeTransform): number[] {
 	const radians = (node.rotation() * Math.PI) / 180
 	const cos = Math.cos(radians)
 	const sin = Math.sin(radians)
@@ -66,10 +77,7 @@ function transformPoints(
  * @param annotation the annotation to update
  * @param node its Konva node after the interaction
  */
-export function applyNodeTransform(
-	annotation: Annotation,
-	node: Pick<Konva.Node, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>,
-): Annotation {
+export function applyNodeTransform(annotation: Annotation, node: NodeTransform): Annotation {
 	switch (annotation.type) {
 		case 'draw':
 		case 'arrow': {

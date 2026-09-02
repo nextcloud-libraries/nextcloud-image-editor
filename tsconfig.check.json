@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "noEmit": true,
+    "declaration": false,
+    "rootDir": "."
+  },
+  // The shipped library and the unit tests around it. The Playwright
+  // specs and the build configs are left out: their own tooling types
+  // them, and pulling them in here only surfaces disagreements between
+  // vue-tsc and those packages' shipped declarations.
+  "include": [
+    "lib",
+    "__tests__"
+  ]
+}

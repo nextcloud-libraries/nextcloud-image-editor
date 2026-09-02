@@ -13,7 +13,7 @@ const props = defineProps<{
 	/** Slider step */
 	step: number
 	/** Accessible name of the slider */
-	ariaLabel: string
+	label: string
 	/** Text shown next to the slider, defaults to the raw value */
 	display?: string
 	/** Hook for the browser test suite */
@@ -45,7 +45,7 @@ function onInput(event: Event) {
 			:value="props.value"
 			:data-test="dataTest"
 			:disabled="disabled"
-			:aria-label="ariaLabel"
+			:aria-label="label"
 			type="range"
 			:min="min"
 			:max="max"
