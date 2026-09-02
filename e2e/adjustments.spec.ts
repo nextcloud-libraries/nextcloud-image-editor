@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { readState, save, setInputValue, waitLoaded } from './utils.ts'
+import { expectColor, readState, save, setInputValue, waitLoaded } from './utils.ts'
 
 test('darkening brightness changes the exported pixels', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
 	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '-50')
 
 	expect((await readState(page)).adjustments.brightness).toBe(-50)
@@ -69,6 +70,7 @@ test('the filter cache returns to full resolution after a scrub', async ({ page 
 	})
 
 	// Dragging caches at display resolution to keep the drag smooth
+	await page.locator('[data-test="tab-brightness"]').click()
 	const slider = page.locator('[data-test="adjust-brightness"]')
 	await slider.evaluate((element) => {
 		const input = element as HTMLInputElement
@@ -101,6 +103,7 @@ test('the saturation slider reaches grayscale at its floor', async ({ page }) =>
 test('a slider drag reports one change, not one per step', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
 
 	const changes = () => page.locator('[data-test="changes"]').innerText()
 	const before = Number(await changes())
@@ -120,4 +123,59 @@ test('a slider drag reports one change, not one per step', async ({ page }) => {
 	// Six previews and one release: the consumer hears about the step
 	// the user settled on
 	await expect.poll(async () => Number(await changes()) - before).toBe(1)
+})
+
+test('exposure lifts the whole image in stops', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-exposure"]').click()
+
+	// Half the slider is one stop, so the fixture's red doubles
+	await setInputValue(page.locator('[data-test="adjust-exposure"]'), '50')
+	const brighter = await save(page)
+	expect(brighter.topLeft[0]).toBeGreaterThan(180)
+
+	await setInputValue(page.locator('[data-test="adjust-exposure"]'), '-50')
+	const darker = await save(page)
+	expect(darker.topLeft[0]).toBeLessThan(120)
+})
+
+test('temperature moves red against blue', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-temperature"]').click()
+
+	// The fixture's right half is pure blue, which cooling should lift
+	await setInputValue(page.locator('[data-test="adjust-temperature"]'), '-100')
+	const cool = await save(page)
+	expect(cool.topRight[2]).toBeGreaterThan(200)
+
+	await setInputValue(page.locator('[data-test="adjust-temperature"]'), '100')
+	const warm = await save(page)
+	expect(warm.topRight[2]).toBeLessThan(180)
+})
+
+test('tint moves green against the other channels', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-tint"]').click()
+
+	await setInputValue(page.locator('[data-test="adjust-tint"]'), '100')
+	const magenta = await save(page)
+	// Pure red gains where green would have been taken from
+	expect(magenta.topLeft[0]).toBeGreaterThan(200)
+})
+
+test('sharpen leaves a flat image alone', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-sharpen"]').click()
+	await setInputValue(page.locator('[data-test="adjust-sharpen"]'), '100')
+
+	// The fixture is two flat blocks: only the seam between them is an
+	// edge, so the probes away from it must be untouched
+	const result = await save(page)
+	expectColor(result.topLeft, [200, 0, 0])
+	expectColor(result.topRight, [0, 0, 200])
+	expect((await readState(page)).adjustments.sharpen).toBe(100)
 })

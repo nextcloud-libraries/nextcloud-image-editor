@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { describe, expect, it } from 'vitest'
-import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, warm } from '../lib/editor/filters.ts'
+import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tone, warm } from '../lib/editor/filters.ts'
 
 function pixels(...rgba: number[]): { data: Uint8ClampedArray } {
 	return { data: new Uint8ClampedArray(rgba) }
@@ -135,7 +135,7 @@ describe('saturate', () => {
 	 */
 	function filtered(amount: number, ...rgba: number[]): number[] {
 		const image = pixels(...rgba)
-		saturate.call({ saturation: () => amount }, image)
+		saturate.call({ saturation: () => amount, getAttr: () => undefined }, image)
 		return [...image.data]
 	}
 
@@ -176,5 +176,134 @@ describe('saturate', () => {
 
 	it('leaves the alpha channel untouched', () => {
 		expect(filtered(-1, 10, 20, 30, 123)[3]).toBe(123)
+	})
+})
+
+describe('tone', () => {
+	/**
+	 * Run the tone filter as Konva would, with the node carrying the
+	 * amounts.
+	 *
+	 * @param attrs exposure, temperature and tint, each -1 to 1
+	 * @param rgba the pixels to filter
+	 */
+	function filtered(attrs: Record<string, number>, ...rgba: number[]): number[] {
+		const image = pixels(...rgba)
+		tone.call({
+			saturation: () => 0,
+			getAttr: (name: string) => attrs[name],
+		}, image)
+		return [...image.data]
+	}
+
+	it('leaves the pixels alone with nothing set', () => {
+		expect(filtered({}, 100, 120, 140, 255)).toEqual([100, 120, 140, 255])
+	})
+
+	it('doubles the light one stop up', () => {
+		// The range spans two stops each way, so half of it is one stop
+		expect(filtered({ exposure: 0.5 }, 50, 60, 70, 255)).toEqual([100, 120, 140, 255])
+	})
+
+	it('halves the light one stop down', () => {
+		expect(filtered({ exposure: -0.5 }, 100, 120, 140, 255)).toEqual([50, 60, 70, 255])
+	})
+
+	it('is symmetrical about zero, as stops are', () => {
+		// Equal travel each way cancels out, to within the rounding an
+		// eight bit channel imposes on the way back
+		const up = filtered({ exposure: 0.25 }, 100, 100, 100, 255)[0]!
+		const down = filtered({ exposure: -0.25 }, 100, 100, 100, 255)[0]!
+		expect((up / 100) * (down / 100)).toBeCloseTo(1, 2)
+	})
+
+	it('warms towards amber and cools towards blue', () => {
+		const [warmR, , warmB] = filtered({ temperature: 1 }, 100, 100, 100, 255)
+		expect(warmR!).toBeGreaterThan(100)
+		expect(warmB!).toBeLessThan(100)
+
+		const [coolR, , coolB] = filtered({ temperature: -1 }, 100, 100, 100, 255)
+		expect(coolR!).toBeLessThan(100)
+		expect(coolB!).toBeGreaterThan(100)
+	})
+
+	it('moves green against the other two channels for tint', () => {
+		const [magentaR, magentaG, magentaB] = filtered({ tint: 1 }, 100, 100, 100, 255)
+		expect(magentaG!).toBeLessThan(100)
+		expect(magentaR!).toBeGreaterThan(100)
+		expect(magentaB!).toBeGreaterThan(100)
+
+		const [, greenG] = filtered({ tint: -1 }, 100, 100, 100, 255)
+		expect(greenG!).toBeGreaterThan(100)
+	})
+
+	it('leaves the alpha channel untouched', () => {
+		expect(filtered({ exposure: 1, temperature: 1, tint: 1 }, 10, 20, 30, 123)[3]).toBe(123)
+	})
+})
+
+describe('sharpen', () => {
+	/**
+	 * A greyscale image from a grid of luminances.
+	 *
+	 * @param rows the pixel values, one array per row
+	 */
+	function image(rows: number[][]) {
+		const height = rows.length
+		const width = rows[0]!.length
+		const data = new Uint8ClampedArray(width * height * 4)
+		rows.forEach((row, y) => row.forEach((value, x) => {
+			const i = (y * width + x) * 4
+			data[i] = data[i + 1] = data[i + 2] = value
+			data[i + 3] = 255
+		}))
+		return { data, width, height }
+	}
+
+	/**
+	 * @param amount the sharpen amount, -1 to 1
+	 * @param rows the pixel grid
+	 */
+	function filtered(amount: number, rows: number[][]) {
+		const target = image(rows)
+		sharpen.call({ saturation: () => 0, getAttr: () => amount }, target)
+		// Report the centre pixel's red channel: the interesting one
+		const centre = (Math.floor(rows.length / 2) * rows[0]!.length + Math.floor(rows[0]!.length / 2)) * 4
+		return target.data[centre]!
+	}
+
+	/** A single bright pixel surrounded by dark ones */
+	const EDGE = [
+		[10, 10, 10],
+		[10, 100, 10],
+		[10, 10, 10],
+	]
+
+	it('does nothing at zero', () => {
+		expect(filtered(0, EDGE)).toBe(100)
+	})
+
+	it('drives an edge further from its surroundings', () => {
+		expect(filtered(0.5, EDGE)).toBeGreaterThan(100)
+	})
+
+	it('leaves a flat area flat', () => {
+		const flat = [
+			[80, 80, 80],
+			[80, 80, 80],
+			[80, 80, 80],
+		]
+		expect(filtered(1, flat)).toBe(80)
+	})
+
+	it('softens instead when the amount is negative', () => {
+		expect(filtered(-0.5, EDGE)).toBeLessThan(100)
+	})
+
+	it('leaves the border alone rather than inventing neighbours', () => {
+		const target = image(EDGE)
+		sharpen.call({ saturation: () => 0, getAttr: () => 1 }, target)
+		// Top-left corner has no full neighbourhood
+		expect(target.data[0]).toBe(10)
 	})
 })

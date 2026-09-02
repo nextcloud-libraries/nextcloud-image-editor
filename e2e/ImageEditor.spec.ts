@@ -161,6 +161,7 @@ test('the scene reconciles instead of rebuilding', async ({ page }) => {
 
 	// An adjustment refilters the image but must not touch annotations
 	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
 	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '30')
 	const afterAdjust = await nodeIds()
 	expect(afterAdjust.annotations).toEqual(before.annotations)

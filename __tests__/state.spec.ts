@@ -318,9 +318,8 @@ describe('isPristine', () => {
 			{ flipX: true },
 			{ flipY: true },
 			{ crop: { x: 0, y: 0, width: 10, height: 10 } },
-			{ adjustments: { brightness: 5, contrast: 0, saturation: 0 } },
-			{ adjustments: { brightness: 0, contrast: -5, saturation: 0 } },
-			{ adjustments: { brightness: 0, contrast: 0, saturation: 5 } },
+			...(['exposure', 'brightness', 'contrast', 'saturation', 'temperature', 'tint', 'sharpen'] as const)
+				.map((key) => ({ adjustments: { ...createInitialState().adjustments, [key]: 5 } })),
 			{ preset: 'noir' },
 			{ annotations: [{ id: 'a', type: 'draw', points: [0, 0], color: '#fff', strokeWidth: 1 }] },
 		]

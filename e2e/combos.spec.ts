@@ -37,6 +37,7 @@ test('solarize inverts only bright regions', async ({ page }) => {
 
 	// Brightened above the threshold it inverts
 	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
 	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '70')
 	const bright = await save(page)
 	expect(bright.topLeft[1]!).toBeLessThan(120)
@@ -58,6 +59,7 @@ test('tint presets shift channels in opposite directions', async ({ page }) => {
 test('adjustment and preset combine in the export', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
 	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '-40')
 	await page.getByRole('button', { name: 'Filter', exact: true }).click()
 	await page.locator('[data-test="preset-grayscale"]').click()
@@ -118,6 +120,7 @@ test('a mixed edit stack unwinds fully through undo', async ({ page }) => {
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	await page.getByRole('button', { name: 'Flip vertical' }).click()
 	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-contrast"]').click()
 	await page.locator('[data-test="tab-contrast"]').click()
 	await setInputValue(page.locator('[data-test="adjust-contrast"]'), '25')
 	await page.getByRole('button', { name: 'Sticker', exact: true }).click()

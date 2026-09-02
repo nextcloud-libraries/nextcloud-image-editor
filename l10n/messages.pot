@@ -86,6 +86,9 @@ msgstr ""
 msgid "Ellipse"
 msgstr ""
 
+msgid "Exposure"
+msgstr ""
+
 msgid "Fade"
 msgstr ""
 
@@ -200,6 +203,9 @@ msgstr ""
 msgid "Sepia"
 msgstr ""
 
+msgid "Sharpen"
+msgstr ""
+
 msgid "Solarize"
 msgstr ""
 
@@ -209,6 +215,9 @@ msgstr ""
 msgid "Stroke width"
 msgstr ""
 
+msgid "Temperature"
+msgstr ""
+
 msgid "Text"
 msgstr ""
 
@@ -216,6 +225,9 @@ msgid "The image cannot be exported because it was loaded without cross-origin a
 msgstr ""
 
 msgid "The image could not be loaded"
+msgstr ""
+
+msgid "Tint"
 msgstr ""
 
 msgid "Try again"

@@ -21,9 +21,17 @@ export interface Rect {
 
 /** All values range from -100 to 100, 0 meaning unchanged */
 export interface Adjustments {
+	/** Light, in stops: the range spans four of them */
+	exposure: number
 	brightness: number
 	contrast: number
 	saturation: number
+	/** Blue to amber, the warmth of the white balance */
+	temperature: number
+	/** Green to magenta, the other white balance axis */
+	tint: number
+	/** Local contrast around edges */
+	sharpen: number
 }
 
 export type FilterPreset
@@ -124,7 +132,15 @@ export function createInitialState(): EditorState {
 		flipX: false,
 		flipY: false,
 		crop: null,
-		adjustments: { brightness: 0, contrast: 0, saturation: 0 },
+		adjustments: {
+			exposure: 0,
+			brightness: 0,
+			contrast: 0,
+			saturation: 0,
+			temperature: 0,
+			tint: 0,
+			sharpen: 0,
+		},
 		preset: 'none',
 		annotations: [],
 	}
@@ -138,16 +154,15 @@ export function createInitialState(): EditorState {
  * @param state the state to inspect
  */
 export function isPristine(state: EditorState): boolean {
-	const { adjustments } = state
 	return state.rotation === 0
 		&& state.fineRotation === 0
 		&& state.zoom === 1
 		&& !state.flipX
 		&& !state.flipY
 		&& state.crop === null
-		&& adjustments.brightness === 0
-		&& adjustments.contrast === 0
-		&& adjustments.saturation === 0
+		// Every adjustment is centred on zero, so this stays correct as
+		// the set of them grows
+		&& Object.values(state.adjustments).every((value) => value === 0)
 		&& state.preset === 'none'
 		&& state.annotations.length === 0
 }
