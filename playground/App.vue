@@ -7,12 +7,15 @@ import type { EditorState, ExportResult } from '../lib/index.ts'
 
 import { ref, shallowRef } from 'vue'
 import { ImageEditor } from '../lib/index.ts'
+import demoPhoto from './demo.jpg'
 
 const BROKEN_SRC = 'data:image/png;base64,not-an-image'
 
-// Unsplash photo by Bailey Zindel (Unsplash License, free to use);
-// hotlinked from their CORS-enabled CDN
-const DEMO_SRC = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=3840&q=85'
+// Clown fish in a sea anemone by Bro Takes Photos (Unsplash License,
+// free to use), bundled with the playground so the demo needs no
+// network and still exercises a real multi-megapixel image
+// https://unsplash.com/photos/a-clown-fish-peeking-out-of-a-pink-sea-anemone-jUvUDx_cb4s
+const DEMO_SRC = demoPhoto
 
 /**
  * 200x100 test image: left half red rgb(200,0,0), right half blue
