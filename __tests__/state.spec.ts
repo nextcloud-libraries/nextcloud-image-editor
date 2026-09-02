@@ -11,6 +11,7 @@ import {
 	duplicateAnnotation,
 	flipHorizontal,
 	flipVertical,
+	isPristine,
 	orientedSize,
 	rotateCW,
 	translateAnnotation,
@@ -300,5 +301,37 @@ describe('kitchen-sink state survives four quarter turns', () => {
 		expect(state.annotations[4]).toEqual(text)
 		expect(state.annotations[5]).toEqual(sticker)
 		expect(state.annotations[6]).toEqual(redact)
+	})
+})
+
+describe('isPristine', () => {
+	it('recognises a fresh state', () => {
+		expect(isPristine(createInitialState())).toBe(true)
+	})
+
+	it('recognises every kind of edit', () => {
+		const initial = createInitialState()
+		const edits: Partial<EditorState>[] = [
+			{ rotation: 90 },
+			{ fineRotation: -3 },
+			{ zoom: 1.5 },
+			{ flipX: true },
+			{ flipY: true },
+			{ crop: { x: 0, y: 0, width: 10, height: 10 } },
+			{ adjustments: { brightness: 5, contrast: 0, saturation: 0 } },
+			{ adjustments: { brightness: 0, contrast: -5, saturation: 0 } },
+			{ adjustments: { brightness: 0, contrast: 0, saturation: 5 } },
+			{ preset: 'noir' },
+			{ annotations: [{ id: 'a', type: 'draw', points: [0, 0], color: '#fff', strokeWidth: 1 }] },
+		]
+		for (const edit of edits) {
+			expect(isPristine({ ...initial, ...edit }), JSON.stringify(edit)).toBe(false)
+		}
+	})
+
+	it('is unmoved by a crop applied and dropped again', () => {
+		const initial = createInitialState()
+		const cropped = { ...initial, crop: { x: 1, y: 1, width: 5, height: 5 } }
+		expect(isPristine({ ...cropped, crop: null })).toBe(true)
 	})
 })

@@ -10,7 +10,7 @@ import type { Scene, SceneOptions } from '../editor/render.ts'
 import type { Selection } from '../editor/selection.ts'
 import type { EditorState, Rect, Size } from '../editor/state.ts'
 import type { ViewFit } from '../editor/view.ts'
-import type { ExportResult } from '../types/export.ts'
+import type { ExportOptions, ExportResult } from '../types/export.ts'
 
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -46,6 +46,12 @@ const props = defineProps<{
 	src: Blob | string
 	/** Accessible label of the canvas area */
 	label?: string
+	/**
+	 * Format, quality and size bound for the save button. Defaults to
+	 * PNG at natural resolution, which is lossless but large: a host
+	 * saving over a photo will want its source format instead.
+	 */
+	exportOptions?: ExportOptions
 }>()
 
 const emit = defineEmits<{
@@ -164,6 +170,8 @@ const { textEdit, startTextEdit, confirmTextEdit } = useTextEditing({
 const { exportImage, save: onSave } = useExportImage({
 	oriented: () => orientedCanvas.value,
 	getState: () => context.state.value,
+	source: () => props.src instanceof Blob ? props.src : null,
+	saveOptions: () => props.exportOptions ?? {},
 	onSaved: (result) => emit('save', result),
 	onError: (error) => emit('error', error),
 })

@@ -33,7 +33,8 @@ unmaintained Filerobot editor.
   phone-sized containers (container queries, not viewport media queries)
 - Keyboard accessible, pointer-event based canvas (mouse and touch),
   `prefers-reduced-motion` respected
-- Exports a `Blob` at natural resolution, optionally bounded by `maxSize`
+- Exports a `Blob` at natural resolution in PNG, JPEG or WebP, optionally
+  bounded by `maxSize`; an unedited image is handed back untouched
 
 ## Design principles
 
@@ -74,6 +75,7 @@ function onSave({ blob, mimeType }: ExportResult) {
 |------|------|-------------|
 | `src` | `Blob \| string` | Image to edit (Blob, File or URL). Required. |
 | `label` | `string` | Accessible label of the canvas area. |
+| `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to PNG at natural resolution. |
 
 | Event | Payload | Description |
 |-------|---------|-------------|
@@ -84,6 +86,13 @@ function onSave({ blob, mimeType }: ExportResult) {
 
 Exposed methods: `exportImage(options?: ExportOptions): Promise<ExportResult>`
 with `format`, `quality` and `maxSize` (longest edge bound) options.
+
+Saving an image that was not edited hands back the source bytes
+untouched, rather than re-encoding them. That keeps the file's quality
+and its metadata, and it only applies when `src` was given as a `Blob`
+or `File`, nothing was asked of the encoder, and the state is pristine.
+`isPristine(state)` is exported for the same check, e.g. to disable a
+save button.
 
 ### `useHistory<T>(capacity?)`
 

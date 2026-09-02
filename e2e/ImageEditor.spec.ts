@@ -205,3 +205,28 @@ test('undo reuses the nodes it did not change', async ({ page }) => {
 	// being rebuilt from a copy
 	await expect.poll(annotationIds).toEqual(before)
 })
+
+test('saving an untouched image returns the original bytes', async ({ page }) => {
+	await waitLoaded(page)
+	const sourceSize = Number(await page.locator('[data-test="source-size"]').innerText())
+	expect(sourceSize).toBeGreaterThan(0)
+
+	const result = await save(page)
+
+	// Re-encoding an unedited image costs a generation of quality and
+	// throws away its metadata for no change at all
+	expect(result.size).toBe(sourceSize)
+	expect(result.mimeType).toBe('image/png')
+})
+
+test('saving an edited image re-encodes it', async ({ page }) => {
+	await waitLoaded(page)
+	const sourceSize = Number(await page.locator('[data-test="source-size"]').innerText())
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	const result = await save(page)
+	expect(result.size).not.toBe(sourceSize)
+	// The fixture is 200x100, so a quarter turn makes it 100x200
+	expect(result.width).toBe(100)
+	expect(result.height).toBe(200)
+})

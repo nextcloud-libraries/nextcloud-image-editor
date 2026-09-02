@@ -56,6 +56,10 @@ function makeLargeFixture(): Promise<Blob> {
 	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
 }
 
+// Byte length of the source, so a test can tell an untouched save
+// (the same bytes back) from a re-encoded one
+const sourceSize = ref(0)
+
 // ?src=test loads the deterministic fixture the Playwright suite probes,
 // ?src=broken an undecodable image; default is a real demo photo
 const src = shallowRef<Blob | string | null>(null)
@@ -64,10 +68,12 @@ if (requested === 'broken') {
 	src.value = BROKEN_SRC
 } else if (requested === 'test') {
 	makeFixture().then((blob) => {
+		sourceSize.value = blob.size
 		src.value = blob
 	})
 } else if (requested === 'large') {
 	makeLargeFixture().then((blob) => {
+		sourceSize.value = blob.size
 		src.value = blob
 	})
 } else {
@@ -146,6 +152,7 @@ function onChange(state: EditorState) {
 			<output data-test="saved">{{ saved }}</output>
 			<output data-test="state">{{ stateJson }}</output>
 			<output data-test="changes">{{ changes }}</output>
+			<output data-test="source-size">{{ sourceSize }}</output>
 			<output data-test="cancelled">{{ cancelled }}</output>
 			<output data-test="errors">{{ errors.join(', ') }}</output>
 		</template>

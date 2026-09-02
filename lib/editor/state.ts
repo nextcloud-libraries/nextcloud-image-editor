@@ -131,6 +131,28 @@ export function createInitialState(): EditorState {
 }
 
 /**
+ * Whether a state carries no edit at all, matching a fresh one from
+ * createInitialState. Consumers can use it for a dirty check, and the
+ * editor uses it to hand an untouched image back as it came in.
+ *
+ * @param state the state to inspect
+ */
+export function isPristine(state: EditorState): boolean {
+	const { adjustments } = state
+	return state.rotation === 0
+		&& state.fineRotation === 0
+		&& state.zoom === 1
+		&& !state.flipX
+		&& !state.flipY
+		&& state.crop === null
+		&& adjustments.brightness === 0
+		&& adjustments.contrast === 0
+		&& adjustments.saturation === 0
+		&& state.preset === 'none'
+		&& state.annotations.length === 0
+}
+
+/**
  * Size of the image after applying the state rotation.
  *
  * @param natural the natural image size
