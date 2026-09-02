@@ -13,6 +13,7 @@ import FormatText from 'vue-material-design-icons/FormatText.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import EditorSlider from '../base/EditorSlider.vue'
+import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -22,6 +23,7 @@ defineProps<{
 }>()
 
 const context = useEditorContext()
+const color = useAnnotationColor(context)
 
 const labels = {
 	color: t('Color'),
@@ -77,7 +79,12 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 			<label class="annotate-panel__option">
 				{{ labels.color }}
 				<!-- Native input: @nextcloud/vue offers no compact color field -->
-				<input v-model="context.drawColor.value" type="color">
+				<input
+					:value="context.drawColor.value"
+					type="color"
+					data-test="color"
+					@input="color.preview(($event.target as HTMLInputElement).value)"
+					@change="color.commit(($event.target as HTMLInputElement).value)">
 			</label>
 		</div>
 		<EditorSlider

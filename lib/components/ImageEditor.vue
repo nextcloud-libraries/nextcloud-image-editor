@@ -561,18 +561,6 @@ watch(context.selectedId, (id) => {
 		context.drawColor.value = annotation.color
 	}
 })
-watch(context.drawColor, (color) => {
-	const id = context.selectedId.value
-	const state = context.state.value
-	const annotation = state.annotations.find((entry) => entry.id === id)
-	if (annotation === undefined || !('color' in annotation) || annotation.type === 'sticker' || annotation.color === color) {
-		return
-	}
-	context.commit({
-		...state,
-		annotations: state.annotations.map((entry) => entry.id === id ? { ...entry, color } : entry),
-	})
-})
 // Only committed states are reported: a slider preview fires on every
 // pixel of the drag, and a consumer tracking changes wants the step
 // the user settled on, not the sixty on the way there. The payload is

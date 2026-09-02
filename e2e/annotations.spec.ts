@@ -405,3 +405,32 @@ test('a stroke released over the controls is still committed', async ({ page }) 
 	expect(annotations).toHaveLength(1)
 	expect(annotations[0].type).toBe('draw')
 })
+
+test('picking a color records one undo step, not one per shade', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 80, y: corner.y + 60 })
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 50, corner.y + 20)
+
+	// A native color picker reports every shade the pointer crosses
+	const picker = page.locator('[data-test="color"]')
+	for (const shade of ['#00ff00', '#00dd00', '#00bb00', '#009900', '#007700']) {
+		await picker.evaluate((element, value) => {
+			const input = element as HTMLInputElement
+			input.value = value
+			input.dispatchEvent(new Event('input', { bubbles: true }))
+		}, shade)
+	}
+	await picker.evaluate((element) => element.dispatchEvent(new Event('change', { bubbles: true })))
+
+	await expect.poll(async () => (await readState(page)).annotations[0].color).toBe('#007700')
+
+	// One undo returns to the original color rather than walking back
+	// through every shade the pointer passed over
+	await page.locator('[aria-label="Undo"]').click()
+	await expect.poll(async () => (await readState(page)).annotations[0].color).toBe('#ff0000')
+})

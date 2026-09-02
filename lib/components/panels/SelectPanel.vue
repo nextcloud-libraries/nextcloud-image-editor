@@ -4,6 +4,7 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -13,6 +14,7 @@ defineProps<{
 }>()
 
 const context = useEditorContext()
+const color = useAnnotationColor(context)
 
 const colorLabel = t('Color')
 const hint = t('Click an annotation to move, resize or recolor it')
@@ -33,7 +35,13 @@ const recolorable = computed(() => selectedAnnotation.value !== null
 		<label v-if="recolorable" class="select-panel__option">
 			{{ colorLabel }}
 			<!-- Native input: @nextcloud/vue offers no compact color field -->
-			<input v-model="context.drawColor.value" type="color" :disabled="!loaded">
+			<input
+				:value="context.drawColor.value"
+				type="color"
+				:disabled="!loaded"
+				data-test="color"
+				@input="color.preview(($event.target as HTMLInputElement).value)"
+				@change="color.commit(($event.target as HTMLInputElement).value)">
 		</label>
 		<span v-else-if="selectedAnnotation !== null" class="select-panel__hint">{{ transformHint }}</span>
 		<span v-else class="select-panel__hint">{{ hint }}</span>
