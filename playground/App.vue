@@ -102,6 +102,7 @@ if (requested === 'broken') {
 const saved = ref('')
 const stateJson = ref('')
 const changes = ref(0)
+const saving = ref(false)
 const cancelled = ref(0)
 const errors = ref<string[]>([])
 
@@ -111,6 +112,14 @@ const errors = ref<string[]>([])
  * @param result the exported image
  */
 async function onSave(result: ExportResult) {
+	// Stands in for a host storing the blob. The editor cannot know how
+	// long that takes, so it is told: the PUT is the larger half of the
+	// wait on a real instance.
+	saving.value = true
+	setTimeout(() => {
+		saving.value = false
+	}, 400)
+
 	const bitmap = await createImageBitmap(result.blob)
 	const canvas = document.createElement('canvas')
 	canvas.width = bitmap.width
@@ -162,6 +171,7 @@ function onChange(state: EditorState) {
 			v-if="src !== null"
 			:src="src"
 			:initialState="restored"
+			:saving="saving"
 			@save="onSave"
 			@cancel="cancelled++"
 			@error="onError"

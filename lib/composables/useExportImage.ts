@@ -2,9 +2,11 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { Ref } from 'vue'
 import type { EditorState } from '../editor/state.ts'
 import type { ExportOptions, ExportResult } from '../types/export.ts'
 
+import { ref } from 'vue'
 import { renderToCanvas } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { canvasToBlob } from '../utils/image.ts'
@@ -28,6 +30,12 @@ export interface ExportDeps {
 
 export interface ExportImage {
 	/**
+	 * True while an export is running. Rendering a large image at
+	 * natural resolution takes long enough to need saying: two thirds
+	 * of a second for a seven megabyte photo.
+	 */
+	exporting: Ref<boolean>
+	/**
 	 * Export the edited image.
 	 *
 	 * @param options target format, quality and size bound
@@ -38,12 +46,27 @@ export interface ExportImage {
 }
 
 /**
+ * Wait for the browser to paint.
+ *
+ * The render that follows holds the main thread, so without this the
+ * spinner would be set and then never drawn: the frame it was supposed
+ * to appear in is the frame the export eats.
+ */
+async function painted(): Promise<void> {
+	await new Promise((resolve) => {
+		requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))
+	})
+}
+
+/**
  * Exporting runs through the same scene renderer as the interactive
  * view, at natural resolution.
  *
  * @param deps image access and result callbacks
  */
 export function useExportImage(deps: ExportDeps): ExportImage {
+	const exporting = ref(false)
+
 	/**
 	 * Render the state at natural resolution and encode it.
 	 *
@@ -68,6 +91,23 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 			return { blob: source, width: oriented.width, height: oriented.height, mimeType: source.type }
 		}
 
+		exporting.value = true
+		await painted()
+		try {
+			return await encode(oriented, options)
+		} finally {
+			exporting.value = false
+		}
+	}
+
+	/**
+	 * Render the state at natural resolution and encode it, with no
+	 * regard for how long it holds the thread.
+	 *
+	 * @param oriented the orientation-baked source canvas
+	 * @param options target format, quality and size bound
+	 */
+	async function encode(oriented: HTMLCanvasElement, options: ExportOptions): Promise<ExportResult> {
 		const canvas = renderToCanvas(oriented, deps.getState(), options.maxSize)
 		const mimeType = options.format ?? 'image/png'
 		try {
@@ -99,5 +139,5 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		}
 	}
 
-	return { exportImage, save }
+	return { exporting, exportImage, save }
 }
