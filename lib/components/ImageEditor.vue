@@ -524,7 +524,13 @@ watch(
 	],
 	refreshOrientedCanvas,
 )
-watch([context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
+// context.interacting belongs here: a slider commits the state object
+// it previewed, which a shallow ref treats as no change, so nothing
+// else would re-render the scene at full filter quality afterwards
+watch(
+	[context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, context.interacting, orientedCanvas, containerSize],
+	renderView,
+)
 watch(context.cropAspect, applyCropAspect)
 
 // The color control follows the selection and edits it in place.

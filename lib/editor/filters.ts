@@ -8,6 +8,44 @@ export interface PixelData {
 	data: Uint8ClampedArray
 }
 
+/** Konva calls a filter with the node it belongs to as `this` */
+export interface FilterNode {
+	/** Amount between -1 and 1, 0 meaning unchanged */
+	saturation(): number
+}
+
+/**
+ * Rec. 601 luma, the gray a pixel collapses to.
+ *
+ * @param r the red channel
+ * @param g the green channel
+ * @param b the blue channel
+ */
+function luma(r: number, g: number, b: number): number {
+	return 0.299 * r + 0.587 * g + 0.114 * b
+}
+
+/**
+ * Linear saturation: each channel moves away from the pixel's luma by
+ * the given factor. Konva's own HSL filter raises 2 to the amount, so
+ * it can lighten or deepen colors but never reaches gray, which left
+ * the saturation slider unable to do the one thing its lower half
+ * promises.
+ *
+ * @param imageData the pixels to mutate in place
+ */
+export function saturate(this: FilterNode, imageData: PixelData): void {
+	const { data } = imageData
+	// -1 collapses to gray, 0 is unchanged, 1 doubles the distance
+	const factor = this.saturation() + 1
+	for (let i = 0; i < data.length; i += 4) {
+		const gray = luma(data[i]!, data[i + 1]!, data[i + 2]!)
+		data[i] = gray + (data[i]! - gray) * factor
+		data[i + 1] = gray + (data[i + 1]! - gray) * factor
+		data[i + 2] = gray + (data[i + 2]! - gray) * factor
+	}
+}
+
 /**
  * Warm tint: lifts red, dampens blue.
  *

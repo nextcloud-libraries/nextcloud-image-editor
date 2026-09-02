@@ -55,3 +55,45 @@ test('invert preset flips the colors', async ({ page }) => {
 	expect(result.topLeft[1]).toBeGreaterThan(200)
 	expect(result.topLeft[2]).toBeGreaterThan(200)
 })
+
+test('the filter cache returns to full resolution after a scrub', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+
+	/** Resolution the filtered image is cached at, 1 being full */
+	const cachePixelRatio = () => page.evaluate(() => {
+		const image = window.Konva.stages[0]!.findOne('Image')
+		// Konva keeps the cache canvases on the node itself
+		return (image as unknown as { _cache: Map<string, { scene: { pixelRatio: number } }> })
+			._cache.get('canvas')?.scene.pixelRatio ?? null
+	})
+
+	// Dragging caches at display resolution to keep the drag smooth
+	const slider = page.locator('[data-test="adjust-brightness"]')
+	await slider.evaluate((element) => {
+		const input = element as HTMLInputElement
+		input.value = '40'
+		input.dispatchEvent(new Event('input', { bubbles: true }))
+	})
+	await expect.poll(cachePixelRatio).toBeLessThan(1)
+
+	// Releasing has to restore full quality, even though the commit
+	// hands back the very state object the preview already applied
+	await slider.evaluate((element) => element.dispatchEvent(new Event('change', { bubbles: true })))
+	await expect.poll(cachePixelRatio).toBe(1)
+})
+
+test('the saturation slider reaches grayscale at its floor', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust', exact: true }).click()
+	await page.locator('[data-test="tab-saturation"]').click()
+	await setInputValue(page.locator('[data-test="adjust-saturation"]'), '-100')
+
+	// The fixture's left half is pure red, which has to come out as its
+	// own luma with no color left at all
+	const result = await save(page)
+	const [r, g, b] = result.topLeft
+	expect(Math.abs(r! - g!)).toBeLessThanOrEqual(2)
+	expect(Math.abs(g! - b!)).toBeLessThanOrEqual(2)
+	expect(r).toBeLessThan(80)
+})
