@@ -4,6 +4,59 @@
 -->
 # Changelog
 
+## 1.0.0-beta.2 – 2026-09-02
+
+### Added
+
+- Exposure, temperature, tint and sharpen adjustments, bringing the
+  panel to seven controls in photographic order. Exposure is
+  multiplicative in stops, so its two halves are symmetrical in a way
+  brightness cannot be; temperature and tint are the two axes a white
+  balance is expressed in; sharpen is an unsharp mask that lifts edges
+  and leaves flat areas alone (#7)
+- Straight line tool, the arrow without the head: it records the two
+  ends of the drag and nothing in between (#8)
+- Progress on the save button, covering both the editor's own export
+  and the host's upload afterwards, through a new `saving` prop. The
+  editor only knows when it handed the blob over, not when it landed
+  (#10)
+
+### Fixed
+
+- Every control rendered ten pixels larger than the interface around it
+  inside Nextcloud. The editor declared `--default-clickable-area` on
+  its own root, which overrode the server's 34px; it now registers a
+  fallback instead, so the host's value always wins (#9)
+
+### Changed
+
+- The adjust panel opens on exposure rather than brightness
+- The playground and the published demo render against a copy of the
+  variables a Nextcloud server serves, rather than hand-written
+  stand-ins that were wrong about the clickable area. A weekly workflow
+  keeps that copy current (#9)
+
+### Documented
+
+- The package has to be bundled: its entries import their own
+  stylesheet, so a plain Node process cannot load them and
+  server-side rendering is out (#6)
+
+### Still missing
+
+Carried over from the first beta, so a reader landing here does not
+have to scroll for them:
+
+- No translations yet: the Transifex resource behind `l10n/` is not set
+  up, so every string falls back to English
+- Images beyond roughly 16 megapixels can exceed the browser's canvas
+  limits and export blank, on iOS in particular (#1)
+- Annotations cannot be created from the keyboard alone, and the
+  editor's shortcuts are bound to the window rather than to itself
+- Of the tools an image editor is eventually expected to have, the
+  eraser, multi-select, per-annotation opacity, text styling, freehand
+  redaction and exact-pixel crop are not here yet (#2)
+
 ## 1.0.0-beta.1 – 2026-09-02
 
 First release. A Vue 3 image editor component for Nextcloud apps,

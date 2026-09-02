@@ -10,6 +10,10 @@ unmaintained Filerobot editor.
 - 📖 [API documentation](https://nextcloud-libraries.github.io/nextcloud-image-editor/)
 - 🎨 [Live demo](https://nextcloud-libraries.github.io/nextcloud-image-editor/demo/)
 
+<!-- Absolute so it renders on npmjs too, where relative paths point
+	at a package that ships only dist/ -->
+[![The editor in crop mode](https://raw.githubusercontent.com/nextcloud-libraries/nextcloud-image-editor/main/.github/screenshot.jpg)](https://nextcloud-libraries.github.io/nextcloud-image-editor/demo/)
+
 ## Features
 
 - Crop with rule-of-thirds guides, aspect presets (free, original,

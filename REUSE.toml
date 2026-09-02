@@ -28,3 +28,9 @@ path = ["playground/server-default.css"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = [".github/screenshot.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors, and Bro Takes Photos for the photograph shown in it"
+SPDX-License-Identifier = "AGPL-3.0-or-later AND LicenseRef-Unsplash"
