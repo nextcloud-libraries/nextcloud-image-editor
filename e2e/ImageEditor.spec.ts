@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { expectColor, save, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, save, setInputValue, waitLoaded } from './utils.ts'
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
@@ -72,7 +72,7 @@ test('view zoom actually magnifies the stage content', async ({ page }) => {
 
 	const scaleOf = () => page.evaluate(() => {
 		const stage = window.Konva.stages[0]
-		return stage.findOne('Group').scaleX()
+		return stage.findOne('.view').scaleX()
 	})
 	const before = await scaleOf()
 	await page.locator('[data-test="zoom-in"]').click()
@@ -118,4 +118,45 @@ test('state changes are announced to assistive tech', async ({ page }) => {
 	await page.getByRole('button', { name: 'Filter', exact: true }).click()
 	await page.locator('[data-test="preset-sepia"]').click()
 	await expect(live).toHaveText('Filter applied')
+})
+
+test('the scene reconciles instead of rebuilding', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 30 }, { x: corner.x + 100, y: corner.y + 30 })
+	await drag(page, { x: corner.x + 20, y: corner.y + 60 }, { x: corner.x + 100, y: corner.y + 60 })
+
+	// Konva assigns every node instance a unique internal id: equal ids
+	// after an edit prove the nodes were reused, not rebuilt
+	const nodeIds = () => page.evaluate(() => ({
+		image: ((stage) => stage.findOne('Image')!)(window.Konva.stages[0]!)._id,
+		annotations: window.Konva.stages[0]!.find('.annotation').map((node) => node._id),
+	}))
+	const before = await nodeIds()
+	expect(before.annotations).toHaveLength(2)
+
+	// An adjustment refilters the image but must not touch annotations
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '30')
+	const afterAdjust = await nodeIds()
+	expect(afterAdjust.annotations).toEqual(before.annotations)
+	expect(afterAdjust.image).toBe(before.image)
+
+	// Deleting one annotation must not rebuild its sibling
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 60, corner.y + 30)
+	await page.keyboard.press('Delete')
+	const afterDelete = await nodeIds()
+	expect(afterDelete.annotations).toHaveLength(1)
+	expect(before.annotations).toContain(afterDelete.annotations[0])
+	expect(afterDelete.image).toBe(before.image)
+
+	// Zooming the view changes no content at all: everything survives
+	await page.locator('[data-test="zoom-in"]').click()
+	const afterZoom = await nodeIds()
+	expect(afterZoom.annotations).toEqual(afterDelete.annotations)
+	expect(afterZoom.image).toBe(before.image)
 })

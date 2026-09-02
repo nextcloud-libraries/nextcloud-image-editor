@@ -28,7 +28,7 @@ import { provideEditorCommands } from '../editor/commands.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
-import { renderScene, toImageCoords, visibleRect } from '../editor/render.ts'
+import { createScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
 import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
@@ -174,7 +174,8 @@ function renderView(): void {
 	cropOverlay = null
 
 	stage.size(containerSize.value)
-	scene = renderScene(stage, oriented, context.state.value, options)
+	scene ??= createScene(stage)
+	scene.update(oriented, context.state.value, options)
 
 	const renderedOrigin = options.showCropped
 		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
@@ -186,9 +187,10 @@ function renderView(): void {
 			: { x: 0, y: 0, width: oriented.width, height: oriented.height }
 		playTransition(pendingTransition.kind, {
 			group: scene.contentGroup,
-			container: containerSize.value,
 			visible,
 			scale: options.scale,
+			offset: options.offset,
+			origin: renderedOrigin,
 		}, pendingTransition.context)
 		pendingTransition = null
 	}
@@ -426,11 +428,16 @@ provideEditorCommands({
 })
 
 watch(() => props.src, load)
+// Separate sources so the compare is per value: a getter returning a
+// fresh array would fire on every commit and re-bake the source canvas
 watch(
-	() => {
-		const { rotation, flipX, flipY, fineRotation, zoom } = context.state.value
-		return [rotation, flipX, flipY, fineRotation, zoom]
-	},
+	[
+		() => context.state.value.rotation,
+		() => context.state.value.flipX,
+		() => context.state.value.flipY,
+		() => context.state.value.fineRotation,
+		() => context.state.value.zoom,
+	],
 	refreshOrientedCanvas,
 )
 watch([context.state, context.activeTool, context.activeMode, context.viewZoom, context.viewPan, orientedCanvas, containerSize], renderView)
@@ -473,6 +480,8 @@ onBeforeUnmount(() => {
 	resizeObserver?.disconnect()
 	detachTool?.()
 	cropOverlay?.destroy()
+	scene?.destroy()
+	scene = null
 	stage?.destroy()
 	stage = null
 })

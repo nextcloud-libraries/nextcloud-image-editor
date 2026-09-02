@@ -104,7 +104,9 @@ export async function imageView(page: Page) {
 	return page.evaluate(() => {
 		const stage = window.Konva.stages[0]!
 		const rect = stage.container().getBoundingClientRect()
-		const group = stage.findOne('Group')!
+		// The named view group carries the view transform; the content
+		// group inside it is only transformed while a transition plays
+		const group = stage.findOne('.view')!
 		return {
 			x: rect.x + group.x(),
 			y: rect.y + group.y(),
