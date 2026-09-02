@@ -6,6 +6,29 @@
 import { t } from './l10n.ts'
 
 /**
+ * Whether a URL points at another origin, in which case the image has
+ * to be fetched with CORS or it taints the canvas and exporting throws
+ * a SecurityError.
+ *
+ * Only genuinely remote sources qualify. Marking a same-origin request
+ * anonymous strips the session cookie from it, and Nextcloud hands out
+ * absolute same-origin URLs as a matter of course: generateRemoteUrl()
+ * returns one, and a WebDAV address without credentials is a 401.
+ *
+ * @param url the source URL, absolute or relative
+ */
+function needsCors(url: string): boolean {
+	let target: URL
+	try {
+		target = new URL(url, window.location.href)
+	} catch {
+		return false
+	}
+	return (target.protocol === 'http:' || target.protocol === 'https:')
+		&& target.origin !== window.location.origin
+}
+
+/**
  * Load a decoded image element from a Blob, File or URL.
  *
  * @param source the image to load
@@ -15,9 +38,7 @@ export async function loadImage(source: Blob | string): Promise<HTMLImageElement
 	try {
 		return await new Promise((resolve, reject) => {
 			const image = new Image()
-			// Remote images must be CORS-clean, otherwise they taint the
-			// canvas and exporting throws a SecurityError
-			if (/^https?:/.test(url)) {
+			if (needsCors(url)) {
 				image.crossOrigin = 'anonymous'
 			}
 			image.onload = () => resolve(image)
