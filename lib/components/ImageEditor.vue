@@ -18,6 +18,7 @@ import EditorTopBar from './EditorTopBar.vue'
 import SelectionToolbar from './SelectionToolbar.vue'
 import TextOverlay from './TextOverlay.vue'
 import { useAmbient } from '../composables/useAmbient.ts'
+import { useAnnouncements } from '../composables/useAnnouncements.ts'
 import { useEditorShortcuts } from '../composables/useEditorShortcuts.ts'
 import { useExportImage } from '../composables/useExportImage.ts'
 import { useTextEditing } from '../composables/useTextEditing.ts'
@@ -58,6 +59,7 @@ const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
 const sourceImage = shallowRef<HTMLImageElement | null>(null)
 const { ambient, backdrop } = useAmbient(sourceImage)
+const announcement = useAnnouncements(context)
 
 /** Stage-space bounds of the selected annotation, for the mini toolbar */
 const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
@@ -522,6 +524,7 @@ defineExpose({ exportImage })
 					@resetCrop="onResetCrop" />
 
 				<EditorSidebar class="image-editor__rail" :loaded="loaded" />
+				<span class="hidden-visually" role="status" aria-live="polite">{{ announcement }}</span>
 			</div>
 		</div>
 	</div>
@@ -680,6 +683,14 @@ defineExpose({ exportImage })
 		inset-block-start: 50%;
 		transform: translateY(-50%);
 		max-height: calc(100% - 160px);
+	}
+
+	.hidden-visually {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	&__loading {
