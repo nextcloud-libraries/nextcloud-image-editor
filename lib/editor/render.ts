@@ -18,6 +18,20 @@ export function visibleRect(state: EditorState, oriented: Size) {
 }
 
 /**
+ * 2D context of a canvas, or an error where none is available, matching
+ * how orient.ts reports the same condition.
+ *
+ * @param canvas the canvas to draw on
+ */
+function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+	const context = canvas.getContext('2d')
+	if (context === null) {
+		throw new Error('Canvas 2D context unavailable')
+	}
+	return context
+}
+
+/**
  * Obfuscate a region of the oriented image: pixelate averages it into
  * coarse blocks, blur applies a strong gaussian. Either way the
  * information is destroyed in the exported pixels, not overlaid.
@@ -39,7 +53,7 @@ function obfuscate(
 	const out = document.createElement('canvas')
 	out.width = Math.max(1, Math.ceil(rect.width))
 	out.height = Math.max(1, Math.ceil(rect.height))
-	const context = out.getContext('2d')!
+	const context = context2d(out)
 
 	if (style === 'blur') {
 		// Draw with padding so the blur does not bleed transparency in
@@ -63,7 +77,7 @@ function obfuscate(
 	const small = document.createElement('canvas')
 	small.width = Math.max(1, Math.ceil(rect.width / strength))
 	small.height = Math.max(1, Math.ceil(rect.height / strength))
-	small.getContext('2d')!
+	context2d(small)
 		.drawImage(oriented, rect.x, rect.y, rect.width, rect.height, 0, 0, small.width, small.height)
 	context.imageSmoothingEnabled = false
 	context.drawImage(small, 0, 0, out.width, out.height)
@@ -230,7 +244,7 @@ export function presetThumbnail(oriented: HTMLCanvasElement, state: EditorState,
 	const thumb = document.createElement('canvas')
 	thumb.width = Math.max(1, Math.round(visible.width * scale))
 	thumb.height = Math.max(1, Math.round(visible.height * scale))
-	thumb.getContext('2d')!
+	context2d(thumb)
 		.drawImage(oriented, visible.x, visible.y, visible.width, visible.height, 0, 0, thumb.width, thumb.height)
 
 	const stage = new Konva.Stage({

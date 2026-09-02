@@ -56,6 +56,10 @@ export function ambientBackdrop(canvas: HTMLCanvasElement | HTMLImageElement): s
 	const sample = document.createElement('canvas')
 	const width = canvas instanceof HTMLImageElement ? canvas.naturalWidth : canvas.width
 	const height = canvas instanceof HTMLImageElement ? canvas.naturalHeight : canvas.height
+	// An SVG without intrinsic size decodes with zero dimensions
+	if (width === 0 || height === 0) {
+		return ''
+	}
 	sample.width = 24
 	sample.height = Math.max(1, Math.round((24 * height) / width))
 	const context = sample.getContext('2d')
