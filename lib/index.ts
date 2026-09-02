@@ -7,13 +7,21 @@ export type { UseHistory } from './composables/useHistory.ts'
 export type {
 	Adjustments,
 	Annotation,
+	ArrowAnnotation,
+	BoxAnnotation,
+	DrawAnnotation,
 	EditorState,
 	FilterPreset,
 	Rect,
+	RedactAnnotation,
 	Rotation,
+	Size,
+	TextAnnotation,
 } from './editor/state.ts'
-export type { ExportOptions, ExportResult } from './types/index.ts'
+export type { ExportOptions, ExportResult } from './types/export.ts'
 
 export { useHistory } from './composables/useHistory.ts'
+// For consumers comparing against a pristine state, e.g. dirty checks
+export { createInitialState } from './editor/state.ts'
 
 export { default as ImageEditor } from './components/ImageEditor.vue'
