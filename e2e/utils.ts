@@ -29,11 +29,13 @@ export interface SavedProbe {
  * Wait for the editor to finish loading the fixture image.
  *
  * @param page the test page
+ * @param src which playground fixture to load: the deterministic
+ * 200x100 image by default, or 'large' for the 2000x1500 one whose
+ * fitted view is downscaled. The default page shows a real photo for
+ * humans instead.
  */
-export async function waitLoaded(page: Page): Promise<void> {
-	// The deterministic 200x100 fixture; the default page shows a real
-	// photo for humans
-	await page.goto('/?src=test')
+export async function waitLoaded(page: Page, src: 'test' | 'large' = 'test'): Promise<void> {
+	await page.goto(`/?src=${src}`)
 	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
 }
 

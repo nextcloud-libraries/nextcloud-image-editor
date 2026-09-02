@@ -14,6 +14,7 @@ import Restore from 'vue-material-design-icons/Restore.vue'
 import Undo from 'vue-material-design-icons/Undo.vue'
 import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
+import { MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
 import { t } from '../utils/l10n.ts'
 
 defineProps<{
@@ -50,19 +51,14 @@ const confirmRevert = ref(false)
  */
 function stepZoom(direction: 1 | -1) {
 	const factor = direction === 1 ? 1.5 : 1 / 1.5
-	const next = context.viewZoom.value * factor
-	context.viewZoom.value = next < 1.05 ? 1 : Math.min(4, next)
-	if (context.viewZoom.value === 1) {
-		context.viewPan.value = { x: 0, y: 0 }
-	}
+	context.setViewZoom(context.viewZoom.value * factor)
 }
 
 /**
  * Reset the view to the fitted state.
  */
 function resetZoom() {
-	context.viewZoom.value = 1
-	context.viewPan.value = { x: 0, y: 0 }
+	context.setViewZoom(MIN_ZOOM)
 }
 
 /**
@@ -120,7 +116,7 @@ function onConfirmRevert() {
 				data-test="zoom-out"
 				:aria-label="labels.zoomOut"
 				:title="labels.zoomOut"
-				:disabled="!loaded || context.viewZoom.value <= 1"
+				:disabled="!loaded || context.viewZoom.value <= MIN_ZOOM"
 				variant="tertiary"
 				@click="stepZoom(-1)">
 				<template #icon>
@@ -141,7 +137,7 @@ function onConfirmRevert() {
 				data-test="zoom-in"
 				:aria-label="labels.zoomIn"
 				:title="labels.zoomIn"
-				:disabled="!loaded || context.viewZoom.value >= 4"
+				:disabled="!loaded || context.viewZoom.value >= MAX_ZOOM"
 				variant="tertiary"
 				@click="stepZoom(1)">
 				<template #icon>

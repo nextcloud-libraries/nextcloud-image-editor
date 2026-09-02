@@ -6,6 +6,7 @@ import type { EditorContext } from '../editor/context.ts'
 
 import { onBeforeUnmount, onMounted } from 'vue'
 import { translateAnnotation } from '../editor/state.ts'
+import { ownsTextEntry } from '../utils/dom.ts'
 
 export interface ShortcutDeps {
 	context: EditorContext
@@ -15,16 +16,6 @@ export interface ShortcutDeps {
 	onDelete(): void
 	/** Escape pressed with nothing else to dismiss */
 	onEscape(): void
-}
-
-/**
- * Whether the event originates from a control that owns its keys.
- *
- * @param target the event target
- */
-function isFormControl(target: EventTarget | null): boolean {
-	return target instanceof HTMLElement
-		&& target.closest('input, textarea, select, [contenteditable]') !== null
 }
 
 const NUDGE_KEYS: Record<string, [number, number]> = {
@@ -74,7 +65,7 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 	 * @param event the keyboard event
 	 */
 	function onKeydown(event: KeyboardEvent): void {
-		if (deps.isTextEditing() || isFormControl(event.target)) {
+		if (deps.isTextEditing() || ownsTextEntry(event.target)) {
 			return
 		}
 		const meta = event.ctrlKey || event.metaKey
@@ -90,16 +81,11 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 			return
 		}
 		if (event.key === '+' || event.key === '=') {
-			const next = context.viewZoom.value * 1.25
-			context.viewZoom.value = Math.min(4, next)
+			context.setViewZoom(context.viewZoom.value * 1.25)
 			return
 		}
 		if (event.key === '-') {
-			const next = context.viewZoom.value / 1.25
-			context.viewZoom.value = next < 1.05 ? 1 : next
-			if (context.viewZoom.value === 1) {
-				context.viewPan.value = { x: 0, y: 0 }
-			}
+			context.setViewZoom(context.viewZoom.value / 1.25)
 			return
 		}
 		if (event.key in NUDGE_KEYS && context.selectedId.value !== null) {
@@ -120,7 +106,7 @@ export function useEditorShortcuts(deps: ShortcutDeps): void {
 	 * @param event the keyboard event
 	 */
 	function onKeyup(event: KeyboardEvent): void {
-		if (isFormControl(event.target)) {
+		if (ownsTextEntry(event.target)) {
 			return
 		}
 		if (nudging && event.key in NUDGE_KEYS) {

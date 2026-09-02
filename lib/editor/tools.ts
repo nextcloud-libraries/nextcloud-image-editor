@@ -27,6 +27,8 @@ export interface PointerToolDeps {
 	/** The orientation-baked source canvas, needed by redact previews */
 	oriented(): HTMLCanvasElement | null
 	options(): ToolOptions
+	/** Whether a view pan currently owns the pointer */
+	panning(): boolean
 	/** Open the text editing overlay at the given scene position */
 	startTextEdit(position: { x: number, y: number }): void
 }
@@ -78,9 +80,19 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		deps.contentGroup()?.add(previewNode)
 	}
 
+	/**
+	 * Drop the annotation in progress without committing it.
+	 */
+	const discard = () => {
+		active = null
+		pendingText = null
+		previewNode?.destroy()
+		previewNode = null
+	}
+
 	const onPointerDown = () => {
 		const point = scenePointer()
-		if (point === null) {
+		if (point === null || deps.panning()) {
 			return
 		}
 		const options = deps.options()
@@ -128,6 +140,12 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		if (active === null) {
 			return
 		}
+		// A second finger turned the gesture into a pinch: the stroke it
+		// started belongs to nobody now
+		if (deps.panning()) {
+			discard()
+			return
+		}
 		const point = scenePointer()
 		if (point === null) {
 			return
@@ -168,9 +186,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		}
 		const state = deps.getState()
 		deps.commit({ ...state, annotations: [...state.annotations, active] })
-		active = null
-		previewNode?.destroy()
-		previewNode = null
+		discard()
 	}
 
 	deps.stage.on('pointerdown.tool', onPointerDown)

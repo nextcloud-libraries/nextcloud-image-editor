@@ -4,10 +4,12 @@
  */
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
 import type { EditorState } from './state.ts'
+import type { Point, ViewFit } from './view.ts'
 
 import { inject, provide, shallowRef, watch } from 'vue'
 import { useHistory } from '../composables/useHistory.ts'
 import { createInitialState } from './state.ts'
+import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
 
 export type Tool
 	= | 'select'
@@ -57,7 +59,31 @@ export interface EditorContext {
 	/** View-only magnification of the canvas, 1 = fit */
 	viewZoom: ShallowRef<number>
 	/** View-only pan offset in stage pixels, only meaningful when zoomed */
-	viewPan: ShallowRef<{ x: number, y: number }>
+	viewPan: ShallowRef<Point>
+	/**
+	 * Fit metrics of the rendered view, published by the editor
+	 * component. The view setters clamp against these, so panning stops
+	 * exactly where the renderer stops following it.
+	 */
+	viewFit: ShallowRef<ViewFit | null>
+	/**
+	 * True while a pan gesture owns the pointer, so canvas tools stay
+	 * out of the way
+	 */
+	panning: ShallowRef<boolean>
+	/**
+	 * Magnify the view, optionally keeping a point fixed.
+	 *
+	 * @param zoom the requested factor, clamped to the allowed range
+	 * @param anchor point to keep fixed, relative to the view center
+	 */
+	setViewZoom(zoom: number, anchor?: Point): void
+	/**
+	 * Pan the view, clamped so the content cannot leave the container.
+	 *
+	 * @param pan the requested offset in stage pixels
+	 */
+	setViewPan(pan: Point): void
 	/** True between preview() and the next commit: a slider is scrubbing */
 	interacting: ShallowRef<boolean>
 	/** Id of the annotation selected in select mode */
@@ -82,6 +108,23 @@ const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('nextcloud:image-edit
 export function createEditorContext(): EditorContext {
 	const history = useHistory<EditorState>()
 	const state = shallowRef(createInitialState())
+	const viewZoom = shallowRef(MIN_ZOOM)
+	const viewPan = shallowRef<Point>({ x: 0, y: 0 })
+	const viewFit = shallowRef<ViewFit | null>(null)
+	/**
+	 * How far the view may be panned at the given zoom. Clamping on
+	 * write is what keeps a pan gesture from accumulating an offset the
+	 * renderer will not follow, which used to leave the view stuck
+	 * until the overshoot was scrubbed back.
+	 *
+	 * @param zoom the zoom the pan applies to
+	 */
+	const boundsAt = (zoom: number): Point => {
+		const fit = viewFit.value
+		return fit === null
+			? { x: 0, y: 0 }
+			: panBounds(fit.visible, fit.scale * zoom, fit.container)
+	}
 	const activeMode = shallowRef<EditorMode>('crop')
 	const activeTool = shallowRef<Tool>(MODE_DEFAULT_TOOL.crop)
 	history.push(structuredClone(state.value))
@@ -101,8 +144,27 @@ export function createEditorContext(): EditorContext {
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		cropAspect: shallowRef<number | 'original' | null>(null),
-		viewZoom: shallowRef(1),
-		viewPan: shallowRef({ x: 0, y: 0 }),
+		viewZoom,
+		viewPan,
+		viewFit,
+		panning: shallowRef(false),
+		setViewZoom(zoom, anchor) {
+			const previous = viewZoom.value
+			const next = clampZoom(zoom)
+			viewZoom.value = next
+			if (next === MIN_ZOOM) {
+				// The fitted view is centered by definition
+				viewPan.value = { x: 0, y: 0 }
+				return
+			}
+			const panned = anchor === undefined
+				? viewPan.value
+				: anchoredPan(viewPan.value, anchor, next / previous)
+			viewPan.value = clampPan(panned, boundsAt(next))
+		},
+		setViewPan(pan) {
+			viewPan.value = clampPan(pan, boundsAt(viewZoom.value))
+		},
 		interacting: shallowRef(false),
 		selectedId: shallowRef<string | null>(null),
 		canUndo: history.canUndo,
@@ -134,8 +196,9 @@ export function createEditorContext(): EditorContext {
 			activeMode.value = 'crop'
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
-			context.viewZoom.value = 1
-			context.viewPan.value = { x: 0, y: 0 }
+			viewZoom.value = MIN_ZOOM
+			viewPan.value = { x: 0, y: 0 }
+			context.panning.value = false
 			history.push(structuredClone(state.value))
 		},
 	}

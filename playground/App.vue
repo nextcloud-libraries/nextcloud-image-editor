@@ -33,6 +33,29 @@ function makeFixture(): Promise<Blob> {
 	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
 }
 
+/**
+ * 2000x1500 test image in four quadrants: red, blue, green and yellow.
+ * Large enough that the fitted view is downscaled, so zooming actually
+ * overflows the container and the view can be panned.
+ */
+function makeLargeFixture(): Promise<Blob> {
+	const canvas = document.createElement('canvas')
+	canvas.width = 2000
+	canvas.height = 1500
+	const context = canvas.getContext('2d')!
+	const quadrants = [
+		['rgb(200, 0, 0)', 0, 0],
+		['rgb(0, 0, 200)', 1000, 0],
+		['rgb(0, 200, 0)', 0, 750],
+		['rgb(200, 200, 0)', 1000, 750],
+	] as const
+	for (const [fill, x, y] of quadrants) {
+		context.fillStyle = fill
+		context.fillRect(x, y, 1000, 750)
+	}
+	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
+}
+
 // ?src=test loads the deterministic fixture the Playwright suite probes,
 // ?src=broken an undecodable image; default is a real demo photo
 const src = shallowRef<Blob | string | null>(null)
@@ -41,6 +64,10 @@ if (requested === 'broken') {
 	src.value = BROKEN_SRC
 } else if (requested === 'test') {
 	makeFixture().then((blob) => {
+		src.value = blob
+	})
+} else if (requested === 'large') {
+	makeLargeFixture().then((blob) => {
 		src.value = blob
 	})
 } else {

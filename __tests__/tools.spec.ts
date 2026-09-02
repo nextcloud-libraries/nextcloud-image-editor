@@ -31,6 +31,8 @@ interface Harness {
 	fire(event: 'pointerdown' | 'pointermove' | 'pointerup', point?: { x: number, y: number }): void
 	committed(): EditorState | null
 	textEdits: { x: number, y: number }[]
+	/** Simulate a view pan taking over the pointer */
+	setPanning(panning: boolean): void
 }
 
 /**
@@ -41,6 +43,7 @@ function harness(): Harness {
 	let pointer: { x: number, y: number } | null = null
 	let lastCommit: EditorState | null = null
 	const textEdits: { x: number, y: number }[] = []
+	let panning = false
 
 	const deps: PointerToolDeps = {
 		stage: {
@@ -59,6 +62,7 @@ function harness(): Harness {
 			lastCommit = state
 		},
 		toScene: (point) => point,
+		panning: () => panning,
 		options: () => ({ color: '#123456', strokeWidth: 7, fontSize: 20, sticker: '🎈', redactStyle: 'blur' }),
 		startTextEdit: (position) => {
 			textEdits.push(position)
@@ -73,6 +77,9 @@ function harness(): Harness {
 		},
 		committed: () => lastCommit,
 		textEdits,
+		setPanning(next) {
+			panning = next
+		},
 	}
 }
 
@@ -157,5 +164,41 @@ describe('attachPointerTools', () => {
 		h.fire('pointerup')
 		expect(h.committed()).toBeNull()
 		detach()
+	})
+
+	it('ignores a press while the view is being panned', () => {
+		const stage = harness()
+		stage.setPanning(true)
+		attachPointerTools('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 5, y: 5 })
+		stage.fire('pointermove', { x: 20, y: 20 })
+		stage.fire('pointerup')
+
+		expect(stage.committed()).toBeNull()
+	})
+
+	it('drops the stroke in progress when a pan takes over', () => {
+		const stage = harness()
+		attachPointerTools('draw', stage.deps)
+
+		stage.fire('pointerdown', { x: 5, y: 5 })
+		stage.fire('pointermove', { x: 12, y: 12 })
+		// A second finger landing turns the gesture into a pinch
+		stage.setPanning(true)
+		stage.fire('pointermove', { x: 30, y: 30 })
+		stage.fire('pointerup')
+
+		expect(stage.committed()).toBeNull()
+	})
+
+	it('does not place a sticker while the view is being panned', () => {
+		const stage = harness()
+		stage.setPanning(true)
+		attachPointerTools('sticker', stage.deps)
+
+		stage.fire('pointerdown', { x: 40, y: 40 })
+
+		expect(stage.committed()).toBeNull()
 	})
 })

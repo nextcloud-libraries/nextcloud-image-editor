@@ -7,6 +7,7 @@ import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
 import type { EditorState, Size } from '../editor/state.ts'
+import type { ViewFit } from '../editor/view.ts'
 import type { ExportResult } from '../types/export.ts'
 
 import Konva from 'konva'
@@ -32,6 +33,7 @@ import { createScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
 import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
+import { clampPan, panBounds, VIEW_MARGIN } from '../editor/view.ts'
 import { fitContain } from '../utils/geometry.ts'
 import { loadImage } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
@@ -60,6 +62,7 @@ const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
 const sourceImage = shallowRef<HTMLImageElement | null>(null)
 const { ambient, backdrop } = useAmbient(sourceImage)
+const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
 
 /** Stage-space bounds of the selected annotation, for the mini toolbar */
@@ -78,50 +81,60 @@ let pendingTransition: { kind: TransitionKind, context: TransitionContext } | nu
 let lastView: TransitionContext | null = null
 
 const canvasCursor = computed(() => {
+	if (context.panning.value) {
+		return 'grabbing'
+	}
+	if (panArmed.value) {
+		return 'grab'
+	}
 	const tool = context.activeTool.value
 	if (['draw', 'rectangle', 'ellipse', 'arrow', 'text', 'sticker', 'redact'].includes(tool)) {
 		return 'crosshair'
 	}
-	if (tool === 'adjust' && context.viewZoom.value > 1) {
-		return 'grab'
-	}
 	return 'default'
 })
 
-const viewOptions = computed<SceneOptions | null>(() => {
+/**
+ * The fitted view, before the view zoom and pan apply. Published to the
+ * context so the view setters clamp panning against the same metrics.
+ */
+const viewFit = computed<ViewFit | null>(() => {
 	const oriented = orientedCanvas.value
 	if (oriented === null || containerSize.value.width === 0 || containerSize.value.height === 0) {
 		return null
 	}
 	const showCropped = context.activeTool.value !== 'crop'
-	const state = context.state.value
 	const visible = showCropped
-		? visibleRect(state, { width: oriented.width, height: oriented.height })
+		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
 		: { x: 0, y: 0, width: oriented.width, height: oriented.height }
+	const container = containerSize.value
 	// Small stage margin so crop handles at the image edge stay visible
-	const margin = 16
 	const fit = fitContain(
 		{ width: visible.width, height: visible.height },
 		{
-			width: Math.max(1, containerSize.value.width - margin * 2),
-			height: Math.max(1, containerSize.value.height - margin * 2),
+			width: Math.max(1, container.width - VIEW_MARGIN * 2),
+			height: Math.max(1, container.height - VIEW_MARGIN * 2),
 		},
 	)
-	// View zoom magnifies around the center; panning shifts the view
-	// but content edges never pass the container edges
+	return { scale: fit.scale, visible, container, showCropped }
+})
+
+const viewOptions = computed<SceneOptions | null>(() => {
+	const fit = viewFit.value
+	if (fit === null) {
+		return null
+	}
+	// View zoom magnifies around the center; panning shifts the view but
+	// content edges never pass the container edges
 	const scale = fit.scale * context.viewZoom.value
-	const pan = context.viewPan.value
-	const boundX = Math.max(0, (visible.width * scale - containerSize.value.width) / 2 + margin)
-	const boundY = Math.max(0, (visible.height * scale - containerSize.value.height) / 2 + margin)
+	const pan = clampPan(context.viewPan.value, panBounds(fit.visible, scale, fit.container))
 	return {
 		scale,
 		offset: {
-			x: (containerSize.value.width - visible.width * scale) / 2
-				+ Math.min(boundX, Math.max(-boundX, pan.x)),
-			y: (containerSize.value.height - visible.height * scale) / 2
-				+ Math.min(boundY, Math.max(-boundY, pan.y)),
+			x: (fit.container.width - fit.visible.width * scale) / 2 + pan.x,
+			y: (fit.container.height - fit.visible.height * scale) / 2 + pan.y,
 		},
-		showCropped,
+		showCropped: fit.showCropped,
 		fastFilters: context.interacting.value,
 	}
 })
@@ -238,6 +251,7 @@ function renderView(): void {
 				{ width: oriented.width, height: oriented.height },
 				options,
 			),
+			panning: () => context.panning.value,
 			options: () => ({
 				color: context.drawColor.value,
 				strokeWidth: context.strokeWidth.value,
@@ -415,7 +429,10 @@ useEditorShortcuts({
 		}
 	},
 })
-useWheelControls(container, context)
+// Published for the view setters: they clamp panning against the fit
+watch(viewFit, (fit) => {
+	context.viewFit.value = fit
+}, { immediate: true })
 
 provideEditorCommands({
 	rotateCW: onRotateCW,
