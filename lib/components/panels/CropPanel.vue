@@ -10,6 +10,7 @@ import FlipVertical from 'vue-material-design-icons/FlipVertical.vue'
 import RotateLeft from 'vue-material-design-icons/RotateLeft.vue'
 import RotateRight from 'vue-material-design-icons/RotateRight.vue'
 import EditorSlider from '../base/EditorSlider.vue'
+import { useEditorCommands } from '../../editor/commands.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -18,16 +19,8 @@ defineProps<{
 	loaded: boolean
 }>()
 
-const emit = defineEmits<{
-	rotateCcw: []
-	rotateCw: []
-	flipHorizontal: []
-	flipVertical: []
-	applyCrop: []
-	resetCrop: []
-}>()
-
 const context = useEditorContext()
+const commands = useEditorCommands()
 
 const labels = {
 	rotateLeft: t('Rotate left'),
@@ -98,7 +91,7 @@ function onSliderCommit() {
 				:title="labels.rotateLeft"
 				:disabled="!loaded"
 				variant="tertiary"
-				@click="emit('rotateCcw')">
+				@click="commands.rotateCCW()">
 				<template #icon>
 					<RotateLeft :size="20" />
 				</template>
@@ -108,7 +101,7 @@ function onSliderCommit() {
 				:title="labels.rotateRight"
 				:disabled="!loaded"
 				variant="tertiary"
-				@click="emit('rotateCw')">
+				@click="commands.rotateCW()">
 				<template #icon>
 					<RotateRight :size="20" />
 				</template>
@@ -118,7 +111,7 @@ function onSliderCommit() {
 				:title="labels.flipHorizontal"
 				:disabled="!loaded"
 				variant="tertiary"
-				@click="emit('flipHorizontal')">
+				@click="commands.flipHorizontal()">
 				<template #icon>
 					<FlipHorizontal :size="20" />
 				</template>
@@ -128,7 +121,7 @@ function onSliderCommit() {
 				:title="labels.flipVertical"
 				:disabled="!loaded"
 				variant="tertiary"
-				@click="emit('flipVertical')">
+				@click="commands.flipVertical()">
 				<template #icon>
 					<FlipVertical :size="20" />
 				</template>
@@ -153,14 +146,14 @@ function onSliderCommit() {
 				data-test="reset-crop"
 				variant="tertiary"
 				:disabled="!loaded || context.state.value.crop === null"
-				@click="emit('resetCrop')">
+				@click="commands.resetCrop()">
 				{{ labels.resetCrop }}
 			</NcButton>
 			<NcButton
 				data-test="apply-crop"
 				variant="secondary"
 				:disabled="!loaded"
-				@click="emit('applyCrop')">
+				@click="commands.applyCrop()">
 				{{ labels.applyCrop }}
 			</NcButton>
 		</div>
