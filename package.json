@@ -92,6 +92,10 @@
     "runtime": {
       "name": "node",
       "version": "^24.0.0"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.5.1"
     }
   }
 }
