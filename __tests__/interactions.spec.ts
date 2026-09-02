@@ -77,6 +77,25 @@ describe('applyNodeTransform', () => {
 		expect(movedArrow.points).toEqual([1, 2, 11, 12])
 	})
 
+	it('folds scale and rotation into freehand and arrow points', () => {
+		// Scale doubles first, then the quarter turn maps (20, 0) to (0, 20)
+		const draw: DrawAnnotation = { id: 'd', type: 'draw', points: [0, 0, 10, 0], color: '#f00', strokeWidth: 4 }
+		const folded = applyNodeTransform(draw, fakeNode({ x: 5, y: 5, scaleX: 2, scaleY: 2, rotation: 90 })) as DrawAnnotation
+		expect(folded.points.map(Math.round)).toEqual([5, 5, 5, 25])
+		expect(folded.strokeWidth).toBe(8)
+
+		const arrow: ArrowAnnotation = { id: 'a', type: 'arrow', points: [0, 0, 10, 0], color: '#f00', strokeWidth: 4 }
+		const turned = applyNodeTransform(arrow, fakeNode({ x: 10, rotation: 180 })) as ArrowAnnotation
+		expect(turned.points.map(Math.round)).toEqual([10, 0, 0, 0])
+		expect(turned.strokeWidth).toBe(4)
+	})
+
+	it('never collapses the stroke width below one pixel', () => {
+		const draw: DrawAnnotation = { id: 'd', type: 'draw', points: [0, 0, 100, 0], color: '#f00', strokeWidth: 4 }
+		const folded = applyNodeTransform(draw, fakeNode({ scaleX: 0.01, scaleY: 0.01 })) as DrawAnnotation
+		expect(folded.strokeWidth).toBe(1)
+	})
+
 	it('folds position, scale and rotation into boxes', () => {
 		const box: BoxAnnotation = { id: 'b', type: 'rectangle', rect: { x: 0, y: 0, width: 40, height: 20 }, rotation: 0, color: '#f00', strokeWidth: 4 }
 		const folded = applyNodeTransform(box, fakeNode({ x: 7, y: 9, scaleX: 2, scaleY: 3, rotation: 15 })) as BoxAnnotation

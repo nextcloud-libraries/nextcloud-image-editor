@@ -28,14 +28,26 @@ export interface SelectionDeps {
 }
 
 /**
- * Shift a flat point list by the given delta.
+ * Map a flat point list through the node's transform, in Konva's
+ * application order: scale, then rotation, then translation.
  *
  * @param points flat [x1, y1, …] list
- * @param dx horizontal shift
- * @param dy vertical shift
+ * @param node the transformed Konva node
  */
-function translatePoints(points: number[], dx: number, dy: number): number[] {
-	return points.map((value, i) => (i % 2 === 0 ? value + dx : value + dy))
+function transformPoints(
+	points: number[],
+	node: Pick<Konva.Node, 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation'>,
+): number[] {
+	const radians = (node.rotation() * Math.PI) / 180
+	const cos = Math.cos(radians)
+	const sin = Math.sin(radians)
+	const result: number[] = []
+	for (let i = 0; i < points.length; i += 2) {
+		const x = points[i]! * node.scaleX()
+		const y = points[i + 1]! * node.scaleY()
+		result.push(node.x() + x * cos - y * sin, node.y() + x * sin + y * cos)
+	}
+	return result
 }
 
 /**
@@ -52,8 +64,12 @@ export function applyNodeTransform(
 	switch (annotation.type) {
 		case 'draw':
 		case 'arrow': {
-			const points = translatePoints(annotation.points, node.x(), node.y())
-			return { ...annotation, points } as Annotation
+			// Scale and rotation fold into the point list itself, so the
+			// annotation needs no transform fields of its own
+			const points = transformPoints(annotation.points, node)
+			const scale = (Math.abs(node.scaleX()) + Math.abs(node.scaleY())) / 2
+			const strokeWidth = Math.max(1, annotation.strokeWidth * scale)
+			return { ...annotation, points, strokeWidth } as Annotation
 		}
 		case 'redact':
 			return {
@@ -138,15 +154,10 @@ export function attachSelection(deps: SelectionDeps): () => void {
 			return
 		}
 		const annotation = findAnnotation(id!)
-		// Freehand and arrow annotations only move; resizing them would
-		// distort stroke geometry unpredictably. Redactions stay
-		// axis-aligned: their pixel sampling has no notion of an angle.
-		const movableOnly = annotation?.type === 'draw' || annotation?.type === 'arrow'
-		// Redactions carry no rotation field, so the narrowing excludes
-		// them naturally
-		const rotatable = annotation !== undefined && 'rotation' in annotation
-		transformer.resizeEnabled(!movableOnly)
-		transformer.rotateEnabled(rotatable)
+		// Every annotation resizes; freehand and arrow fold scale and
+		// rotation into their point lists. Redactions stay axis-aligned:
+		// their pixel sampling has no notion of an angle.
+		transformer.rotateEnabled(annotation !== undefined && annotation.type !== 'redact')
 		transformer.nodes([node])
 		deps.onSelectionRect(node.getClientRect())
 	}
