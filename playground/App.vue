@@ -6,7 +6,7 @@
 import type { EditorState, ExportResult } from '../lib/index.ts'
 
 import { ref, shallowRef } from 'vue'
-import { ImageEditor } from '../lib/index.ts'
+import { createInitialState, ImageEditor } from '../lib/index.ts'
 import demoPhoto from './demo.jpg'
 
 const BROKEN_SRC = 'data:image/png;base64,not-an-image'
@@ -59,6 +59,25 @@ function makeLargeFixture(): Promise<Blob> {
 // Byte length of the source, so a test can tell an untouched save
 // (the same bytes back) from a re-encoded one
 const sourceSize = ref(0)
+
+// ?restore=1 opens with an edit already in place, standing in for a
+// host resuming a session it stored earlier
+const restored: EditorState | undefined
+	= new URLSearchParams(window.location.search).get('restore') === null
+		? undefined
+		: {
+				...createInitialState(),
+				rotation: 90,
+				adjustments: { brightness: 15, contrast: 0, saturation: 0 },
+				annotations: [{
+					id: 'restored-box',
+					type: 'rectangle',
+					rect: { x: 10, y: 10, width: 40, height: 30 },
+					rotation: 0,
+					color: '#00ff00',
+					strokeWidth: 4,
+				}],
+			}
 
 // ?src=test loads the deterministic fixture the Playwright suite probes,
 // ?src=broken an undecodable image; default is a real demo photo
@@ -142,6 +161,7 @@ function onChange(state: EditorState) {
 		<ImageEditor
 			v-if="src !== null"
 			:src="src"
+			:initialState="restored"
 			@save="onSave"
 			@cancel="cancelled++"
 			@error="onError"

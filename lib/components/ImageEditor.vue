@@ -34,7 +34,7 @@ import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
 import { createScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
-import { createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, rotateCW } from '../editor/state.ts'
+import { clampRect, createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, orientedSize, rotateCW } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { clampPan, panBounds, VIEW_MARGIN } from '../editor/view.ts'
 import { fitContain } from '../utils/geometry.ts'
@@ -52,6 +52,12 @@ const props = defineProps<{
 	 * saving over a photo will want its source format instead.
 	 */
 	exportOptions?: ExportOptions
+	/**
+	 * State to open with, as emitted by the change event, for resuming
+	 * an edit that was not finished. Read when the source loads, so
+	 * changing it later has no effect until the source changes too.
+	 */
+	initialState?: EditorState
 }>()
 
 const emit = defineEmits<{
@@ -375,6 +381,21 @@ function refreshOrientedCanvas(): void {
 }
 
 /**
+ * A seeded state made safe for this image: a crop recorded against a
+ * different one would otherwise leave the view outside the picture.
+ *
+ * @param seed the state the host handed over
+ * @param image the decoded source
+ */
+function seedState(seed: EditorState, image: HTMLImageElement): EditorState {
+	if (seed.crop === null) {
+		return seed
+	}
+	const oriented = orientedSize({ width: image.naturalWidth, height: image.naturalHeight }, seed.rotation)
+	return { ...seed, crop: clampRect(seed.crop, oriented) }
+}
+
+/**
  * Load the source image and reset the editing session.
  */
 async function load(): Promise<void> {
@@ -390,7 +411,7 @@ async function load(): Promise<void> {
 			return
 		}
 		sourceImage.value = image
-		context.reset()
+		context.reset(props.initialState === undefined ? undefined : seedState(props.initialState, image))
 		// Sensible text size relative to the image resolution
 		const minDimension = Math.min(image.naturalWidth, image.naturalHeight)
 		context.fontSize.value = Math.min(128, Math.max(12, Math.round(minDimension / 15)))
@@ -601,7 +622,15 @@ onBeforeUnmount(() => {
 	stage = null
 })
 
-defineExpose({ exportImage })
+defineExpose({
+	exportImage,
+	/**
+	 * Start over, optionally from a given state.
+	 *
+	 * @param state state to reset to, defaulting to a pristine one
+	 */
+	reset: (state?: EditorState) => context.reset(state),
+})
 </script>
 
 <template>

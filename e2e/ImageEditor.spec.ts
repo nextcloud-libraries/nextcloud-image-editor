@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, save, setInputValue, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, readState, save, setInputValue, waitLoaded } from './utils.ts'
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
@@ -227,6 +227,24 @@ test('saving an edited image re-encodes it', async ({ page }) => {
 	const result = await save(page)
 	expect(result.size).not.toBe(sourceSize)
 	// The fixture is 200x100, so a quarter turn makes it 100x200
+	expect(result.width).toBe(100)
+	expect(result.height).toBe(200)
+})
+
+test('opens on a state the host hands over', async ({ page }) => {
+	await page.goto('/?src=test&restore=1')
+	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+
+	// The stored edit is in place before the user has touched anything
+	const state = await readState(page)
+	expect(state.rotation).toBe(90)
+	expect(state.adjustments.brightness).toBe(15)
+	expect(state.annotations).toHaveLength(1)
+
+	// A resumed session starts from the state it was handed, not from
+	// the untouched image
+	await expect(page.locator('[data-test="revert"]')).toBeDisabled()
+	const result = await save(page)
 	expect(result.width).toBe(100)
 	expect(result.height).toBe(200)
 })

@@ -113,8 +113,12 @@ export interface EditorContext {
 	 * @param index position in historyEntries
 	 */
 	jumpTo(index: number): void
-	/** Reset to a fresh state and empty history, e.g. when the source changes */
-	reset(): void
+	/**
+	 * Reset to an empty history, e.g. when the source changes.
+	 *
+	 * @param next state to start from, defaulting to a pristine one
+	 */
+	reset(next?: EditorState): void
 }
 
 const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('nextcloud:image-editor')
@@ -219,16 +223,18 @@ export function createEditorContext(): EditorContext {
 				state.value = snapshot
 			}
 		},
-		reset() {
+		reset(next) {
 			history.clear()
-			state.value = createInitialState()
+			state.value = next ?? createInitialState()
 			activeMode.value = 'crop'
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
 			viewZoom.value = MIN_ZOOM
 			viewPan.value = { x: 0, y: 0 }
 			context.panning.value = false
-			history.push(state.value, t('Original'))
+			// A seeded state is where this session starts, but it is not
+			// the untouched image, so it is not called that
+			history.push(state.value, next === undefined ? t('Original') : t('Restored'))
 		},
 	}
 

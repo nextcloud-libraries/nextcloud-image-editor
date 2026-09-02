@@ -77,6 +77,7 @@ function onSave({ blob, mimeType }: ExportResult) {
 | `src` | `Blob \| string` | Image to edit (Blob, File or URL). Required. |
 | `label` | `string` | Accessible label of the canvas area. |
 | `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to PNG at natural resolution. |
+| `initialState` | `EditorState` | State to open with, as emitted by `change`, for resuming an unfinished edit. Read when the source loads. |
 
 | Event | Payload | Description |
 |-------|---------|-------------|
@@ -85,8 +86,16 @@ function onSave({ blob, mimeType }: ExportResult) {
 | `error` | `Error` | Loading or export failed. |
 | `change` | `EditorState` | Fired when an edit is committed, e.g. for dirty tracking. A slider being dragged previews without emitting; releasing it emits once. |
 
-Exposed methods: `exportImage(options?: ExportOptions): Promise<ExportResult>`
-with `format`, `quality` and `maxSize` (longest edge bound) options.
+Exposed methods:
+
+- `exportImage(options?: ExportOptions): Promise<ExportResult>` with
+  `format`, `quality` and `maxSize` (longest edge bound) options.
+- `reset(state?: EditorState)` to start over, optionally from a given
+  state.
+
+Pair `change` with `initialState` to resume an edit across a reload: store
+what `change` reports, hand it back as `initialState`, and the editor opens
+where the user left off.
 
 Saving an image that was not edited hands back the source bytes
 untouched, rather than re-encoding them. That keeps the file's quality

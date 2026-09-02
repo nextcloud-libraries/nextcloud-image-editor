@@ -7,6 +7,7 @@ import type { EditorContext } from '../lib/editor/context.ts'
 import { describe, expect, it } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
 import { createEditorContext, useEditorContext } from '../lib/editor/context.ts'
+import { createInitialState } from '../lib/editor/state.ts'
 import { MAX_ZOOM, MIN_ZOOM, panBounds, VIEW_MARGIN } from '../lib/editor/view.ts'
 
 function setupContext(): { context: EditorContext, injected: EditorContext } {
@@ -103,6 +104,40 @@ describe('createEditorContext', () => {
 
 		context.setMode('sticker')
 		expect(context.activeTool.value).toBe('sticker')
+	})
+})
+
+describe('reset', () => {
+	it('starts over from a pristine state by default', () => {
+		const { context } = setupContext()
+		context.commit({ ...context.state.value, rotation: 90 })
+		context.reset()
+
+		expect(context.state.value.rotation).toBe(0)
+		expect(context.canUndo.value).toBe(false)
+		expect(context.historyEntries.value).toHaveLength(1)
+	})
+
+	it('starts over from a state it is handed', () => {
+		const { context } = setupContext()
+		const restored = { ...createInitialState(), rotation: 180 as const, preset: 'noir' as const }
+		context.reset(restored)
+
+		expect(context.state.value).toBe(restored)
+		// The starting point of a resumed session, with nothing to undo
+		expect(context.canUndo.value).toBe(false)
+		expect(context.historyEntries.value).toHaveLength(1)
+		expect(context.historyEntries.value[0]!.snapshot).toBe(restored)
+	})
+
+	it('names the starting point after where it came from', () => {
+		const fresh = setupContext().context
+		fresh.reset()
+		const seeded = setupContext().context
+		seeded.reset(createInitialState())
+
+		expect(fresh.historyEntries.value[0]!.label)
+			.not.toBe(seeded.historyEntries.value[0]!.label)
 	})
 })
 
