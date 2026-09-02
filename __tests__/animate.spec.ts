@@ -26,10 +26,17 @@ function fakeGroup() {
 	return { group, calls }
 }
 
+/** The visible center of a 400x300 area at the origin */
+const CENTER = { x: 200, y: 150 }
+
+/**
+ * Transition deps for one scene-space node, the content group's case.
+ *
+ * @param group the fake node
+ */
 function DEPS(group: unknown) {
 	return {
-		group: group as never,
-		visible: { x: 0, y: 0, width: 400, height: 300 },
+		targets: [{ node: group as never, pivot: CENTER, unit: 1 / 1.5 }],
 		scale: 1.5,
 		offset: { x: 40, y: 30 },
 		origin: { x: 0, y: 0 },
@@ -81,8 +88,8 @@ describe('playTransition', () => {
 		const { group, calls } = fakeGroup()
 		playTransition('rotate-ccw', DEPS(group), CONTEXT)
 
-		expect(calls.sets).toContainEqual({ offset: { x: 200, y: 150 } })
-		expect(calls.sets).toContainEqual({ position: { x: 200, y: 150 } })
+		expect(calls.sets).toContainEqual({ offset: CENTER })
+		expect(calls.sets).toContainEqual({ position: CENTER })
 	})
 
 	it('mirrors a horizontal flip through negative unit scale', () => {
@@ -109,13 +116,58 @@ describe('playTransition', () => {
 		const deps = DEPS(group)
 		playTransition('crop', deps, CONTEXT)
 
-		// (previous view translation - new view translation) / new scale
+		// (previous view translation - new view translation) in the
+		// target's own units, here scene units at 1 / 1.5
+		const sceneUnit = 1 / 1.5
 		const expected = {
-			x: ((10 - 0 * 1) - (40 - 0 * 1.5)) / 1.5,
-			y: ((20 - 0 * 1) - (30 - 0 * 1.5)) / 1.5,
+			x: ((10 - 0 * 1) - (40 - 0 * 1.5)) * sceneUnit,
+			y: ((20 - 0 * 1) - (30 - 0 * 1.5)) * sceneUnit,
 		}
 		expect(calls.sets).toContainEqual({ position: expected })
 		expect(calls.sets).toContainEqual({ scale: { x: 1 / 1.5, y: 1 / 1.5 } })
 		expect(calls.tweens[0]).toMatchObject({ x: 0, y: 0, scaleX: 1, scaleY: 1 })
+	})
+
+	it('carries every target through the same transition', () => {
+		vi.stubGlobal('matchMedia', () => ({ matches: false }))
+		const content = fakeGroup()
+		const overlay = fakeGroup()
+		playTransition('rotate-cw', {
+			targets: [
+				{ node: content.group as never, pivot: CENTER, unit: 1 / 1.5 },
+				// The crop overlay: stage space, so its own pivot and unit
+				{ node: overlay.group as never, pivot: { x: 340, y: 255 }, unit: 1 },
+			],
+			scale: 1.5,
+			offset: { x: 40, y: 30 },
+			origin: { x: 0, y: 0 },
+		}, CONTEXT)
+
+		expect(content.calls.sets).toContainEqual({ offset: CENTER })
+		expect(overlay.calls.sets).toContainEqual({ offset: { x: 340, y: 255 } })
+		// Both turn, so the handles cannot snap while the image eases
+		expect(content.calls.sets).toContainEqual({ rotation: -90 })
+		expect(overlay.calls.sets).toContainEqual({ rotation: -90 })
+		expect(overlay.calls.tweens[0]).toMatchObject({ rotation: 0, scaleX: 1, scaleY: 1 })
+	})
+
+	it('reads the crop offset in each target own units', () => {
+		vi.stubGlobal('matchMedia', () => ({ matches: false }))
+		const content = fakeGroup()
+		const overlay = fakeGroup()
+		playTransition('crop', {
+			targets: [
+				{ node: content.group as never, pivot: CENTER, unit: 1 / 1.5 },
+				{ node: overlay.group as never, pivot: CENTER, unit: 1 },
+			],
+			scale: 1.5,
+			offset: { x: 40, y: 30 },
+			origin: { x: 0, y: 0 },
+		}, CONTEXT)
+
+		const stageDelta = { x: 10 - 40, y: 20 - 30 }
+		const sceneUnit = 1 / 1.5
+		expect(content.calls.sets).toContainEqual({ position: { x: stageDelta.x * sceneUnit, y: stageDelta.y * sceneUnit } })
+		expect(overlay.calls.sets).toContainEqual({ position: stageDelta })
 	})
 })

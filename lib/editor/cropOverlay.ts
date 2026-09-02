@@ -84,6 +84,12 @@ export interface CropView {
 }
 
 export interface CropOverlay {
+	/**
+	 * The overlay's own layer. It lives in stage space, outside the
+	 * animated content, so view transitions have to carry it along
+	 * explicitly or the handles jump while the image eases.
+	 */
+	layer: Konva.Layer
 	/** Current crop rectangle in scene coordinates */
 	getRect(): Rect
 	/**
@@ -256,6 +262,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 	deps.stage.add(layer)
 
 	return {
+		layer,
 		setAspect,
 		update(next) {
 			// Read the selection in scene units before the transform moves

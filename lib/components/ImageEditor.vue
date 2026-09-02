@@ -3,7 +3,7 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { TransitionContext, TransitionKind } from '../editor/animate.ts'
+import type { TransitionContext, TransitionKind, TransitionTarget } from '../editor/animate.ts'
 import type { Tool } from '../editor/context.ts'
 import type { CropOverlay } from '../editor/cropOverlay.ts'
 import type { Scene, SceneOptions } from '../editor/render.ts'
@@ -197,13 +197,36 @@ function renderView(): void {
 		? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
 		: { x: 0, y: 0 }
 
+	// Before the transition: the overlays it carries have to exist, and
+	// already sit where the new state puts them
+	syncTools(oriented, options)
+
 	if (pendingTransition !== null) {
 		const visible = options.showCropped
 			? visibleRect(context.state.value, { width: oriented.width, height: oriented.height })
 			: { x: 0, y: 0, width: oriented.width, height: oriented.height }
+		const center = {
+			x: visible.x + visible.width / 2,
+			y: visible.y + visible.height / 2,
+		}
+		const targets: TransitionTarget[] = [{
+			node: scene.contentGroup,
+			pivot: center,
+			unit: 1 / options.scale,
+		}]
+		if (cropOverlay !== null) {
+			// The same point, in the stage space the overlay draws in
+			targets.push({
+				node: cropOverlay.layer,
+				pivot: {
+					x: options.offset.x + (center.x - renderedOrigin.x) * options.scale,
+					y: options.offset.y + (center.y - renderedOrigin.y) * options.scale,
+				},
+				unit: 1,
+			})
+		}
 		playTransition(pendingTransition.kind, {
-			group: scene.contentGroup,
-			visible,
+			targets,
 			scale: options.scale,
 			offset: options.offset,
 			origin: renderedOrigin,
@@ -216,8 +239,6 @@ function renderView(): void {
 		previousOffset: options.offset,
 		previousOrigin: { x: renderedOrigin.x, y: renderedOrigin.y },
 	}
-
-	syncTools(oriented, options)
 }
 
 /**
