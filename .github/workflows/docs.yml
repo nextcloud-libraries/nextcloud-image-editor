@@ -34,7 +34,7 @@ jobs:
         run: npm run build:doc
 
       - name: Build demo page
-        run: npm run build:demo -- --base /image-editor/demo/
+        run: npm run build:demo -- --base /nextcloud-image-editor/demo/
 
       - name: Assemble site
         run: |
