@@ -696,6 +696,27 @@ defineExpose({
 </template>
 
 <style scoped lang="scss">
+/**
+ * Nextcloud's own values for these arrive from the server stylesheet,
+ * and @nextcloud/vue reads them with no fallback of its own. Declaring
+ * them on the editor root would override the host, which is exactly
+ * what made every control here 10px larger than the surrounding
+ * interface. Registering them instead supplies an initial value only
+ * where nothing else defines one, and lets the host's declaration win
+ * wherever there is one.
+ */
+@property --default-clickable-area {
+	syntax: '<length>';
+	inherits: true;
+	initial-value: 34px;
+}
+
+@property --default-grid-baseline {
+	syntax: '<length>';
+	inherits: true;
+	initial-value: 4px;
+}
+
 .image-editor {
 	// Always-dark chrome floating over the image, every surface tinted
 	// by the image itself: --editor-ambient carries its dominant color,
@@ -707,14 +728,6 @@ defineExpose({
 	--color-border: rgba(255, 255, 255, 0.09);
 	--color-element-hover: rgba(255, 255, 255, 0.08);
 	--editor-glass: rgba(20, 20, 26, 0.6);
-	// Mirrors of the Nextcloud server constants. The component is also
-	// embedded outside a server page, in the playground, the demo and
-	// host apps that mount it standalone, and @nextcloud/vue sizes its
-	// controls from --default-clickable-area with no fallback of its
-	// own: without these the buttons collapse to their content and fall
-	// under the minimum pointer target.
-	--default-clickable-area: 44px;
-	--default-grid-baseline: 4px;
 	font-size: 13px;
 
 	position: relative;
