@@ -53,6 +53,17 @@ unmaintained Filerobot editor.
 
 ## Usage
 
+Install the peer dependencies alongside it:
+
+```sh
+npm install @nextcloud/image-editor @nextcloud/vue @nextcloud/dialogs
+```
+
+The component's styles come with it: the built module imports its own
+stylesheet, so any bundler that handles CSS imports from dependencies
+picks them up. Where yours does not, load them yourself from the
+`@nextcloud/image-editor/style` export.
+
 ```vue
 <script setup lang="ts">
 import type { ExportResult } from '@nextcloud/image-editor'
