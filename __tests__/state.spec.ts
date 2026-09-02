@@ -346,7 +346,7 @@ describe('line annotations travel with the image', () => {
 	const oriented = { width: 200, height: 100 }
 
 	it('survives four quarter turns unchanged', () => {
-		let state = { ...createInitialState(), annotations: [line] }
+		let state: EditorState = { ...createInitialState(), annotations: [line] }
 		let size = oriented
 		for (let turn = 0; turn < 4; turn++) {
 			state = rotateCW(state, size)
