@@ -64,6 +64,12 @@ stylesheet, so any bundler that handles CSS imports from dependencies
 picks them up. Where yours does not, load them yourself from the
 `@nextcloud/image-editor/style` export.
 
+That import is also why the package has to go through a bundler. Loading
+it in a plain Node process, for server-side rendering or a script, fails
+with a syntax error as Node tries to parse the stylesheet as JavaScript.
+This matches `@nextcloud/vue`, which imports its own CSS the same way,
+and every Nextcloud app bundles with vite or webpack. See #5.
+
 ```vue
 <script setup lang="ts">
 import type { ExportResult } from '@nextcloud/image-editor'

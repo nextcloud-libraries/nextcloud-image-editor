@@ -105,3 +105,6 @@ say so if something in it is wrong for you.
 - The editing tools an image editor is eventually expected to have are
   not all here yet: no line tool, eraser, multi-select or per-annotation
   opacity, and no exposure or temperature adjustment (#2)
+- The package has to be bundled: its entries import their own
+  stylesheet, so a plain Node process cannot load them, and
+  server-side rendering is out (#5)
