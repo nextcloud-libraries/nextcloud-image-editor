@@ -20,6 +20,8 @@ const props = defineProps<{
 	initial: string
 	/** Whether the text carries a contrasting edge, as the canvas draws it */
 	outline?: boolean
+	/** Whether the text sits on a plate, as the canvas draws it */
+	background?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -77,6 +79,12 @@ function onEnter(event: KeyboardEvent) {
 			insetBlockStart: `${y}px`,
 			fontSize: `${fontSize}px`,
 			color: color,
+			...(background === true
+				? {
+					backgroundColor: outlineColor(color),
+					padding: `${Math.max(2, Math.round(fontSize / 6))}px`,
+				}
+				: {}),
 			...(outline === true
 				? {
 					// Mirrors the stroke the canvas draws, so what is typed

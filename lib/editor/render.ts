@@ -118,13 +118,28 @@ function obfuscate(
 }
 
 /**
+ * What an annotation renders to. Text on a plate is a label, which holds
+ * the plate and the text together; everything else is a single shape.
+ */
+export type AnnotationNode = Konva.Shape | Konva.Label
+
+/**
+ * Breathing room between the text and the edge of its plate.
+ *
+ * @param fontSize the size of the text sitting on it
+ */
+function backgroundPadding(fontSize: number): number {
+	return Math.max(2, Math.round(fontSize / 6))
+}
+
+/**
  * Build the Konva node for one annotation. Nodes carry the annotation id
  * and the 'annotation' name so tools can map them back to state entries.
  *
  * @param annotation the annotation to render
  * @param oriented the orientation-baked source canvas, needed by redact
  */
-export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanvasElement): Konva.Shape {
+export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanvasElement): AnnotationNode {
 	const base = { id: annotation.id, name: 'annotation' }
 	switch (annotation.type) {
 		case 'draw':
@@ -178,8 +193,8 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 				strokeWidth: annotation.strokeWidth,
 			})
 		case 'text':
-		case 'sticker':
-			return new Konva.Text({
+		case 'sticker': {
+			const text = new Konva.Text({
 				...base,
 				x: annotation.x,
 				y: annotation.y,
@@ -198,7 +213,20 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 							fillAfterStrokeEnabled: true,
 						}
 					: {}),
+				...(annotation.background === true ? { padding: backgroundPadding(annotation.fontSize) } : {}),
 			})
+			if (annotation.background !== true) {
+				return text
+			}
+			// A label is the one node Konva has that keeps a plate sized to
+			// the text on it, so the two cannot drift apart as it is edited
+			const label = new Konva.Label({ ...base, x: annotation.x, y: annotation.y, rotation: annotation.rotation })
+			text.position({ x: 0, y: 0 })
+			text.rotation(0)
+			label.add(new Konva.Tag({ fill: outlineColor(annotation.color), cornerRadius: 2 }))
+			label.add(text)
+			return label
+		}
 		case 'redact': {
 			if (oriented === undefined) {
 				throw new Error('Redaction requires the oriented image')
@@ -416,7 +444,7 @@ export function createScene(stage: Konva.Stage): Scene {
 
 	// Which state entry each node was built from, and the inputs of the
 	// current filter cache: reference equality decides whether work is due
-	const built = new Map<string, { annotation: Annotation, node: Konva.Shape }>()
+	const built = new Map<string, { annotation: Annotation, node: AnnotationNode }>()
 	let filterKey = ''
 
 	const update = (oriented: HTMLCanvasElement, state: EditorState, options: SceneOptions): void => {

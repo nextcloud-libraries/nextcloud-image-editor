@@ -520,3 +520,40 @@ test('text without the edge records that too', async ({ page }) => {
 	const text = state.annotations.find((a: { type: string }) => a.type === 'text')
 	expect(text.outline).toBe(false)
 })
+
+test('a caption can be restyled after it is placed', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const placed = await readState(page)
+	const id = placed.annotations.find((a: { type: string }) => a.type === 'text').id
+	expect(placed.annotations.find((a: { id: string }) => a.id === id).outline).toBe(false)
+
+	// Select it, the way someone would after seeing it is unreadable
+	await page.getByRole('button', { name: 'Select', exact: true }).click()
+	await page.mouse.click(corner.x + 40, corner.y + 40)
+	await page.waitForTimeout(300)
+
+	// The switches follow the selection, so they are reachable from the
+	// select tool where the annotate panel is not
+	const outline = page.locator('[data-test="selection-outline"]')
+	await expect(outline).toBeVisible()
+	await outline.click()
+	await page.waitForTimeout(300)
+
+	const styled = await readState(page)
+	expect(styled.annotations.find((a: { id: string }) => a.id === id).outline).toBe(true)
+
+	// And it is one undoable step, not a silent change
+	await undo(page)
+	const undone = await readState(page)
+	expect(undone.annotations.find((a: { id: string }) => a.id === id).outline).toBe(false)
+})

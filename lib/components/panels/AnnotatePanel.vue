@@ -15,6 +15,7 @@ import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import VectorLine from 'vue-material-design-icons/VectorLine.vue'
 import EditorSlider from '../base/EditorSlider.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
+import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -25,12 +26,14 @@ defineProps<{
 
 const context = useEditorContext()
 const color = useAnnotationColor(context)
+const textStyle = useTextStyle(context)
 
 const labels = {
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
 	fontSize: t('Font size'),
 	outline: t('Outline'),
+	background: t('Background'),
 }
 
 // Stands in for the text being sized. Deliberately not translated: it
@@ -47,6 +50,13 @@ const subTools: { id: Tool, label: string, icon: unknown }[] = [
 ]
 
 const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow', 'line'].includes(context.activeTool.value))
+
+// Also while a caption is selected, which is when someone finds out it
+// needed an edge. Selecting one means leaving the text tool, so keying
+// this on the tool alone would hide the switches exactly then.
+const showTextOptions = computed(() => context.activeTool.value === 'text'
+	|| context.state.value.annotations
+		.some((entry) => entry.id === context.selectedId.value && entry.type === 'text'))
 
 /** Largest preview that still fits the control card */
 const PREVIEW_CAP = 44
@@ -130,13 +140,22 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 			</template>
 		</EditorSlider>
 		<label
-			v-if="context.activeTool.value === 'text'"
+			v-if="showTextOptions"
 			class="annotate-panel__toggle">
 			<input
-				v-model="context.textOutline.value"
+				v-model="textStyle.outline.value"
 				type="checkbox"
 				data-test="text-outline">
 			{{ labels.outline }}
+		</label>
+		<label
+			v-if="showTextOptions"
+			class="annotate-panel__toggle">
+			<input
+				v-model="textStyle.background.value"
+				type="checkbox"
+				data-test="text-background">
+			{{ labels.background }}
 		</label>
 	</div>
 </template>

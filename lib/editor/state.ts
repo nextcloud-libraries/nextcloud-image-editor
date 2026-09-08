@@ -114,6 +114,12 @@ export interface TextAnnotation {
 	 * before it existed, which read as off.
 	 */
 	outline?: boolean
+	/**
+	 * Whether the text sits on a filled plate. The other answer to a busy
+	 * photo: an edge keeps the glyphs readable, a plate takes the photo
+	 * out from behind them entirely.
+	 */
+	background?: boolean
 }
 
 export interface RedactAnnotation {
