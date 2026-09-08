@@ -8,6 +8,7 @@ import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
 import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from './filters.ts'
 import { fontStack } from './fonts.ts'
+import { redactShape } from './redact-shape.ts'
 import { textAlign } from './text-align.ts'
 import { outlineColor, outlineWidth } from './text-outline.ts'
 
@@ -103,6 +104,37 @@ function obfuscateRegion(
 }
 
 /**
+ * Cut a region out of an obfuscated patch and keep only what falls
+ * inside the ellipse it encloses, so the patch has the outline of the
+ * thing being hidden rather than a box around it. The edge is drawn
+ * antialiased and composited, not stepped.
+ *
+ * @param patch the obfuscated patch to cut from
+ * @param x horizontal origin of the region within the patch
+ * @param y vertical origin of the region within the patch
+ * @param width region width
+ * @param height region height
+ */
+function cutEllipse(
+	patch: HTMLCanvasElement,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+): HTMLCanvasElement {
+	const out = document.createElement('canvas')
+	out.width = width
+	out.height = height
+	const context = context2d(out)
+	context.drawImage(patch, x, y, width, height, 0, 0, width, height)
+	context.globalCompositeOperation = 'destination-in'
+	context.beginPath()
+	context.ellipse(width / 2, height / 2, width / 2, height / 2, 0, 0, Math.PI * 2)
+	context.fill()
+	return out
+}
+
+/**
  * How coarse a redaction is, in the pixels of the source image, so that
  * a redaction looks the same however far the view happens to be zoomed.
  *
@@ -172,6 +204,11 @@ function redactSceneFunc(annotation: RedactAnnotation, strength: number) {
 		context2d(region).putImageData(context.getImageData(readLeft, readTop, readWidth, readHeight), 0, 0)
 
 		const patch = obfuscateRegion(region, annotation.style, deviceStrength)
+		if (redactShape(annotation.shape) === 'ellipse') {
+			const cut = cutEllipse(patch, left - readLeft, top - readTop, deviceWidth, deviceHeight)
+			context.drawImage(cut, 0, 0, width, height)
+			return
+		}
 		context.drawImage(
 			patch,
 			left - readLeft,
@@ -313,8 +350,22 @@ export function buildAnnotationNode(annotation: Annotation, source?: Size): Anno
 				fill: 'black',
 				sceneFunc: redactSceneFunc(annotation, redactStrength(source)),
 				hitFunc: (context, shape) => {
+					const shapeWidth = shape.width()
+					const shapeHeight = shape.height()
 					context.beginPath()
-					context.rect(0, 0, shape.width(), shape.height())
+					if (redactShape(annotation.shape) === 'ellipse') {
+						context.ellipse(
+							shapeWidth / 2,
+							shapeHeight / 2,
+							shapeWidth / 2,
+							shapeHeight / 2,
+							0,
+							0,
+							Math.PI * 2,
+						)
+					} else {
+						context.rect(0, 0, shapeWidth, shapeHeight)
+					}
 					context.closePath()
 					context.fillStrokeShape(shape)
 				},

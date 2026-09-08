@@ -389,6 +389,7 @@ function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
 				fontSize: context.fontSize.value,
 				sticker: context.sticker.value,
 				redactStyle: context.redactStyle.value,
+				redactShape: context.redactShape.value,
 			}),
 			startTextEdit: (position) => startTextEdit(position),
 		})

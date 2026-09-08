@@ -4,6 +4,7 @@
  */
 import type Konva from 'konva'
 import type { Tool } from './context.ts'
+import type { RedactShape } from './redact-shape.ts'
 import type { AnnotationNode } from './render.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
@@ -17,6 +18,8 @@ export interface ToolOptions {
 	fontSize: number
 	sticker: string
 	redactStyle: 'pixelate' | 'blur'
+	/** The outline a new redaction takes */
+	redactShape: RedactShape
 }
 
 export interface PointerToolDeps {
@@ -133,7 +136,13 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				active = { id: newId(), type: tool, rect: { x: point.x, y: point.y, width: 1, height: 1 }, rotation: 0, color: options.color, strokeWidth: options.strokeWidth }
 				break
 			case 'redact':
-				active = { id: newId(), type: 'redact', rect: { x: point.x, y: point.y, width: 1, height: 1 }, style: options.redactStyle }
+				active = {
+					id: newId(),
+					type: 'redact',
+					rect: { x: point.x, y: point.y, width: 1, height: 1 },
+					style: options.redactStyle,
+					shape: options.redactShape,
+				}
 				break
 			case 'text':
 				// Deferred to pointerup: opening the overlay mid-click would

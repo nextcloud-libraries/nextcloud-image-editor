@@ -86,7 +86,7 @@ function harness(): Harness {
 		},
 		toScene: (point) => point,
 		panning: () => panning,
-		options: () => ({ color: '#123456', strokeWidth: 7, fontSize: 20, sticker: '🎈', redactStyle: 'blur' }),
+		options: () => ({ color: '#123456', strokeWidth: 7, fontSize: 20, sticker: '🎈', redactStyle: 'blur', redactShape: 'rectangle' }),
 		startTextEdit: (position) => {
 			textEdits.push(position)
 		},
