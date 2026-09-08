@@ -80,16 +80,11 @@ const labels = {
 	retry: t('Try again'),
 }
 
-/**
- * Width the chrome switches to its narrow layout at, mirroring the
- * `@container editor (max-width: 600px)` breakpoint the styles use.
- */
-const COMPACT_WIDTH = 600
-
 /** Guards against an older load publishing over a newer one */
 let loadAttempt = 0
 
 const context = createEditorContext()
+const root = useTemplateRef<HTMLDivElement>('root')
 const container = useTemplateRef<HTMLDivElement>('container')
 const loaded = ref(false)
 const errored = ref(false)
@@ -99,14 +94,6 @@ const sourceImage = shallowRef<HTMLImageElement | null>(null)
 const { ambient, backdrop } = useAmbient(sourceImage)
 const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
-
-/**
- * Whether the chrome is in its narrow layout, matching the 600px container
- * query the styles use. Zero while the container is still unmeasured, which
- * is the wide layout, so the label does not flash away on the first frame.
- */
-const compactChrome = computed(() => containerSize.value.width > 0
-	&& containerSize.value.width <= COMPACT_WIDTH)
 
 /** Stage-space bounds of the selected annotation, for the mini toolbar */
 const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
@@ -656,6 +643,7 @@ defineExpose({
 
 <template>
 	<div
+		ref="root"
 		class="image-editor"
 		:style="{
 			'--editor-ambient': ambient,
@@ -699,7 +687,7 @@ defineExpose({
 				<EditorTopBar
 					class="image-editor__topbar"
 					:loaded="loaded"
-					:compact="compactChrome"
+					:popoverContainer="root"
 					:saving="exporting || saving === true"
 					@save="onSave"
 					@cancel="emit('cancel')" />
@@ -790,6 +778,18 @@ defineExpose({
 		background-position: center;
 		filter: blur(64px) saturate(1.3) brightness(0.55);
 		transform: scale(1.15);
+	}
+
+	// The action menus render in here rather than the body, so that the
+	// editor stays self-contained. @nextcloud/vue leaves the menu list to
+	// the host stylesheet, which is a bulleted list with a 40px indent
+	// wherever a Nextcloud server is not the one serving the page.
+	:deep(.action-item__popper) {
+		ul[role='menu'] {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+		}
 	}
 
 	&__frame {

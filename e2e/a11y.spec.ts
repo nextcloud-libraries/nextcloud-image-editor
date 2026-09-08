@@ -70,7 +70,7 @@ test('the crop and history controls meet the minimum pointer target', async ({ p
 	for (const control of ['Rotate left', 'Rotate right', 'Flip horizontal', 'Flip vertical']) {
 		await expectClickable(page.getByRole('button', { name: control, exact: true }), `the ${control} button`, minimum)
 	}
-	for (const control of ['Undo', 'Redo', 'Zoom in', 'Zoom out']) {
+	for (const control of ['Edit history', 'Redo', 'Zoom in', 'Zoom out']) {
 		await expectClickable(page.getByRole('button', { name: control, exact: true }), `the ${control} button`, minimum)
 	}
 })

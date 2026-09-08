@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { cropAnchor, expectColor, imageView, readState, save, setInputValue, slowDrag, waitLoaded } from './utils.ts'
+import { cropAnchor, expectColor, imageView, readState, redo, save, setInputValue, slowDrag, undo, waitLoaded } from './utils.ts'
 
 test('rotate right turns the image clockwise', async ({ page }) => {
 	await waitLoaded(page)
@@ -83,15 +83,16 @@ test('cropping reduces the export to the selected area', async ({ page }) => {
 
 test('undo and redo walk the edit history', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
+	// The back arrow opens the history, and there is nowhere to go back to yet
+	await expect(page.locator('[data-test="history"] button')).toBeDisabled()
 
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	expect((await readState(page)).rotation).toBe(90)
 
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).rotation).toBe(0)
 
-	await page.getByRole('button', { name: 'Redo' }).click()
+	await redo(page)
 	expect((await readState(page)).rotation).toBe(90)
 })
 
@@ -111,9 +112,9 @@ test('fine rotation and zoom scrub without changing export size', async ({ page 
 	expect(result.height).toBe(100)
 
 	// Each slider release is one undo step
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).zoom).toBe(1)
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).fineRotation).toBe(0)
 })
 
@@ -144,7 +145,7 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 
 	// Undoing the revert restores the rotated and flipped state; the
 	// visual horizontal flip landed on flipY while the image was sideways
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	const restored = await readState(page)
 	expect(restored.rotation).toBe(90)
 	expect(restored.flipY).toBe(true)
@@ -207,37 +208,30 @@ test('a step taken after a jump replaces the abandoned ones', async ({ page }) =
 	await expect(steps.nth(1)).toContainText('Rotate right')
 })
 
-test('the history trigger is labelled, and disabled until there is a step', async ({ page }) => {
+test('the back arrow opens the history and jumps to a step', async ({ page }) => {
 	await waitLoaded(page)
 	const trigger = page.locator('[data-test="history"] button')
-
-	// Nothing to jump to yet: the list would hold only the original
 	await expect(trigger).toBeDisabled()
 	await expect(trigger).toHaveAccessibleName('Edit history')
 
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	await expect(trigger).toBeEnabled()
 
-	// The label is what makes it findable, rather than a bare clock icon
-	await expect(trigger).toContainText('Edit history')
 	await trigger.click()
-	await expect(page.locator('[data-test^="history-step-"]')).toHaveCount(2)
+	const steps = page.locator('[data-test^="history-step-"]')
+	await expect(steps).toHaveCount(2)
+	await steps.nth(1).click()
+	expect((await readState(page)).rotation).toBe(0)
 })
 
-test('the history trigger drops its label on a phone-sized container', async ({ page }) => {
+test('the history menu opens on a phone-sized container', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 })
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 
-	const trigger = page.locator('[data-test="history"] button')
-	// Icon-only here, but it keeps the same name for voice input
-	await expect(trigger).not.toContainText('Edit history')
-	await expect(trigger).toHaveAccessibleName('Edit history')
+	await page.locator('[data-test="history"] button').click()
+	await expect(page.locator('[data-test^="history-step-"]')).toHaveCount(2)
 
-	// The pill still fits, which is what the label would have cost
 	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 	expect(overflow).toBe(0)
-
-	await trigger.click()
-	await expect(page.locator('[data-test^="history-step-"]')).toHaveCount(2)
 })

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, readState, save, setInputValue, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
@@ -199,7 +199,7 @@ test('undo reuses the nodes it did not change', async ({ page }) => {
 	// A third stroke, then undo it away again
 	await drag(page, { x: corner.x + 20, y: corner.y + 70 }, { x: corner.x + 90, y: corner.y + 70 })
 	expect(await annotationIds()).toHaveLength(3)
-	await page.locator('[aria-label="Undo"]').click()
+	await undo(page)
 
 	// The history holds the same annotation objects the scene was built
 	// from, so the two survivors keep their nodes instead of every one

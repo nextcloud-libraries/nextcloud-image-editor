@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, readState, save, setInputValue, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
 test('freehand drawing paints a stroke', async ({ page }) => {
 	await waitLoaded(page)
@@ -87,7 +87,7 @@ test('undo removes the last annotation', async ({ page }) => {
 	await drag(page, { x: corner.x + 20, y: corner.y + 50 }, { x: corner.x + 100, y: corner.y + 50 })
 	expect((await readState(page)).annotations).toHaveLength(1)
 
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).annotations).toHaveLength(0)
 })
 
@@ -240,7 +240,7 @@ test('the color control recolors the selected annotation', async ({ page }) => {
 	expect(state.annotations[0].color).toBe('#00ff00')
 
 	// One undo step returns the original color
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).annotations[0].color).toBe('#ff0000')
 })
 
@@ -431,7 +431,7 @@ test('picking a color records one undo step, not one per shade', async ({ page }
 
 	// One undo returns to the original color rather than walking back
 	// through every shade the pointer passed over
-	await page.locator('[aria-label="Undo"]').click()
+	await undo(page)
 	await expect.poll(async () => (await readState(page)).annotations[0].color).toBe('#ff0000')
 })
 

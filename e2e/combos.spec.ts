@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, readState, save, setInputValue, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
 test('every filter preset changes the exported pixels', async ({ page }) => {
 	await waitLoaded(page)
@@ -128,7 +128,7 @@ test('a mixed edit stack unwinds fully through undo', async ({ page }) => {
 	await page.mouse.click(corner.x + 50, corner.y + 100)
 
 	for (let i = 0; i < 4; i++) {
-		await page.getByRole('button', { name: 'Undo' }).click()
+		await undo(page)
 	}
 
 	const state = await readState(page)

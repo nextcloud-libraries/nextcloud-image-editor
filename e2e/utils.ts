@@ -231,3 +231,22 @@ export function expectColor(pixel: number[], expected: [number, number, number],
 	expect(Math.abs(pixel[1] - expected[1])).toBeLessThanOrEqual(tolerance)
 	expect(Math.abs(pixel[2] - expected[2])).toBeLessThanOrEqual(tolerance)
 }
+
+/**
+ * Step back once. The back arrow in the top bar opens the history rather
+ * than undoing, so the keyboard is the one-step path.
+ *
+ * @param page the test page
+ */
+export async function undo(page: Page): Promise<void> {
+	await page.keyboard.press('ControlOrMeta+z')
+}
+
+/**
+ * Step forward once, the counterpart of {@link undo}.
+ *
+ * @param page the test page
+ */
+export async function redo(page: Page): Promise<void> {
+	await page.keyboard.press('ControlOrMeta+Shift+z')
+}
