@@ -30,6 +30,7 @@ const labels = {
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
 	fontSize: t('Font size'),
+	outline: t('Outline'),
 }
 
 // Stands in for the text being sized. Deliberately not translated: it
@@ -128,6 +129,15 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					}">{{ FONT_SAMPLE }}</span>
 			</template>
 		</EditorSlider>
+		<label
+			v-if="context.activeTool.value === 'text'"
+			class="annotate-panel__toggle">
+			<input
+				v-model="context.textOutline.value"
+				type="checkbox"
+				data-test="text-outline">
+			{{ labels.outline }}
+		</label>
 	</div>
 </template>
 
@@ -162,6 +172,15 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 	}
 
 	// A ring so the mark stays visible whatever color it is drawn in
+	&__toggle {
+		display: flex;
+		gap: var(--default-grid-baseline);
+		align-items: center;
+		color: var(--color-main-text);
+		font-size: 13px;
+		cursor: pointer;
+	}
+
 	&__dot {
 		display: block;
 		border-radius: 50%;

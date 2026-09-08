@@ -480,3 +480,43 @@ test('a line survives a rotation in the export', async ({ page }) => {
 	expect(result.width).toBe(100)
 	expect(result.height).toBe(200)
 })
+
+test('text can carry a contrasting edge, and remembers it in the state', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+	await page.locator('[data-test="text-outline"]').check()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	// The overlay shows the edge while it is being typed, not only after
+	const overlay = page.locator('[data-test="text-overlay"]')
+	// The browser normalises 'stroke fill' to 'stroke', the rest being implied
+	await expect(overlay).toHaveCSS('paint-order', 'stroke')
+	await expect(overlay).toHaveCSS('-webkit-text-stroke-color', 'rgb(255, 255, 255)')
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	const text = state.annotations.find((a: { type: string }) => a.type === 'text')
+	expect(text.outline).toBe(true)
+})
+
+test('text without the edge records that too', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	await page.keyboard.type('plain')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	const text = state.annotations.find((a: { type: string }) => a.type === 'text')
+	expect(text.outline).toBe(false)
+})

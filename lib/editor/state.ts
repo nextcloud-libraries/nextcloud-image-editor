@@ -108,6 +108,12 @@ export interface TextAnnotation {
 	fontSize: number
 	/** Clockwise degrees around the anchor */
 	rotation: number
+	/**
+	 * Whether the glyphs carry a contrasting edge, so a caption stays
+	 * readable wherever it lands on the photo. Absent on annotations made
+	 * before it existed, which read as off.
+	 */
+	outline?: boolean
 }
 
 export interface RedactAnnotation {

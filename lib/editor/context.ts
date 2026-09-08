@@ -53,6 +53,8 @@ export interface EditorContext {
 	strokeWidth: ShallowRef<number>
 	/** Font size for new text annotations */
 	fontSize: ShallowRef<number>
+	/** Whether new text is drawn with a contrasting edge */
+	textOutline: ShallowRef<boolean>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
@@ -167,6 +169,7 @@ export function createEditorContext(): EditorContext {
 		drawColor: shallowRef('#ff0000'),
 		strokeWidth: shallowRef(6),
 		fontSize: shallowRef(24),
+		textOutline: shallowRef(false),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		cropAspect: shallowRef<number | 'original' | null>(null),

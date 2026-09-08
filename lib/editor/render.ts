@@ -7,6 +7,7 @@ import type { Annotation, EditorState, Size } from './state.ts'
 import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
 import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from './filters.ts'
+import { outlineColor, outlineWidth } from './text-outline.ts'
 
 /**
  * The part of the oriented image currently visible: the crop, or all of it.
@@ -188,6 +189,15 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 				rotation: annotation.rotation,
 				// Kept in sync with the text overlay for WYSIWYG editing
 				fontFamily: 'Helvetica, Arial, sans-serif',
+				...(annotation.outline === true
+					? {
+							stroke: outlineColor(annotation.color),
+							strokeWidth: outlineWidth(annotation.fontSize),
+							// The edge sits behind the glyph rather than eating
+							// into it, which is what keeps small text legible
+							fillAfterStrokeEnabled: true,
+						}
+					: {}),
 			})
 		case 'redact': {
 			if (oriented === undefined) {

@@ -4,6 +4,7 @@
 -->
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue'
+import { outlineColor, outlineWidth } from '../editor/text-outline.ts'
 import { t } from '../utils/l10n.ts'
 
 const props = defineProps<{
@@ -17,6 +18,8 @@ const props = defineProps<{
 	color: string
 	/** Text to edit, empty when creating */
 	initial: string
+	/** Whether the text carries a contrasting edge, as the canvas draws it */
+	outline?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -74,6 +77,16 @@ function onEnter(event: KeyboardEvent) {
 			insetBlockStart: `${y}px`,
 			fontSize: `${fontSize}px`,
 			color: color,
+			...(outline === true
+				? {
+					// Mirrors the stroke the canvas draws, so what is typed
+					// is what gets saved. paintOrder keeps the edge behind
+					// the glyph the way fillAfterStrokeEnabled does there.
+					webkitTextStrokeWidth: `${outlineWidth(fontSize)}px`,
+					webkitTextStrokeColor: outlineColor(color),
+					paintOrder: 'stroke fill',
+				}
+				: {}),
 		}"
 		rows="1"
 		@input="autosize"
