@@ -206,3 +206,38 @@ test('a step taken after a jump replaces the abandoned ones', async ({ page }) =
 	await expect(steps.nth(0)).toContainText('Flip vertical')
 	await expect(steps.nth(1)).toContainText('Rotate right')
 })
+
+test('the history trigger is labelled, and disabled until there is a step', async ({ page }) => {
+	await waitLoaded(page)
+	const trigger = page.locator('[data-test="history"] button')
+
+	// Nothing to jump to yet: the list would hold only the original
+	await expect(trigger).toBeDisabled()
+	await expect(trigger).toHaveAccessibleName('Edit history')
+
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect(trigger).toBeEnabled()
+
+	// The label is what makes it findable, rather than a bare clock icon
+	await expect(trigger).toContainText('Edit history')
+	await trigger.click()
+	await expect(page.locator('[data-test^="history-step-"]')).toHaveCount(2)
+})
+
+test('the history trigger drops its label on a phone-sized container', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 })
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	const trigger = page.locator('[data-test="history"] button')
+	// Icon-only here, but it keeps the same name for voice input
+	await expect(trigger).not.toContainText('Edit history')
+	await expect(trigger).toHaveAccessibleName('Edit history')
+
+	// The pill still fits, which is what the label would have cost
+	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+	expect(overflow).toBe(0)
+
+	await trigger.click()
+	await expect(page.locator('[data-test^="history-step-"]')).toHaveCount(2)
+})
