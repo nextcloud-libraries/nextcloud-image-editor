@@ -6,6 +6,7 @@ import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
 import type { HistoryEntry } from '../composables/useHistory.ts'
 import type { FontId } from './fonts.ts'
 import type { EditorState } from './state.ts'
+import type { TextAlign } from './text-align.ts'
 import type { Point, ViewFit } from './view.ts'
 
 import { inject, provide, shallowRef, watch } from 'vue'
@@ -13,6 +14,7 @@ import { useHistory } from '../composables/useHistory.ts'
 import { t } from '../utils/l10n.ts'
 import { DEFAULT_FONT } from './fonts.ts'
 import { createInitialState } from './state.ts'
+import { DEFAULT_ALIGN } from './text-align.ts'
 import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
 
 export type Tool
@@ -61,6 +63,8 @@ export interface EditorContext {
 	textBackground: ShallowRef<boolean>
 	/** Which family new text is drawn in */
 	textFont: ShallowRef<FontId>
+	/** How the lines of new text sit against each other */
+	textAlign: ShallowRef<TextAlign>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
@@ -178,6 +182,7 @@ export function createEditorContext(): EditorContext {
 		textOutline: shallowRef(false),
 		textBackground: shallowRef(false),
 		textFont: shallowRef<FontId>(DEFAULT_FONT),
+		textAlign: shallowRef<TextAlign>(DEFAULT_ALIGN),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		cropAspect: shallowRef<number | 'original' | null>(null),

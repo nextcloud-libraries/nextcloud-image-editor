@@ -128,6 +128,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 					outline: context.textOutline.value,
 					background: context.textBackground.value,
 					font: context.textFont.value,
+					align: context.textAlign.value,
 				}],
 			}, t('Text'))
 		}
