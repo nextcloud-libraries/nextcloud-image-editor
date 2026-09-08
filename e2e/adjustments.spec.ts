@@ -179,3 +179,63 @@ test('sharpen leaves a flat image alone', async ({ page }) => {
 	expectColor(result.topRight, [0, 0, 200])
 	expect((await readState(page)).adjustments.sharpen).toBe(100)
 })
+
+test('shadows lift the dark end of the range', async ({ page }) => {
+	await waitLoaded(page)
+	const before = await save(page)
+
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-shadows"]').click()
+	await setInputValue(page.locator('[data-test="adjust-shadows"]'), '100')
+	expect((await readState(page)).adjustments.shadows).toBe(100)
+
+	const after = await save(page)
+	// The fixture is saturated red and blue, both dark by luma, so this
+	// is the end of the range shadows is meant to move
+	expect(after.topLeft[0]).toBeGreaterThan(before.topLeft[0]!)
+	// The blue half is on the right
+	expect(after.topRight[2]).toBeGreaterThan(before.topRight[2]!)
+})
+
+test('highlights leave a dark image nearly alone', async ({ page }) => {
+	await waitLoaded(page)
+	const before = await save(page)
+
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-highlights"]').click()
+	await setInputValue(page.locator('[data-test="adjust-highlights"]'), '-100')
+
+	const after = await save(page)
+	// Weighted to the bright end, so pulling it all the way down barely
+	// touches pixels this dark. That weighting is the whole point of
+	// having it separate from brightness
+	expect(Math.abs(after.topLeft[0]! - before.topLeft[0]!)).toBeLessThan(25)
+})
+
+test('a vignette darkens the corners more than the middle', async ({ page }) => {
+	await waitLoaded(page)
+	const before = await save(page)
+
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-vignette"]').click()
+	await setInputValue(page.locator('[data-test="adjust-vignette"]'), '100')
+	expect((await readState(page)).adjustments.vignette).toBe(100)
+
+	const after = await save(page)
+	const cornerDrop = before.topLeft[0]! - after.topLeft[0]!
+	const centreDrop = before.center[0]! - after.center[0]!
+	expect(cornerDrop).toBeGreaterThan(0)
+	expect(cornerDrop).toBeGreaterThan(centreDrop)
+})
+
+test('a vignette below zero lightens the corners instead', async ({ page }) => {
+	await waitLoaded(page)
+	const before = await save(page)
+
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-vignette"]').click()
+	await setInputValue(page.locator('[data-test="adjust-vignette"]'), '-100')
+
+	const after = await save(page)
+	expect(after.topLeft[0]).toBeGreaterThan(before.topLeft[0]!)
+})

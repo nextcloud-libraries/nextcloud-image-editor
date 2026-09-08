@@ -78,6 +78,85 @@ export function tone(this: FilterNode, imageData: PixelData): void {
 	}
 }
 
+/** How far each end of the range moves at the top of its slider */
+const HIGHLIGHTS_RANGE = 0.6
+const SHADOWS_RANGE = 0.6
+
+/**
+ * Highlights and shadows in a single pass.
+ *
+ * Both are the same operation weighted to opposite ends of the range,
+ * so they walk the pixels once. The weight is the pixel's luma squared
+ * for highlights and its inverse squared for shadows: quadratic rather
+ * than linear so the midtones, which carry the subject, stay where the
+ * photographer put them while the ends move.
+ *
+ * Pulling highlights down recovers a bright sky, lifting shadows opens
+ * up what is under a tree, and neither touches the other end.
+ *
+ * @param imageData the pixels to mutate in place
+ */
+export function tonal(this: FilterNode, imageData: PixelData): void {
+	const highlights = (this.getAttr('highlights') ?? 0) * HIGHLIGHTS_RANGE
+	const shadows = (this.getAttr('shadows') ?? 0) * SHADOWS_RANGE
+	if (highlights === 0 && shadows === 0) {
+		return
+	}
+	const { data } = imageData
+
+	for (let i = 0; i < data.length; i += 4) {
+		const level = luma(data[i]!, data[i + 1]!, data[i + 2]!) / 255
+		const bright = level * level
+		const dark = (1 - level) * (1 - level)
+		const gain = 1 + highlights * bright + shadows * dark
+		data[i] = data[i]! * gain
+		data[i + 1] = data[i + 1]! * gain
+		data[i + 2] = data[i + 2]! * gain
+	}
+}
+
+/** How dark the corners go at the bottom of the slider */
+const VIGNETTE_RANGE = 0.9
+
+/** How far out from the centre the fall-off starts, as a share of the radius */
+const VIGNETTE_START = 0.35
+
+/**
+ * Darken towards the corners, or lighten them above zero.
+ *
+ * The distance is measured against the half-width and half-height
+ * rather than a circle, so the shape follows the frame instead of
+ * cropping to one on a wide image. The fall-off is smoothstepped from
+ * {@link VIGNETTE_START} outwards, which is what keeps the edge of the
+ * effect from showing up as a ring.
+ *
+ * @param imageData the pixels to mutate in place
+ */
+export function vignette(this: FilterNode, imageData: PixelImage): void {
+	const amount = (this.getAttr('vignette') ?? 0) * VIGNETTE_RANGE
+	if (amount === 0) {
+		return
+	}
+	const { data, width, height } = imageData
+	const centreX = width / 2
+	const centreY = height / 2
+
+	for (let y = 0; y < height; y++) {
+		const dy = (y - centreY) / centreY
+		for (let x = 0; x < width; x++) {
+			const dx = (x - centreX) / centreX
+			const distance = Math.sqrt(dx * dx + dy * dy)
+			const t = Math.min(1, Math.max(0, (distance - VIGNETTE_START) / (1 - VIGNETTE_START)))
+			// Smoothstep, so the fall-off has no visible edge of its own
+			const gain = 1 - amount * t * t * (3 - 2 * t)
+			const i = (y * width + x) * 4
+			data[i] = data[i]! * gain
+			data[i + 1] = data[i + 1]! * gain
+			data[i + 2] = data[i + 2]! * gain
+		}
+	}
+}
+
 /** Weight the centre pixel gains at the top of the slider */
 const SHARPEN_RANGE = 1.2
 

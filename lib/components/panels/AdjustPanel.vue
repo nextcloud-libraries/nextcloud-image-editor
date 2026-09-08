@@ -6,10 +6,13 @@
 import type { EditorState } from '../../editor/state.ts'
 
 import { computed, shallowRef } from 'vue'
+import BoxShadow from 'vue-material-design-icons/BoxShadow.vue'
 import CameraIris from 'vue-material-design-icons/CameraIris.vue'
+import CircleOpacity from 'vue-material-design-icons/CircleOpacity.vue'
 import ContrastCircle from 'vue-material-design-icons/ContrastCircle.vue'
 import ImageFilterCenterFocus from 'vue-material-design-icons/ImageFilterCenterFocus.vue'
 import InvertColors from 'vue-material-design-icons/InvertColors.vue'
+import Spotlight from 'vue-material-design-icons/Spotlight.vue'
 import Thermometer from 'vue-material-design-icons/Thermometer.vue'
 import WhiteBalanceIridescent from 'vue-material-design-icons/WhiteBalanceIridescent.vue'
 import WhiteBalanceSunny from 'vue-material-design-icons/WhiteBalanceSunny.vue'
@@ -27,8 +30,9 @@ const context = useEditorContext()
 
 type AdjustmentKey = keyof EditorState['adjustments']
 
-// Photographic order: light first, then contrast, then colour, with
-// sharpening last because it works on whatever the rest produced
+// Photographic order: light first, then contrast, then colour, then the
+// two ends of the range on their own, with sharpening and the vignette
+// last because they work on whatever the rest produced
 const adjustments: { id: AdjustmentKey, label: string, icon: unknown }[] = [
 	{ id: 'exposure', label: t('Exposure'), icon: CameraIris },
 	{ id: 'brightness', label: t('Brightness'), icon: WhiteBalanceSunny },
@@ -37,6 +41,9 @@ const adjustments: { id: AdjustmentKey, label: string, icon: unknown }[] = [
 	{ id: 'temperature', label: t('Temperature'), icon: Thermometer },
 	{ id: 'tint', label: t('Tint'), icon: WhiteBalanceIridescent },
 	{ id: 'sharpen', label: t('Sharpen'), icon: ImageFilterCenterFocus },
+	{ id: 'highlights', label: t('Highlights'), icon: Spotlight },
+	{ id: 'shadows', label: t('Shadows'), icon: BoxShadow },
+	{ id: 'vignette', label: t('Vignette'), icon: CircleOpacity },
 ]
 const activeAdjustment = shallowRef<AdjustmentKey>('exposure')
 

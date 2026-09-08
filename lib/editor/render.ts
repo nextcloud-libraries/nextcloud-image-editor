@@ -6,7 +6,7 @@ import type { Annotation, EditorState, Size } from './state.ts'
 
 import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
-import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tone, warm } from './filters.ts'
+import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from './filters.ts'
 
 /**
  * The part of the oriented image currently visible: the crop, or all of it.
@@ -215,6 +215,7 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
  */
 export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio = 1): void {
 	const { exposure, brightness, contrast, saturation, temperature, tint } = state.adjustments
+	const { highlights, shadows } = state.adjustments
 	const filters = []
 
 	// Exposure, temperature and tint are one filter over the pixels
@@ -229,6 +230,11 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	}
 	if (saturation !== 0) {
 		filters.push(saturate)
+	}
+	// After the channel scaling above, so the ends of the range are
+	// weighted by the light the image actually ended up with
+	if (highlights !== 0 || shadows !== 0) {
+		filters.push(tonal)
 	}
 	const presetFilters = {
 		none: null,
@@ -257,6 +263,11 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	if (state.adjustments.sharpen !== 0) {
 		filters.push(sharpen)
 	}
+	// After everything, including the preset: a vignette is a frame around
+	// the finished picture rather than part of its grade
+	if (state.adjustments.vignette !== 0) {
+		filters.push(vignette)
+	}
 
 	if (filters.length === 0) {
 		node.filters([])
@@ -273,6 +284,9 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	node.setAttr('temperature', temperature / 100)
 	node.setAttr('tint', tint / 100)
 	node.setAttr('sharpen', state.adjustments.sharpen / 100)
+	node.setAttr('highlights', highlights / 100)
+	node.setAttr('shadows', shadows / 100)
+	node.setAttr('vignette', state.adjustments.vignette / 100)
 	if (state.preset === 'posterize') {
 		// Konva maps levels() over 254 steps: 0.02 gives about six bands
 		node.levels(0.02)
