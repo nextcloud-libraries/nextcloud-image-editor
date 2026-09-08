@@ -4,6 +4,7 @@
  */
 import type Konva from 'konva'
 import type { Tool } from './context.ts'
+import type { AnnotationNode } from './render.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
 import { newId } from '../utils/id.ts'
@@ -59,7 +60,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	}
 
 	let active: Annotation | null = null
-	let previewNode: Konva.Shape | null = null
+	let previewNode: AnnotationNode | null = null
 	let start = { x: 0, y: 0 }
 	let pendingText: { x: number, y: number } | null = null
 

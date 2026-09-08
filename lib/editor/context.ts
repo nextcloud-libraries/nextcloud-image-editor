@@ -55,6 +55,8 @@ export interface EditorContext {
 	fontSize: ShallowRef<number>
 	/** Whether new text is drawn with a contrasting edge */
 	textOutline: ShallowRef<boolean>
+	/** Whether new text is drawn on a filled plate */
+	textBackground: ShallowRef<boolean>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
@@ -170,6 +172,7 @@ export function createEditorContext(): EditorContext {
 		strokeWidth: shallowRef(6),
 		fontSize: shallowRef(24),
 		textOutline: shallowRef(false),
+		textBackground: shallowRef(false),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		cropAspect: shallowRef<number | 'original' | null>(null),

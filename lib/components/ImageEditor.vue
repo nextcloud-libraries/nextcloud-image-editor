@@ -719,6 +719,7 @@ defineExpose({
 						:color="textEdit.color"
 						:initial="textEdit.value"
 						:outline="context.textOutline.value"
+						:background="context.textBackground.value"
 						@confirm="confirmTextEdit"
 						@cancel="textEdit = null" />
 					<SelectionToolbar
