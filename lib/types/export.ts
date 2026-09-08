@@ -17,4 +17,11 @@ export interface ExportResult {
 	width: number
 	height: number
 	mimeType: string
+	/**
+	 * Whether the result is smaller than the source allowed for, because
+	 * the image is larger than this browser will paint. The pixels that
+	 * were dropped are not recoverable from the result, so a host that
+	 * overwrites the original should say so first.
+	 */
+	downscaled: boolean
 }

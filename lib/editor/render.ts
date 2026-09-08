@@ -5,6 +5,7 @@
 import type { Annotation, EditorState, Size } from './state.ts'
 
 import Konva from 'konva'
+import { canvasScaleFor } from './canvas-limits.ts'
 import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tone, warm } from './filters.ts'
 
 /**
@@ -279,7 +280,12 @@ export function applyFilters(node: Konva.Image, state: EditorState, pixelRatio =
 	if (state.preset === 'pop') {
 		node.enhance(0.25)
 	}
-	node.cache({ pixelRatio })
+	// The cache is a canvas of its own, so it is bounded like every other
+	const cacheFit = canvasScaleFor({
+		width: node.width() * pixelRatio,
+		height: node.height() * pixelRatio,
+	})
+	node.cache({ pixelRatio: pixelRatio * cacheFit })
 }
 
 /**
@@ -492,9 +498,15 @@ export function renderScene(
  */
 export function renderToCanvas(oriented: HTMLCanvasElement, state: EditorState, maxSize?: number): HTMLCanvasElement {
 	const visible = visibleRect(state, { width: oriented.width, height: oriented.height })
-	const pixelRatio = maxSize === undefined
+	const requested = maxSize === undefined
 		? 1
 		: Math.min(1, maxSize / Math.max(visible.width, visible.height))
+	// Past the cap the exported canvas comes back blank rather than
+	// throwing, so a smaller export beats one that is empty
+	const pixelRatio = requested * canvasScaleFor({
+		width: visible.width * requested,
+		height: visible.height * requested,
+	})
 
 	const stage = new Konva.Stage({
 		// Detached container: the export stage is never displayed

@@ -12,6 +12,7 @@ import type { EditorState, Rect, Size } from '../editor/state.ts'
 import type { ViewFit } from '../editor/view.ts'
 import type { ExportOptions, ExportResult } from '../types/export.ts'
 
+import { showConfirmation } from '@nextcloud/dialogs'
 import Konva from 'konva'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
@@ -28,6 +29,7 @@ import { useExportImage } from '../composables/useExportImage.ts'
 import { useTextEditing } from '../composables/useTextEditing.ts'
 import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
+import { canvasScaleFor } from '../editor/canvas-limits.ts'
 import { provideEditorCommands } from '../editor/commands.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
@@ -78,6 +80,37 @@ const labels = {
 	canvas: t('Image editor'),
 	failed: t('The image could not be loaded'),
 	retry: t('Try again'),
+	tooLarge: t('This image is larger than this browser can edit'),
+	tooLargeConfirm: t('Continue with a smaller copy'),
+	tooLargeReject: t('Close the editor'),
+}
+
+/**
+ * Ask before editing an image this browser cannot hold at its own size.
+ * Saving would replace the original with the smaller copy, so the choice
+ * belongs to whoever opened it rather than to us.
+ *
+ * @param full the size the image wants
+ * @param fit the factor it has to be scaled by to fit
+ */
+function confirmDownscale(full: Size, fit: number): Promise<boolean> {
+	const megapixels = (size: Size) => Math.round(size.width * size.height / 100_000) / 10
+	return showConfirmation({
+		name: labels.tooLarge,
+		text: t(
+			'{name} is {source} megapixels and this browser can only edit {limit}. Continuing means the saved image is {width} by {height} pixels instead, and the detail beyond that is lost.',
+			{
+				name: props.label ?? props.src.toString(),
+				source: String(megapixels(full)),
+				limit: String(megapixels({ width: full.width * fit, height: full.height * fit })),
+				width: String(Math.floor(full.width * fit)),
+				height: String(Math.floor(full.height * fit)),
+			},
+		),
+		labelConfirm: labels.tooLargeConfirm,
+		labelReject: labels.tooLargeReject,
+		severity: 'warning',
+	})
 }
 
 /** Guards against an older load publishing over a newer one */
@@ -418,6 +451,16 @@ async function load(): Promise<void> {
 		if (attempt !== loadAttempt) {
 			return
 		}
+		const full = { width: image.naturalWidth, height: image.naturalHeight }
+		const fit = canvasScaleFor(full)
+		if (fit < 1 && !(await confirmDownscale(full, fit))) {
+			emit('cancel')
+			return
+		}
+		if (attempt !== loadAttempt) {
+			return
+		}
+
 		sourceImage.value = image
 		context.reset(props.initialState === undefined ? undefined : seedState(props.initialState, image))
 		// Sensible text size relative to the image resolution
