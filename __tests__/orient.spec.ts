@@ -5,6 +5,7 @@
 import type { EditorState } from '../lib/editor/state.ts'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetCanvasLimits } from '../lib/editor/canvas-limits.ts'
 import { orientImage } from '../lib/editor/orient.ts'
 import { createInitialState } from '../lib/editor/state.ts'
 
@@ -124,5 +125,21 @@ describe('orientImage', () => {
 	it('reports a canvas it cannot draw on', () => {
 		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
 		expect(() => orientImage(image(), state())).toThrow('Canvas 2D context unavailable')
+	})
+})
+
+describe('a source past the canvas cap', () => {
+	it('bakes into a canvas that fits, keeping the aspect ratio', () => {
+		// The stubbed context has no getImageData, so the probe reads the
+		// cap as its smallest candidate: 4096², well under the image below
+		resetCanvasLimits()
+		const state = createInitialState()
+		const image = { naturalWidth: 12_000, naturalHeight: 9000 } as HTMLImageElement
+		orientImage(image, state)
+
+		const area = target.width * target.height
+		expect(area).toBeLessThanOrEqual(4096 * 4096)
+		// 4:3 in, 4:3 out
+		expect(target.width / target.height).toBeCloseTo(12_000 / 9000, 2)
 	})
 })

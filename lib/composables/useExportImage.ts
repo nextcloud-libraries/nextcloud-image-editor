@@ -7,7 +7,7 @@ import type { EditorState } from '../editor/state.ts'
 import type { ExportOptions, ExportResult } from '../types/export.ts'
 
 import { ref } from 'vue'
-import { renderToCanvas } from '../editor/render.ts'
+import { renderToCanvas, visibleRect } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { canvasToBlob } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
@@ -88,7 +88,9 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 			&& isPristine(deps.getState())
 			&& options.maxSize === undefined
 			&& (options.format === undefined || options.format === source.type)) {
-			return { blob: source, width: oriented.width, height: oriented.height, mimeType: source.type }
+			// The untouched source is handed back whole, so nothing was lost
+			// to the canvas cap even where the editor had to work smaller
+			return { blob: source, width: oriented.width, height: oriented.height, mimeType: source.type, downscaled: false }
 		}
 
 		exporting.value = true
@@ -112,7 +114,17 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		const mimeType = options.format ?? 'image/png'
 		try {
 			const blob = await canvasToBlob(canvas, mimeType, options.quality)
-			return { blob, width: canvas.width, height: canvas.height, mimeType }
+			const visible = visibleRect(deps.getState(), { width: oriented.width, height: oriented.height })
+			const wanted = options.maxSize === undefined
+				? Math.max(visible.width, visible.height)
+				: Math.min(options.maxSize, Math.max(visible.width, visible.height))
+			return {
+				blob,
+				width: canvas.width,
+				height: canvas.height,
+				mimeType,
+				downscaled: Math.max(canvas.width, canvas.height) < Math.floor(wanted),
+			}
 		} catch (error) {
 			// A canvas holding pixels from an image fetched without CORS
 			// cannot be read back at all. The encoder's SecurityError says
