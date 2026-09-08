@@ -485,7 +485,7 @@ test('text can carry a contrasting edge, and remembers it in the state', async (
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-outline"]').check()
+	await page.locator('[data-test="text-outline"]').click()
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
@@ -562,7 +562,11 @@ test('text can be set in another family, and the overlay matches', async ({ page
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-font"]').selectOption('serif')
+	await page.locator('[data-test="text-font"] button').click()
+	await page.locator('[data-test="text-font-serif"]').click()
+	// The menu closes on its own; drawing while it is still up would only
+	// dismiss it
+	await expect(page.locator('[data-test="text-font-serif"]')).toHaveCount(0)
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })

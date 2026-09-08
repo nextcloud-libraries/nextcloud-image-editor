@@ -4,11 +4,17 @@
 -->
 <script setup lang="ts">
 import type { Tool } from '../../editor/context.ts'
+import type { FONT_STACKS } from '../../editor/fonts.ts'
 
 import { computed } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
+import BorderOutside from 'vue-material-design-icons/BorderOutside.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
+import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
+import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
@@ -17,7 +23,6 @@ import EditorSlider from '../base/EditorSlider.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
-import { FONT_STACKS } from '../../editor/fonts.ts'
 import { t } from '../../utils/l10n.ts'
 
 defineProps<{
@@ -36,6 +41,9 @@ const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
 	{ id: 'serif', label: t('Serif') },
 	{ id: 'mono', label: t('Monospace') },
 ]
+
+/** The chosen family, named on the trigger so it reads without opening */
+const fontLabel = computed(() => fonts.find((entry) => entry.id === textStyle.font.value)?.label ?? '')
 
 const labels = {
 	color: t('Color'),
@@ -149,37 +157,53 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					}">{{ FONT_SAMPLE }}</span>
 			</template>
 		</EditorSlider>
-		<label v-if="showTextOptions" class="annotate-panel__field">
-			{{ labels.font }}
-			<select
-				v-model="textStyle.font.value"
-				class="annotate-panel__select"
-				data-test="text-font">
-				<option
-					v-for="entry in fonts"
-					:key="entry.id"
-					:value="entry.id"
-					:style="{ fontFamily: FONT_STACKS[entry.id] }">{{ entry.label }}</option>
-			</select>
-		</label>
-		<label
+		<NcActions
 			v-if="showTextOptions"
-			class="annotate-panel__toggle">
-			<input
-				v-model="textStyle.outline.value"
-				type="checkbox"
-				data-test="text-outline">
-			{{ labels.outline }}
-		</label>
-		<label
-			v-if="showTextOptions"
-			class="annotate-panel__toggle">
-			<input
-				v-model="textStyle.background.value"
-				type="checkbox"
-				data-test="text-background">
-			{{ labels.background }}
-		</label>
+			forceMenu
+			:aria-label="labels.font"
+			:title="labels.font"
+			:menuName="fontLabel"
+			variant="tertiary"
+			data-test="text-font">
+			<template #icon>
+				<FormatFont :size="20" />
+			</template>
+			<NcActionButton
+				v-for="entry in fonts"
+				:key="entry.id"
+				type="radio"
+				closeAfterClick
+				:modelValue="textStyle.font.value"
+				:value="entry.id"
+				:data-test="`text-font-${entry.id}`"
+				@click="textStyle.font.value = entry.id">
+				{{ entry.label }}
+			</NcActionButton>
+		</NcActions>
+		<div v-if="showTextOptions" class="annotate-panel__row">
+			<NcButton
+				:aria-label="labels.outline"
+				:title="labels.outline"
+				:pressed="textStyle.outline.value"
+				variant="tertiary"
+				data-test="text-outline"
+				@click="textStyle.outline.value = !textStyle.outline.value">
+				<template #icon>
+					<BorderOutside :size="20" />
+				</template>
+			</NcButton>
+			<NcButton
+				:aria-label="labels.background"
+				:title="labels.background"
+				:pressed="textStyle.background.value"
+				variant="tertiary"
+				data-test="text-background"
+				@click="textStyle.background.value = !textStyle.background.value">
+				<template #icon>
+					<FormatColorHighlight :size="20" />
+				</template>
+			</NcButton>
+		</div>
 	</div>
 </template>
 
@@ -214,31 +238,6 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 	}
 
 	// A ring so the mark stays visible whatever color it is drawn in
-	&__field {
-		display: flex;
-		gap: var(--default-grid-baseline);
-		align-items: center;
-		color: var(--color-main-text);
-		font-size: 13px;
-	}
-
-	&__select {
-		border-radius: var(--border-radius);
-		border: 1px solid var(--color-border-maxcontrast);
-		background: var(--color-main-background);
-		color: var(--color-main-text);
-		padding: 2px 4px;
-	}
-
-	&__toggle {
-		display: flex;
-		gap: var(--default-grid-baseline);
-		align-items: center;
-		color: var(--color-main-text);
-		font-size: 13px;
-		cursor: pointer;
-	}
-
 	&__dot {
 		display: block;
 		border-radius: 50%;
