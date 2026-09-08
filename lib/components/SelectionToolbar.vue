@@ -78,6 +78,7 @@ const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
 				v-for="entry in fonts"
 				:key="entry.id"
 				type="radio"
+				closeAfterClick
 				:modelValue="textStyle.font.value"
 				:value="entry.id"
 				:data-test="`selection-font-${entry.id}`"
