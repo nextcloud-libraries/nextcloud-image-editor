@@ -2,7 +2,7 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { Annotation, EditorState, Size } from './state.ts'
+import type { Annotation, EditorState, RedactAnnotation, Size } from './state.ts'
 
 import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
@@ -62,61 +62,128 @@ function contextFilterAvailable(): boolean {
 }
 
 /**
- * Obfuscate a region of the oriented image: pixelate averages it into
- * coarse blocks, blur applies a strong gaussian. Either way the
- * information is destroyed in the exported pixels, not overlaid.
+ * Obfuscate a region that has already been cut out of the picture:
+ * pixelate averages it into coarse blocks, blur applies a gaussian.
+ * Either way the information is destroyed in the exported pixels, not
+ * overlaid.
  *
  * Blur needs canvas filter support. Without it the region would be
  * drawn untouched while the interface claims it is redacted, so the
  * style silently degrades to pixelation: obfuscating differently than
  * asked is recoverable, exporting readable pixels is not.
  *
- * @param oriented the orientation-baked source canvas
- * @param rect the region to obfuscate
- * @param rect.x horizontal region origin
- * @param rect.y vertical region origin
- * @param rect.width region width
- * @param rect.height region height
+ * @param region the cut-out region, obfuscated in place
  * @param style pixelate or blur
+ * @param strength block size for pixelation, radius for blur, both in
+ * the pixels of the region itself
  */
-function obfuscate(
-	oriented: HTMLCanvasElement,
-	rect: { x: number, y: number, width: number, height: number },
+function obfuscateRegion(
+	region: HTMLCanvasElement,
 	style: 'pixelate' | 'blur',
+	strength: number,
 ): HTMLCanvasElement {
-	const strength = Math.max(4, Math.round(Math.min(oriented.width, oriented.height) / 40))
 	const out = document.createElement('canvas')
-	out.width = Math.max(1, Math.ceil(rect.width))
-	out.height = Math.max(1, Math.ceil(rect.height))
+	out.width = region.width
+	out.height = region.height
 	const context = context2d(out)
 
 	if (style === 'blur' && contextFilterAvailable()) {
-		// Draw with padding so the blur does not bleed transparency in
-		// from the edges, the canvas bounds crop the padding again
-		const pad = strength * 2
 		context.filter = `blur(${strength}px)`
-		context.drawImage(
-			oriented,
-			rect.x - pad,
-			rect.y - pad,
-			rect.width + pad * 2,
-			rect.height + pad * 2,
-			-pad,
-			-pad,
-			out.width + pad * 2,
-			out.height + pad * 2,
-		)
+		context.drawImage(region, 0, 0)
 		return out
 	}
 
 	const small = document.createElement('canvas')
-	small.width = Math.max(1, Math.ceil(rect.width / strength))
-	small.height = Math.max(1, Math.ceil(rect.height / strength))
-	context2d(small)
-		.drawImage(oriented, rect.x, rect.y, rect.width, rect.height, 0, 0, small.width, small.height)
+	small.width = Math.max(1, Math.ceil(region.width / strength))
+	small.height = Math.max(1, Math.ceil(region.height / strength))
+	context2d(small).drawImage(region, 0, 0, small.width, small.height)
 	context.imageSmoothingEnabled = false
 	context.drawImage(small, 0, 0, out.width, out.height)
 	return out
+}
+
+/**
+ * How coarse a redaction is, in the pixels of the source image, so that
+ * a redaction looks the same however far the view happens to be zoomed.
+ *
+ * @param source the oriented image size
+ */
+function redactStrength(source: Size): number {
+	return Math.max(4, Math.round(Math.min(source.width, source.height) / 40))
+}
+
+/**
+ * Draw a redaction by obfuscating whatever has already been drawn
+ * underneath it.
+ *
+ * Konva draws the children of a layer onto one canvas in order, so by
+ * the time this runs the picture and every annotation below this one
+ * are already on that canvas and can be read back. Sampling the source
+ * image instead, as this used to, obfuscates the original pixels and
+ * paints them over the top: anything drawn underneath survives, and the
+ * adjustments never reach the patch either, since those are applied to
+ * the image node rather than baked into the source.
+ *
+ * @param annotation the redaction to draw
+ * @param strength coarseness in source image pixels
+ */
+function redactSceneFunc(annotation: RedactAnnotation, strength: number) {
+	return (context: Konva.Context, shape: Konva.Shape): void => {
+		const canvas = context.canvas
+		// Konva runs the scene function a second time against the hit
+		// canvas, where every shape is painted in its own hit colour.
+		// Reading that back would obfuscate the hit colours, not the photo
+		if ((canvas as { hitCanvas?: boolean }).hitCanvas === true) {
+			return
+		}
+
+		const width = shape.width()
+		const height = shape.height()
+		const transform = shape.getAbsoluteTransform()
+		const topLeft = transform.point({ x: 0, y: 0 })
+		const bottomRight = transform.point({ x: width, y: height })
+		const ratio = canvas.pixelRatio || 1
+
+		// The region as it exists on the canvas being drawn on, which is
+		// the view scale on screen and the full image on export
+		const left = Math.round(topLeft.x * ratio)
+		const top = Math.round(topLeft.y * ratio)
+		const deviceWidth = Math.round(bottomRight.x * ratio) - left
+		const deviceHeight = Math.round(bottomRight.y * ratio) - top
+		if (deviceWidth < 1 || deviceHeight < 1 || width <= 0 || height <= 0) {
+			return
+		}
+		const deviceStrength = Math.max(2, Math.round(strength * (deviceWidth / width)))
+
+		// A blur reads beyond the region so it has real pixels to pull in
+		// at the edges instead of whatever lies outside the canvas
+		const pad = annotation.style === 'blur' ? deviceStrength * 2 : 0
+		const readLeft = Math.max(0, left - pad)
+		const readTop = Math.max(0, top - pad)
+		const readWidth = Math.min(canvas.width, left + deviceWidth + pad) - readLeft
+		const readHeight = Math.min(canvas.height, top + deviceHeight + pad) - readTop
+		if (readWidth < 1 || readHeight < 1) {
+			return
+		}
+
+		const region = document.createElement('canvas')
+		region.width = readWidth
+		region.height = readHeight
+		context2d(region).putImageData(context.getImageData(readLeft, readTop, readWidth, readHeight), 0, 0)
+
+		const patch = obfuscateRegion(region, annotation.style, deviceStrength)
+		context.drawImage(
+			patch,
+			left - readLeft,
+			top - readTop,
+			deviceWidth,
+			deviceHeight,
+			0,
+			0,
+			width,
+			height,
+		)
+	}
 }
 
 /**
@@ -139,9 +206,9 @@ function backgroundPadding(fontSize: number): number {
  * and the 'annotation' name so tools can map them back to state entries.
  *
  * @param annotation the annotation to render
- * @param oriented the orientation-baked source canvas, needed by redact
+ * @param source the source image size, needed by redact for its coarseness
  */
-export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanvasElement): AnnotationNode {
+export function buildAnnotationNode(annotation: Annotation, source?: Size): AnnotationNode {
 	const base = { id: annotation.id, name: 'annotation' }
 	switch (annotation.type) {
 		case 'draw':
@@ -231,14 +298,26 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 			return label
 		}
 		case 'redact': {
-			if (oriented === undefined) {
-				throw new Error('Redaction requires the oriented image')
+			if (source === undefined) {
+				throw new Error('Redaction requires the source image size')
 			}
-			return new Konva.Image({
+			const { rect } = annotation
+			return new Konva.Shape({
 				...base,
-				image: obfuscate(oriented, annotation.rect, annotation.style),
-				x: annotation.rect.x,
-				y: annotation.rect.y,
+				x: rect.x,
+				y: rect.y,
+				width: rect.width,
+				height: rect.height,
+				// Something has to be fillable for the shape to register on
+				// the hit canvas; what is drawn there is the hit colour
+				fill: 'black',
+				sceneFunc: redactSceneFunc(annotation, redactStrength(source)),
+				hitFunc: (context, shape) => {
+					context.beginPath()
+					context.rect(0, 0, shape.width(), shape.height())
+					context.closePath()
+					context.fillStrokeShape(shape)
+				},
 			})
 		}
 	}
@@ -485,17 +564,18 @@ export function createScene(stage: Konva.Stage): Scene {
 		}
 
 		// Keyed reconciliation: a changed entry reference means the node
-		// is stale; a new oriented canvas invalidates every node because
-		// redactions sample its pixels
+		// is stale. Redactions read what is beneath them as they draw, so
+		// they need no rebuild when the picture under them changes
 		const seen = new Set<string>()
+		const sourceSize = { width: oriented.width, height: oriented.height }
 		for (const annotation of state.annotations) {
 			seen.add(annotation.id)
 			const entry = built.get(annotation.id)
-			if (entry !== undefined && entry.annotation === annotation && !orientedChanged) {
+			if (entry !== undefined && entry.annotation === annotation) {
 				continue
 			}
 			entry?.node.destroy()
-			const node = buildAnnotationNode(annotation, oriented)
+			const node = buildAnnotationNode(annotation, sourceSize)
 			contentGroup.add(node)
 			built.set(annotation.id, { annotation, node })
 		}
