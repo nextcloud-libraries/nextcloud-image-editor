@@ -3,7 +3,9 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { FONT_STACKS } from '../editor/fonts.ts'
+import type { TextAlign } from '../editor/text-align.ts'
 
 import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
@@ -12,11 +14,15 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import BorderOutside from 'vue-material-design-icons/BorderOutside.vue'
 import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
+import FormatAlignCenter from 'vue-material-design-icons/FormatAlignCenter.vue'
+import FormatAlignLeft from 'vue-material-design-icons/FormatAlignLeft.vue'
+import FormatAlignRight from 'vue-material-design-icons/FormatAlignRight.vue'
 import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
 import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import GlassSurface from './base/GlassSurface.vue'
 import { useTextStyle } from '../composables/useTextStyle.ts'
 import { useEditorContext } from '../editor/context.ts'
+import { TEXT_ALIGNS, textAlign } from '../editor/text-align.ts'
 import { t } from '../utils/l10n.ts'
 
 defineProps<{
@@ -43,12 +49,24 @@ const deleteLabel = t('Delete')
 const outlineLabel = t('Outline')
 const backgroundLabel = t('Background')
 const fontLabel = t('Font')
+const alignLabel = t('Alignment')
 
 const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
 	{ id: 'sans', label: t('Sans serif') },
 	{ id: 'serif', label: t('Serif') },
 	{ id: 'mono', label: t('Monospace') },
 ]
+
+const ALIGN_META: Record<TextAlign, { label: string, icon: Component }> = {
+	left: { label: t('Align left'), icon: FormatAlignLeft },
+	center: { label: t('Align centre'), icon: FormatAlignCenter },
+	right: { label: t('Align right'), icon: FormatAlignRight },
+}
+
+const alignments = TEXT_ALIGNS.map((id) => ({ id, ...ALIGN_META[id] }))
+
+/** The chosen alignment, so the trigger shows what the text is on */
+const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 </script>
 
 <template>
@@ -83,6 +101,31 @@ const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
 				:value="entry.id"
 				:data-test="`selection-font-${entry.id}`"
 				@click="textStyle.font.value = entry.id">
+				{{ entry.label }}
+			</NcActionButton>
+		</NcActions>
+		<NcActions
+			v-if="isText"
+			forceMenu
+			:aria-label="alignLabel"
+			:title="alignLabel"
+			variant="tertiary"
+			data-test="selection-align">
+			<template #icon>
+				<component :is="alignment.icon" :size="18" />
+			</template>
+			<NcActionButton
+				v-for="entry in alignments"
+				:key="entry.id"
+				type="radio"
+				closeAfterClick
+				:modelValue="textStyle.align.value"
+				:value="entry.id"
+				:data-test="`selection-align-${entry.id}`"
+				@click="textStyle.align.value = entry.id">
+				<template #icon>
+					<component :is="entry.icon" :size="20" />
+				</template>
 				{{ entry.label }}
 			</NcActionButton>
 		</NcActions>

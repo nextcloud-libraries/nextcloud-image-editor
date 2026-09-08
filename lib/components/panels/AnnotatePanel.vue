@@ -3,8 +3,10 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { Component } from 'vue'
 import type { Tool } from '../../editor/context.ts'
 import type { FONT_STACKS } from '../../editor/fonts.ts'
+import type { TextAlign } from '../../editor/text-align.ts'
 
 import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
@@ -13,6 +15,9 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
 import BorderOutside from 'vue-material-design-icons/BorderOutside.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
+import FormatAlignCenter from 'vue-material-design-icons/FormatAlignCenter.vue'
+import FormatAlignLeft from 'vue-material-design-icons/FormatAlignLeft.vue'
+import FormatAlignRight from 'vue-material-design-icons/FormatAlignRight.vue'
 import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
 import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
@@ -23,6 +28,7 @@ import EditorSlider from '../base/EditorSlider.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
+import { TEXT_ALIGNS, textAlign } from '../../editor/text-align.ts'
 import { t } from '../../utils/l10n.ts'
 
 defineProps<{
@@ -42,6 +48,17 @@ const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
 	{ id: 'mono', label: t('Monospace') },
 ]
 
+const ALIGN_META: Record<TextAlign, { label: string, icon: Component }> = {
+	left: { label: t('Align left'), icon: FormatAlignLeft },
+	center: { label: t('Align centre'), icon: FormatAlignCenter },
+	right: { label: t('Align right'), icon: FormatAlignRight },
+}
+
+const alignments = TEXT_ALIGNS.map((id) => ({ id, ...ALIGN_META[id] }))
+
+/** The chosen alignment, shown on the trigger so it reads without opening */
+const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
+
 /** The chosen family, named on the trigger so it reads without opening */
 const fontLabel = computed(() => fonts.find((entry) => entry.id === textStyle.font.value)?.label ?? '')
 
@@ -52,6 +69,7 @@ const labels = {
 	outline: t('Outline'),
 	background: t('Background'),
 	font: t('Font'),
+	align: t('Alignment'),
 }
 
 // Stands in for the text being sized. Deliberately not translated: it
@@ -177,6 +195,32 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 				:value="entry.id"
 				:data-test="`text-font-${entry.id}`"
 				@click="textStyle.font.value = entry.id">
+				{{ entry.label }}
+			</NcActionButton>
+		</NcActions>
+		<NcActions
+			v-if="showTextOptions"
+			forceMenu
+			:aria-label="labels.align"
+			:title="labels.align"
+			:menuName="alignment.label"
+			variant="tertiary"
+			data-test="text-align">
+			<template #icon>
+				<component :is="alignment.icon" :size="20" />
+			</template>
+			<NcActionButton
+				v-for="entry in alignments"
+				:key="entry.id"
+				type="radio"
+				closeAfterClick
+				:modelValue="textStyle.align.value"
+				:value="entry.id"
+				:data-test="`text-align-${entry.id}`"
+				@click="textStyle.align.value = entry.id">
+				<template #icon>
+					<component :is="entry.icon" :size="20" />
+				</template>
 				{{ entry.label }}
 			</NcActionButton>
 		</NcActions>

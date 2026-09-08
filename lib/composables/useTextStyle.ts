@@ -5,6 +5,7 @@
 import type { WritableComputedRef } from 'vue'
 import type { EditorContext } from '../editor/context.ts'
 import type { FontId } from '../editor/fonts.ts'
+import type { TextAlign } from '../editor/text-align.ts'
 
 import { computed } from 'vue'
 import { t } from '../utils/l10n.ts'
@@ -14,6 +15,7 @@ export interface TextStyle {
 	outline: WritableComputedRef<boolean>
 	background: WritableComputedRef<boolean>
 	font: WritableComputedRef<FontId>
+	align: WritableComputedRef<TextAlign>
 }
 
 /**
@@ -66,29 +68,44 @@ export function useTextStyle(context: EditorContext): TextStyle {
 		})
 	}
 
-	/** The family, bound the same way the switches are */
-	const font = computed({
-		get(): FontId {
-			return styleable()?.font ?? context.textFont.value
-		},
-		set(value: FontId) {
-			context.textFont.value = value
-			const annotation = styleable()
-			if (annotation === undefined || annotation.font === value) {
-				return
-			}
-			const state = context.state.value
-			context.commit({
-				...state,
-				annotations: state.annotations
-					.map((entry) => entry.id === annotation.id ? { ...entry, font: value } : entry),
-			}, t('Font'))
-		},
-	})
+	/**
+	 * Bind one pick-one-of-several control the same way the switches are
+	 * bound, skipping the commit when the selection already has the value
+	 * so reselecting it does not fill the history with no-ops.
+	 *
+	 * @param key the annotation field the control writes
+	 * @param fallback where the default for new text is kept
+	 * @param label what the step is called in the history
+	 */
+	function choice<T extends FontId | TextAlign>(
+		key: 'font' | 'align',
+		fallback: 'textFont' | 'textAlign',
+		label: string,
+	) {
+		return computed({
+			get(): T {
+				return (styleable()?.[key] ?? context[fallback].value) as T
+			},
+			set(value: T) {
+				context[fallback].value = value as FontId & TextAlign
+				const annotation = styleable()
+				if (annotation === undefined || annotation[key] === value) {
+					return
+				}
+				const state = context.state.value
+				context.commit({
+					...state,
+					annotations: state.annotations
+						.map((entry) => entry.id === annotation.id ? { ...entry, [key]: value } : entry),
+				}, label)
+			},
+		})
+	}
 
 	return {
 		outline: toggle('outline', 'textOutline', t('Outline')),
 		background: toggle('background', 'textBackground', t('Background')),
-		font,
+		font: choice<FontId>('font', 'textFont', t('Font')),
+		align: choice<TextAlign>('align', 'textAlign', t('Alignment')),
 	}
 }

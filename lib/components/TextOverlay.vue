@@ -4,9 +4,11 @@
 -->
 <script setup lang="ts">
 import type { FontId } from '../editor/fonts.ts'
+import type { TextAlign } from '../editor/text-align.ts'
 
 import { onMounted, ref, useTemplateRef } from 'vue'
 import { fontStack } from '../editor/fonts.ts'
+import { textAlign } from '../editor/text-align.ts'
 import { outlineColor, outlineWidth } from '../editor/text-outline.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -27,6 +29,8 @@ const props = defineProps<{
 	background?: boolean
 	/** Which family the canvas draws it in */
 	font?: FontId
+	/** How the lines sit against each other */
+	align?: TextAlign
 }>()
 
 const emit = defineEmits<{
@@ -87,6 +91,7 @@ function onEnter(event: KeyboardEvent) {
 			// The same stack the canvas uses, or the overlay would measure
 			// and wrap differently from what gets drawn
 			fontFamily: fontStack(font),
+			textAlign: textAlign(align),
 			...(background === true
 				? {
 					backgroundColor: outlineColor(color),

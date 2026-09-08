@@ -608,3 +608,55 @@ test('the family of a placed caption can be changed from the selection', async (
 	const state = await readState(page)
 	expect(state.annotations.find((a: { type: string }) => a.type === 'text').font).toBe('mono')
 })
+
+test('text can be aligned, and the overlay matches', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+	await page.locator('[data-test="text-align"] button').click()
+	await page.locator('[data-test="text-align-right"]').click()
+	await expect(page.locator('[data-test="text-align-right"]')).toHaveCount(0)
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+
+	await expect(page.locator('[data-test="text-overlay"]')).toHaveCSS('text-align', 'right')
+
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations.find((a: { type: string }) => a.type === 'text').align).toBe('right')
+})
+
+test('the alignment of a placed caption can be changed from the selection', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	await page.getByRole('button', { name: 'Select', exact: true }).click()
+	await page.mouse.click(corner.x + 40, corner.y + 40)
+	await page.waitForTimeout(300)
+
+	await page.locator('[data-test="selection-align"] button').click()
+	await page.locator('[data-test="selection-align-center"]').click()
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations.find((a: { type: string }) => a.type === 'text').align).toBe('center')
+
+	// One undoable step, like the other styling controls. New text is
+	// created carrying the tool default, so undo returns it to that
+	await undo(page)
+	const undone = await readState(page)
+	expect(undone.annotations.find((a: { type: string }) => a.type === 'text').align).toBe('left')
+})

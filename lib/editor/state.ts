@@ -4,6 +4,7 @@
  */
 
 import type { FontId } from './fonts.ts'
+import type { TextAlign } from './text-align.ts'
 
 import { newId } from '../utils/id.ts'
 
@@ -124,6 +125,12 @@ export interface TextAnnotation {
 	background?: boolean
 	/** Which family the text is drawn in, the default sans when absent */
 	font?: FontId
+	/**
+	 * How the lines sit against each other. Only has an effect on text
+	 * that spans more than one line, since the block is exactly as wide
+	 * as its longest one.
+	 */
+	align?: TextAlign
 }
 
 export interface RedactAnnotation {

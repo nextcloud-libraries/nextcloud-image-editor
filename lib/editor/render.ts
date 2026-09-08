@@ -8,6 +8,7 @@ import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
 import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from './filters.ts'
 import { fontStack } from './fonts.ts'
+import { textAlign } from './text-align.ts'
 import { outlineColor, outlineWidth } from './text-outline.ts'
 
 /**
@@ -205,6 +206,7 @@ export function buildAnnotationNode(annotation: Annotation, oriented?: HTMLCanva
 				rotation: annotation.rotation,
 				// Kept in sync with the text overlay for WYSIWYG editing
 				fontFamily: fontStack(annotation.font),
+				align: textAlign(annotation.align),
 				...(annotation.outline === true
 					? {
 							stroke: outlineColor(annotation.color),
