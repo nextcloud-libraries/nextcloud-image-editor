@@ -10,6 +10,7 @@ import { ref } from 'vue'
 import { renderToCanvas, visibleRect } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { canvasToBlob } from '../utils/image.ts'
+import { readMetadataSegments, withMetadata } from '../utils/jpeg.ts'
 import { t } from '../utils/l10n.ts'
 
 export interface ExportDeps {
@@ -67,6 +68,49 @@ async function painted(): Promise<void> {
 export function useExportImage(deps: ExportDeps): ExportImage {
 	const exporting = ref(false)
 
+	/** What the encoder can write, so an unknown source type is not asked for */
+	const ENCODABLE = ['image/jpeg', 'image/png', 'image/webp']
+
+	/**
+	 * The format to save in when the host has not asked for one: the one
+	 * the image arrived in. A photo that came in as a JPEG goes back out
+	 * as a JPEG, which keeps the file a sensible size and leaves somewhere
+	 * for its metadata to live. Anything the encoder cannot write, such as
+	 * HEIC, falls through to the caller's default.
+	 */
+	function sourceFormat(): string | undefined {
+		const type = deps.source()?.type
+		return type !== undefined && ENCODABLE.includes(type) ? type : undefined
+	}
+
+	/**
+	 * Carry what the camera recorded into the exported JPEG.
+	 *
+	 * A canvas holds pixels and nothing else, so an encoded blob starts
+	 * with no capture date, no camera, no location and no colour profile.
+	 * Those live in the source bytes, which the editor only has when it
+	 * was handed a Blob rather than a URL.
+	 *
+	 * @param blob the freshly encoded image
+	 * @param canvas the canvas it was encoded from
+	 */
+	async function carryMetadata(blob: Blob, canvas: HTMLCanvasElement): Promise<Blob> {
+		const source = deps.source()
+		if (source === null || blob.type !== 'image/jpeg' || source.type !== 'image/jpeg') {
+			return blob
+		}
+		const segments = readMetadataSegments(new Uint8Array(await source.arrayBuffer()))
+		if (segments.length === 0) {
+			return blob
+		}
+		const carried = withMetadata(
+			new Uint8Array(await blob.arrayBuffer()),
+			segments,
+			{ width: canvas.width, height: canvas.height },
+		)
+		return new Blob([carried as unknown as BlobPart], { type: blob.type })
+	}
+
 	/**
 	 * Render the state at natural resolution and encode it.
 	 *
@@ -111,9 +155,10 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	 */
 	async function encode(oriented: HTMLCanvasElement, options: ExportOptions): Promise<ExportResult> {
 		const canvas = renderToCanvas(oriented, deps.getState(), options.maxSize)
-		const mimeType = options.format ?? 'image/png'
+		const mimeType = options.format ?? sourceFormat() ?? 'image/png'
 		try {
-			const blob = await canvasToBlob(canvas, mimeType, options.quality)
+			let blob = await canvasToBlob(canvas, mimeType, options.quality)
+			blob = await carryMetadata(blob, canvas)
 			const visible = visibleRect(deps.getState(), { width: oriented.width, height: oriented.height })
 			const wanted = options.maxSize === undefined
 				? Math.max(visible.width, visible.height)

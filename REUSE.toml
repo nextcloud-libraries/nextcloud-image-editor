@@ -24,6 +24,12 @@ SPDX-FileCopyrightText = "Bro Takes Photos"
 SPDX-License-Identifier = "LicenseRef-Unsplash"
 
 [[annotations]]
+path = ["playground/with-metadata.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
 path = ["playground/server-default.css"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors"

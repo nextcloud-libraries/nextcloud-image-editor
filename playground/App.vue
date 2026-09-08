@@ -80,7 +80,8 @@ const restored: EditorState | undefined
 			}
 
 // ?src=test loads the deterministic fixture the Playwright suite probes,
-// ?src=broken an undecodable image; default is a real demo photo
+// ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=broken an
+// undecodable image; default is a real demo photo
 const src = shallowRef<Blob | string | null>(null)
 const requested = new URLSearchParams(window.location.search).get('src')
 if (requested === 'broken') {
@@ -90,6 +91,14 @@ if (requested === 'broken') {
 		sourceSize.value = blob.size
 		src.value = blob
 	})
+} else if (requested === 'metadata') {
+	fetch('with-metadata.jpg')
+		.then((response) => response.blob())
+		.then((blob) => {
+			sourceSize.value = blob.size
+			// The editor only has metadata to carry when it is handed bytes
+			src.value = new Blob([blob], { type: 'image/jpeg' })
+		})
 } else if (requested === 'large') {
 	makeLargeFixture().then((blob) => {
 		sourceSize.value = blob.size
@@ -128,8 +137,19 @@ async function onSave(result: ExportResult) {
 	context.drawImage(bitmap, 0, 0)
 
 	const probe = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data)
+	// Enough of the saved bytes to tell whether what the camera recorded
+	// came through, without teaching the playground to parse EXIF
+	const bytes = new Uint8Array(await result.blob.arrayBuffer())
+	let text = ''
+	for (const byte of bytes) {
+		text += String.fromCharCode(byte)
+	}
 	saved.value = JSON.stringify({
 		size: result.blob.size,
+		exif: text.includes('Exif\0\0'),
+		xmp: text.includes('http://ns.adobe.com/xap'),
+		camera: text.includes('Test Camera 1'),
+		taken: text.includes('2019:05:04 11:22:33'),
 		width: result.width,
 		height: result.height,
 		mimeType: result.mimeType,
