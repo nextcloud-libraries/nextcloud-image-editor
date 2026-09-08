@@ -235,3 +235,57 @@ test('the history menu opens on a phone-sized container', async ({ page }) => {
 	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 	expect(overflow).toBe(0)
 })
+
+test('the history says which step the image is on, and announces a move', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await page.getByRole('button', { name: 'Flip horizontal' }).click()
+
+	await page.locator('[data-test="history"] button').click()
+	// A radio rather than a plain entry, so the current step is exposed and
+	// not left to the check icon alone
+	const current = page.getByRole('menuitemradio', { name: 'Flip horizontal' })
+	await expect(current).toBeChecked()
+
+	// Recording a step is not a move, so nothing claims one happened
+	const live = page.locator('[role="status"]')
+	await expect(live).toHaveText('')
+
+	await page.locator('[data-test="history-step-0"]').click()
+	await expect(live).toHaveText('Jumped to Original')
+})
+
+test('a long history scrolls instead of running off the editor', async ({ page }) => {
+	await waitLoaded(page)
+	for (let index = 0; index < 22; index++) {
+		await page.getByRole('button', { name: 'Rotate right' }).click()
+	}
+
+	await page.locator('[data-test="history"] button').click()
+	const menu = page.locator('ul[role="menu"]')
+	await expect(menu.locator('[data-test^="history-step-"]')).toHaveCount(23)
+
+	const box = await menu.evaluate((el) => ({
+		height: el.getBoundingClientRect().height,
+		scrollable: el.scrollHeight > el.clientHeight,
+		limit: Math.min(600, window.innerHeight * 0.8),
+	}))
+	expect(box.scrollable).toBe(true)
+	expect(box.height).toBeLessThanOrEqual(box.limit + 1)
+})
+
+test('the history menu sits against the control that opened it', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	const trigger = page.locator('[data-test="history"]')
+	await trigger.locator('button').click()
+	await expect(page.locator('ul[role="menu"]')).toBeVisible()
+
+	const gap = await page.evaluate(() => {
+		const t = document.querySelector('[data-test="history"]')!.getBoundingClientRect()
+		const menu = document.querySelector('.v-popper__inner')!.getBoundingClientRect()
+		return Math.round(menu.top - t.bottom)
+	})
+	expect(gap).toBe(0)
+})

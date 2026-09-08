@@ -785,10 +785,26 @@ defineExpose({
 	// the host stylesheet, which is a bulleted list with a 40px indent
 	// wherever a Nextcloud server is not the one serving the page.
 	:deep(.action-item__popper) {
+		// Sit against the control that opened it, the way a select does,
+		// rather than floating a few pixels off it. The offset is applied by
+		// the popper itself, so it is taken back on the side it opens from.
+		--editor-popper-offset: 4px;
+
+		&[data-popper-placement^='bottom'] .v-popper__wrapper {
+			margin-block-start: calc(-1 * var(--editor-popper-offset));
+		}
+
+		&[data-popper-placement^='top'] .v-popper__wrapper {
+			margin-block-end: calc(-1 * var(--editor-popper-offset));
+		}
+
 		ul[role='menu'] {
 			list-style: none;
 			margin: 0;
 			padding: 0;
+			// A long edit session should scroll rather than run off the editor
+			max-height: min(600px, 80vh);
+			overflow-y: auto;
 		}
 	}
 

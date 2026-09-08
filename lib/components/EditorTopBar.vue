@@ -9,7 +9,6 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import Check from 'vue-material-design-icons/Check.vue'
 import Close from 'vue-material-design-icons/Close.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
@@ -61,7 +60,6 @@ const historySteps = computed(() => context.historyEntries.value
 	.map((entry, index) => ({
 		index,
 		label: entry.label ?? labels.step,
-		active: index === context.historyIndex.value,
 	}))
 	.reverse())
 
@@ -134,15 +132,17 @@ async function onRevert() {
 				<template #icon>
 					<Undo :size="20" />
 				</template>
+				<!-- A radio rather than a plain entry: which step the image is on
+				     is state, and `aria-current` would land on the presentational
+				     list item where nothing reads it. -->
 				<NcActionButton
 					v-for="step in historySteps"
 					:key="step.index"
+					type="radio"
+					:modelValue="String(context.historyIndex.value)"
+					:value="String(step.index)"
 					:data-test="`history-step-${step.index}`"
-					:aria-current="step.active"
 					@click="context.jumpTo(step.index)">
-					<template #icon>
-						<Check v-if="step.active" :size="20" />
-					</template>
 					{{ step.label }}
 				</NcActionButton>
 			</NcActions>
