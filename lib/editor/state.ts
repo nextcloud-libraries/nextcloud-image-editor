@@ -32,6 +32,12 @@ export interface Adjustments {
 	tint: number
 	/** Local contrast around edges */
 	sharpen: number
+	/** The bright end of the range, pulled down or pushed up on its own */
+	highlights: number
+	/** The dark end, lifted or deepened without touching the bright end */
+	shadows: number
+	/** Darkening towards the corners, or lightening below zero */
+	vignette: number
 }
 
 export type FilterPreset
@@ -149,6 +155,9 @@ export function createInitialState(): EditorState {
 			temperature: 0,
 			tint: 0,
 			sharpen: 0,
+			highlights: 0,
+			shadows: 0,
+			vignette: 0,
 		},
 		preset: 'none',
 		annotations: [],

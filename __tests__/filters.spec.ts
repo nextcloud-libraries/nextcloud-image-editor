@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { describe, expect, it } from 'vitest'
-import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tone, warm } from '../lib/editor/filters.ts'
+import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from '../lib/editor/filters.ts'
 
 function pixels(...rgba: number[]): { data: Uint8ClampedArray } {
 	return { data: new Uint8ClampedArray(rgba) }
@@ -305,5 +305,103 @@ describe('sharpen', () => {
 		sharpen.call({ saturation: () => 0, getAttr: () => 1 }, target)
 		// Top-left corner has no full neighbourhood
 		expect(target.data[0]).toBe(10)
+	})
+})
+
+describe('tonal', () => {
+	/**
+	 * Run the highlights and shadows filter as Konva would.
+	 *
+	 * @param attrs highlights and shadows, each -1 to 1
+	 * @param rgba the pixels to filter
+	 */
+	function filtered(attrs: Record<string, number>, ...rgba: number[]): number[] {
+		const image = pixels(...rgba)
+		tonal.call({
+			saturation: () => 0,
+			getAttr: (name: string) => attrs[name],
+		}, image)
+		return [...image.data]
+	}
+
+	it('pulls the bright end down and leaves the dark end where it was', () => {
+		const dark = filtered({ highlights: -1 }, 20, 20, 20, 255)
+		const bright = filtered({ highlights: -1 }, 230, 230, 230, 255)
+		expect(bright[0]).toBeLessThan(230)
+		// A quarter of the way down at most, the dark end barely moves
+		expect(dark[0]).toBeGreaterThan(18)
+	})
+
+	it('lifts the dark end and leaves the bright end where it was', () => {
+		const dark = filtered({ shadows: 1 }, 20, 20, 20, 255)
+		const bright = filtered({ shadows: 1 }, 230, 230, 230, 255)
+		expect(dark[0]).toBeGreaterThan(20)
+		expect(bright[0]).toBeGreaterThan(228)
+		expect(bright[0]).toBeLessThanOrEqual(235)
+	})
+
+	it('leaves the midtones to the other sliders', () => {
+		const [red] = filtered({ highlights: -1, shadows: 1 }, 128, 128, 128, 255)
+		// Both ends pull on a midtone, and they pull about equally
+		expect(Math.abs(red! - 128)).toBeLessThan(12)
+	})
+
+	it('does nothing at zero', () => {
+		expect(filtered({ highlights: 0, shadows: 0 }, 40, 90, 200, 255)).toEqual([40, 90, 200, 255])
+	})
+
+	it('keeps a neutral pixel neutral', () => {
+		const [red, green, blue] = filtered({ shadows: 1 }, 60, 60, 60, 255)
+		expect(red).toBe(green)
+		expect(green).toBe(blue)
+	})
+})
+
+describe('vignette', () => {
+	/**
+	 * A flat mid-gray image of the given size, filtered.
+	 *
+	 * @param amount the vignette attribute, -1 to 1
+	 * @param width the image width
+	 * @param height the image height
+	 */
+	function filtered(amount: number, width: number, height: number) {
+		const data = new Uint8ClampedArray(width * height * 4).fill(128)
+		const image = { data, width, height }
+		vignette.call({
+			saturation: () => 0,
+			getAttr: (name: string) => (name === 'vignette' ? amount : 0),
+		}, image)
+		const at = (x: number, y: number) => data[(y * width + x) * 4]!
+		return { at, centre: at(width >> 1, height >> 1) }
+	}
+
+	it('darkens the corners and leaves the centre alone', () => {
+		const { at, centre } = filtered(1, 21, 21)
+		expect(centre).toBe(128)
+		expect(at(0, 0)).toBeLessThan(centre)
+		expect(at(20, 20)).toBeLessThan(centre)
+	})
+
+	it('darkens further the further out it goes', () => {
+		const { at } = filtered(1, 21, 21)
+		expect(at(10, 2)).toBeLessThan(at(10, 8))
+	})
+
+	it('lightens the corners below zero', () => {
+		const { at, centre } = filtered(-1, 21, 21)
+		expect(at(0, 0)).toBeGreaterThan(centre)
+	})
+
+	it('follows the frame rather than cropping to a circle', () => {
+		// On a wide image the short edge is as far out as the long one
+		const { at } = filtered(1, 41, 11)
+		expect(at(20, 0)).toBeLessThan(128)
+		expect(at(0, 5)).toBeLessThan(128)
+	})
+
+	it('does nothing at zero', () => {
+		const { at, centre } = filtered(0, 9, 9)
+		expect(at(0, 0)).toBe(centre)
 	})
 })
