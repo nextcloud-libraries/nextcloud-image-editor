@@ -23,6 +23,11 @@ export interface SavedProbe {
 	topRight: number[]
 	bottomLeft: number[]
 	center: number[]
+	/** Whether the saved bytes still carry what the source recorded */
+	exif: boolean
+	xmp: boolean
+	camera: boolean
+	taken: boolean
 }
 
 /**
