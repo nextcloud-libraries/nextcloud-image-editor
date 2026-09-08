@@ -9,9 +9,7 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import Check from 'vue-material-design-icons/Check.vue'
 import Close from 'vue-material-design-icons/Close.vue'
-import HistoryIcon from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
 import Redo from 'vue-material-design-icons/Redo.vue'
@@ -27,8 +25,12 @@ defineProps<{
 	loaded: boolean
 	/** Whether an export, or the host's own save, is in progress */
 	saving?: boolean
-	/** Whether the chrome is narrow, where the history label does not fit */
-	compact?: boolean
+	/**
+	 * Where the history menu renders. It defaults to the body, which puts it
+	 * outside the editor and out of reach of the styles that make it a menu
+	 * rather than a bulleted list.
+	 */
+	popoverContainer?: HTMLElement | null
 }>()
 
 const emit = defineEmits<{
@@ -53,15 +55,11 @@ const labels = {
 	step: t('Edit'),
 }
 
-// Nothing to jump to until the first edit: the list holds only the original
-const hasHistory = computed(() => context.historyEntries.value.length > 1)
-
 // Newest first, which is the order the user thinks in when going back
 const historySteps = computed(() => context.historyEntries.value
 	.map((entry, index) => ({
 		index,
 		label: entry.label ?? labels.step,
-		active: index === context.historyIndex.value,
 	}))
 	.reverse())
 
@@ -119,16 +117,35 @@ async function onRevert() {
 
 			<span class="editor-topbar__separator" />
 
-			<NcButton
-				:aria-label="labels.undo"
-				:title="labels.undo"
+			<!-- The back arrow opens the history rather than stepping once, so
+			     the steps sit under the control that goes back to them. One
+			     click back is Ctrl+Z; `forceMenu` keeps the trigger a trigger
+			     even when the original is the only entry. -->
+			<NcActions
+				forceMenu
+				:container="popoverContainer ?? 'body'"
+				:aria-label="labels.history"
+				:title="labels.history"
 				:disabled="!loaded || !context.canUndo.value"
 				variant="tertiary"
-				@click="context.undo()">
+				data-test="history">
 				<template #icon>
 					<Undo :size="20" />
 				</template>
-			</NcButton>
+				<!-- A radio rather than a plain entry: which step the image is on
+				     is state, and `aria-current` would land on the presentational
+				     list item where nothing reads it. -->
+				<NcActionButton
+					v-for="step in historySteps"
+					:key="step.index"
+					type="radio"
+					:modelValue="String(context.historyIndex.value)"
+					:value="String(step.index)"
+					:data-test="`history-step-${step.index}`"
+					@click="context.jumpTo(step.index)">
+					{{ step.label }}
+				</NcActionButton>
+			</NcActions>
 			<NcButton
 				:aria-label="labels.redo"
 				:title="labels.redo"
@@ -139,34 +156,6 @@ async function onRevert() {
 					<Redo :size="20" />
 				</template>
 			</NcButton>
-
-			<!-- The label is the accessible name: NcActions drops `aria-label`
-			     once `menuName` is set, so both carry the same wording.
-			     `forceMenu` keeps one trigger: with a single step it would
-			     otherwise collapse into that step's own button. -->
-			<NcActions
-				forceMenu
-				:aria-label="labels.history"
-				:menuName="compact ? undefined : labels.history"
-				:title="labels.history"
-				:disabled="!loaded || !hasHistory"
-				variant="tertiary"
-				data-test="history">
-				<template #icon>
-					<HistoryIcon :size="20" />
-				</template>
-				<NcActionButton
-					v-for="step in historySteps"
-					:key="step.index"
-					:data-test="`history-step-${step.index}`"
-					:aria-current="step.active"
-					@click="context.jumpTo(step.index)">
-					<template #icon>
-						<Check v-if="step.active" :size="20" />
-					</template>
-					{{ step.label }}
-				</NcActionButton>
-			</NcActions>
 
 			<span class="editor-topbar__separator" />
 

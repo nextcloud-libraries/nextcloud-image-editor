@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { expectColor, readState, save, setInputValue, waitLoaded } from './utils.ts'
+import { expectColor, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
 test('darkening brightness changes the exported pixels', async ({ page }) => {
 	await waitLoaded(page)
@@ -26,7 +26,7 @@ test('adjustment sliders record a single undo step on release', async ({ page })
 	await page.locator('[data-test="tab-contrast"]').click()
 	await setInputValue(page.locator('[data-test="adjust-contrast"]'), '40')
 
-	await page.getByRole('button', { name: 'Undo' }).click()
+	await undo(page)
 	expect((await readState(page)).adjustments.contrast).toBe(0)
 })
 

@@ -43,6 +43,20 @@ export function useAnnouncements(context: EditorContext): Ref<string> {
 		annotationCount = state.annotations.length
 	})
 
+	// Moving through the history changes the image with no visible text
+	// saying where it landed. Recording a new edit moves the index too, so
+	// only a move within an unchanged list is one.
+	let historyLength = 0
+	watch(context.historyIndex, (index) => {
+		const entries = context.historyEntries.value
+		const moved = entries.length === historyLength
+		historyLength = entries.length
+		const entry = entries[index]
+		if (moved && entry !== undefined) {
+			message.value = t('Jumped to {step}', { step: entry.label ?? t('Edit') })
+		}
+	})
+
 	watch(() => context.state.value.preset, (preset) => {
 		message.value = preset === 'none'
 			? t('Filter removed')
