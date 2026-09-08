@@ -557,3 +557,50 @@ test('a caption can be restyled after it is placed', async ({ page }) => {
 	const undone = await readState(page)
 	expect(undone.annotations.find((a: { id: string }) => a.id === id).outline).toBe(false)
 })
+
+test('text can be set in another family, and the overlay matches', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+	await page.locator('[data-test="text-font"]').selectOption('serif')
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+
+	// The overlay is the only preview there is, so it has to be the same
+	// stack the canvas draws, not merely a serif of its own choosing
+	await expect(page.locator('[data-test="text-overlay"]'))
+		.toHaveCSS('font-family', 'Georgia, "Times New Roman", serif')
+
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations.find((a: { type: string }) => a.type === 'text').font).toBe('serif')
+})
+
+test('the family of a placed caption can be changed from the selection', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	await page.getByRole('button', { name: 'Select', exact: true }).click()
+	await page.mouse.click(corner.x + 40, corner.y + 40)
+	await page.waitForTimeout(300)
+
+	await page.locator('[data-test="selection-font"] button').click()
+	await page.locator('[data-test="selection-font-mono"]').click()
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations.find((a: { type: string }) => a.type === 'text').font).toBe('mono')
+})

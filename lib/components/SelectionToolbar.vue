@@ -3,12 +3,17 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { FONT_STACKS } from '../editor/fonts.ts'
+
 import { computed } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import BorderOutside from 'vue-material-design-icons/BorderOutside.vue'
 import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
+import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import GlassSurface from './base/GlassSurface.vue'
 import { useTextStyle } from '../composables/useTextStyle.ts'
 import { useEditorContext } from '../editor/context.ts'
@@ -37,6 +42,13 @@ const duplicateLabel = t('Duplicate')
 const deleteLabel = t('Delete')
 const outlineLabel = t('Outline')
 const backgroundLabel = t('Background')
+const fontLabel = t('Font')
+
+const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
+	{ id: 'sans', label: t('Sans serif') },
+	{ id: 'serif', label: t('Serif') },
+	{ id: 'mono', label: t('Monospace') },
+]
 </script>
 
 <template>
@@ -52,6 +64,27 @@ const backgroundLabel = t('Background')
 				? `${box.y - 76}px`
 				: `${box.y + box.height + 12}px`,
 		}">
+		<NcActions
+			v-if="isText"
+			forceMenu
+			:aria-label="fontLabel"
+			:title="fontLabel"
+			variant="tertiary"
+			data-test="selection-font">
+			<template #icon>
+				<FormatFont :size="18" />
+			</template>
+			<NcActionButton
+				v-for="entry in fonts"
+				:key="entry.id"
+				type="radio"
+				:modelValue="textStyle.font.value"
+				:value="entry.id"
+				:data-test="`selection-font-${entry.id}`"
+				@click="textStyle.font.value = entry.id">
+				{{ entry.label }}
+			</NcActionButton>
+		</NcActions>
 		<NcButton
 			v-if="isText"
 			data-test="selection-outline"

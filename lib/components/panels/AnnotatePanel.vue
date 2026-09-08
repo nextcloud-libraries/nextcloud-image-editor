@@ -17,6 +17,7 @@ import EditorSlider from '../base/EditorSlider.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
+import { FONT_STACKS } from '../../editor/fonts.ts'
 import { t } from '../../utils/l10n.ts'
 
 defineProps<{
@@ -28,12 +29,21 @@ const context = useEditorContext()
 const color = useAnnotationColor(context)
 const textStyle = useTextStyle(context)
 
+// Named for what they look like rather than for the faces behind them,
+// which differ per machine
+const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
+	{ id: 'sans', label: t('Sans serif') },
+	{ id: 'serif', label: t('Serif') },
+	{ id: 'mono', label: t('Monospace') },
+]
+
 const labels = {
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
 	fontSize: t('Font size'),
 	outline: t('Outline'),
 	background: t('Background'),
+	font: t('Font'),
 }
 
 // Stands in for the text being sized. Deliberately not translated: it
@@ -139,6 +149,19 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					}">{{ FONT_SAMPLE }}</span>
 			</template>
 		</EditorSlider>
+		<label v-if="showTextOptions" class="annotate-panel__field">
+			{{ labels.font }}
+			<select
+				v-model="textStyle.font.value"
+				class="annotate-panel__select"
+				data-test="text-font">
+				<option
+					v-for="entry in fonts"
+					:key="entry.id"
+					:value="entry.id"
+					:style="{ fontFamily: FONT_STACKS[entry.id] }">{{ entry.label }}</option>
+			</select>
+		</label>
 		<label
 			v-if="showTextOptions"
 			class="annotate-panel__toggle">
@@ -191,6 +214,22 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 	}
 
 	// A ring so the mark stays visible whatever color it is drawn in
+	&__field {
+		display: flex;
+		gap: var(--default-grid-baseline);
+		align-items: center;
+		color: var(--color-main-text);
+		font-size: 13px;
+	}
+
+	&__select {
+		border-radius: var(--border-radius);
+		border: 1px solid var(--color-border-maxcontrast);
+		background: var(--color-main-background);
+		color: var(--color-main-text);
+		padding: 2px 4px;
+	}
+
 	&__toggle {
 		display: flex;
 		gap: var(--default-grid-baseline);

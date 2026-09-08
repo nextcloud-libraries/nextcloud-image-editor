@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type { FontId } from './fonts.ts'
+
 import { newId } from '../utils/id.ts'
 
 export type Rotation = 0 | 90 | 180 | 270
@@ -120,6 +122,8 @@ export interface TextAnnotation {
 	 * out from behind them entirely.
 	 */
 	background?: boolean
+	/** Which family the text is drawn in, the default sans when absent */
+	font?: FontId
 }
 
 export interface RedactAnnotation {

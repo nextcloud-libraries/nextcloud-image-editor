@@ -3,7 +3,10 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+import type { FontId } from '../editor/fonts.ts'
+
 import { onMounted, ref, useTemplateRef } from 'vue'
+import { fontStack } from '../editor/fonts.ts'
 import { outlineColor, outlineWidth } from '../editor/text-outline.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -22,6 +25,8 @@ const props = defineProps<{
 	outline?: boolean
 	/** Whether the text sits on a plate, as the canvas draws it */
 	background?: boolean
+	/** Which family the canvas draws it in */
+	font?: FontId
 }>()
 
 const emit = defineEmits<{
@@ -79,6 +84,9 @@ function onEnter(event: KeyboardEvent) {
 			insetBlockStart: `${y}px`,
 			fontSize: `${fontSize}px`,
 			color: color,
+			// The same stack the canvas uses, or the overlay would measure
+			// and wrap differently from what gets drawn
+			fontFamily: fontStack(font),
 			...(background === true
 				? {
 					backgroundColor: outlineColor(color),
@@ -106,8 +114,6 @@ function onEnter(event: KeyboardEvent) {
 <style scoped>
 .text-overlay {
 	position: absolute;
-	/* Kept in sync with the Konva text nodes for WYSIWYG editing */
-	font-family: Helvetica, Arial, sans-serif;
 	line-height: 1;
 	padding: 0;
 	margin: 0;
