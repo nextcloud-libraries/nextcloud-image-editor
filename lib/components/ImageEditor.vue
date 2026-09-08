@@ -80,6 +80,12 @@ const labels = {
 	retry: t('Try again'),
 }
 
+/**
+ * Width the chrome switches to its narrow layout at, mirroring the
+ * `@container editor (max-width: 600px)` breakpoint the styles use.
+ */
+const COMPACT_WIDTH = 600
+
 /** Guards against an older load publishing over a newer one */
 let loadAttempt = 0
 
@@ -93,6 +99,14 @@ const sourceImage = shallowRef<HTMLImageElement | null>(null)
 const { ambient, backdrop } = useAmbient(sourceImage)
 const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
+
+/**
+ * Whether the chrome is in its narrow layout, matching the 600px container
+ * query the styles use. Zero while the container is still unmeasured, which
+ * is the wide layout, so the label does not flash away on the first frame.
+ */
+const compactChrome = computed(() => containerSize.value.width > 0
+	&& containerSize.value.width <= COMPACT_WIDTH)
 
 /** Stage-space bounds of the selected annotation, for the mini toolbar */
 const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
@@ -685,6 +699,7 @@ defineExpose({
 				<EditorTopBar
 					class="image-editor__topbar"
 					:loaded="loaded"
+					:compact="compactChrome"
 					:saving="exporting || saving === true"
 					@save="onSave"
 					@cancel="emit('cancel')" />

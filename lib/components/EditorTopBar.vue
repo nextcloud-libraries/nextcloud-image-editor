@@ -27,6 +27,8 @@ defineProps<{
 	loaded: boolean
 	/** Whether an export, or the host's own save, is in progress */
 	saving?: boolean
+	/** Whether the chrome is narrow, where the history label does not fit */
+	compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -50,6 +52,9 @@ const labels = {
 	history: t('Edit history'),
 	step: t('Edit'),
 }
+
+// Nothing to jump to until the first edit: the list holds only the original
+const hasHistory = computed(() => context.historyEntries.value.length > 1)
 
 // Newest first, which is the order the user thinks in when going back
 const historySteps = computed(() => context.historyEntries.value
@@ -135,10 +140,16 @@ async function onRevert() {
 				</template>
 			</NcButton>
 
+			<!-- The label is the accessible name: NcActions drops `aria-label`
+			     once `menuName` is set, so both carry the same wording.
+			     `forceMenu` keeps one trigger: with a single step it would
+			     otherwise collapse into that step's own button. -->
 			<NcActions
+				forceMenu
 				:aria-label="labels.history"
+				:menuName="compact ? undefined : labels.history"
 				:title="labels.history"
-				:disabled="!loaded"
+				:disabled="!loaded || !hasHistory"
 				variant="tertiary"
 				data-test="history">
 				<template #icon>
