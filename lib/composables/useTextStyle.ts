@@ -4,6 +4,7 @@
  */
 import type { WritableComputedRef } from 'vue'
 import type { EditorContext } from '../editor/context.ts'
+import type { FontId } from '../editor/fonts.ts'
 
 import { computed } from 'vue'
 import { t } from '../utils/l10n.ts'
@@ -12,6 +13,7 @@ import { t } from '../utils/l10n.ts'
 export interface TextStyle {
 	outline: WritableComputedRef<boolean>
 	background: WritableComputedRef<boolean>
+	font: WritableComputedRef<FontId>
 }
 
 /**
@@ -64,8 +66,29 @@ export function useTextStyle(context: EditorContext): TextStyle {
 		})
 	}
 
+	/** The family, bound the same way the switches are */
+	const font = computed({
+		get(): FontId {
+			return styleable()?.font ?? context.textFont.value
+		},
+		set(value: FontId) {
+			context.textFont.value = value
+			const annotation = styleable()
+			if (annotation === undefined || annotation.font === value) {
+				return
+			}
+			const state = context.state.value
+			context.commit({
+				...state,
+				annotations: state.annotations
+					.map((entry) => entry.id === annotation.id ? { ...entry, font: value } : entry),
+			}, t('Font'))
+		},
+	})
+
 	return {
 		outline: toggle('outline', 'textOutline', t('Outline')),
 		background: toggle('background', 'textBackground', t('Background')),
+		font,
 	}
 }

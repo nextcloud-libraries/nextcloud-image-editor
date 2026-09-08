@@ -4,12 +4,14 @@
  */
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
 import type { HistoryEntry } from '../composables/useHistory.ts'
+import type { FontId } from './fonts.ts'
 import type { EditorState } from './state.ts'
 import type { Point, ViewFit } from './view.ts'
 
 import { inject, provide, shallowRef, watch } from 'vue'
 import { useHistory } from '../composables/useHistory.ts'
 import { t } from '../utils/l10n.ts'
+import { DEFAULT_FONT } from './fonts.ts'
 import { createInitialState } from './state.ts'
 import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
 
@@ -57,6 +59,8 @@ export interface EditorContext {
 	textOutline: ShallowRef<boolean>
 	/** Whether new text is drawn on a filled plate */
 	textBackground: ShallowRef<boolean>
+	/** Which family new text is drawn in */
+	textFont: ShallowRef<FontId>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
@@ -173,6 +177,7 @@ export function createEditorContext(): EditorContext {
 		fontSize: shallowRef(24),
 		textOutline: shallowRef(false),
 		textBackground: shallowRef(false),
+		textFont: shallowRef<FontId>(DEFAULT_FONT),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		cropAspect: shallowRef<number | 'original' | null>(null),

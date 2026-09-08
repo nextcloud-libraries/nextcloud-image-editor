@@ -127,6 +127,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 					rotation: 0,
 					outline: context.textOutline.value,
 					background: context.textBackground.value,
+					font: context.textFont.value,
 				}],
 			}, t('Text'))
 		}

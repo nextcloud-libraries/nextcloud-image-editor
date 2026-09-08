@@ -720,6 +720,7 @@ defineExpose({
 						:initial="textEdit.value"
 						:outline="context.textOutline.value"
 						:background="context.textBackground.value"
+						:font="context.textFont.value"
 						@confirm="confirmTextEdit"
 						@cancel="textEdit = null" />
 					<SelectionToolbar
