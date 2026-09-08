@@ -89,9 +89,10 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 
 		previewNode?.destroy()
 		previewNode = null
-		const source = deps.oriented() ?? undefined
-		// A redaction preview needs the image to pixelate; without it the
-		// commit still works, only the live preview is skipped
+		const oriented = deps.oriented()
+		const source = oriented === null ? undefined : { width: oriented.width, height: oriented.height }
+		// A redaction preview needs the image size to match the coarseness
+		// of the committed one; without it the live preview is skipped
 		if (active.type === 'redact' && source === undefined) {
 			return
 		}

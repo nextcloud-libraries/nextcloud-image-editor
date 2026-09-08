@@ -660,3 +660,50 @@ test('the alignment of a placed caption can be changed from the selection', asyn
 	const undone = await readState(page)
 	expect(undone.annotations.find((a: { type: string }) => a.type === 'text').align).toBe('left')
 })
+
+test('a redaction obfuscates what was drawn under it', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw', exact: true }).click()
+	await setInputValue(page.locator('input[type="color"]'), '#00ff00')
+
+	const corner = await imageTopLeft(page)
+	// Along the bottom-left, which the fixture leaves solid red, so the
+	// mark is the only green there is
+	await drag(page, { x: corner.x + 2, y: corner.y + 97 }, { x: corner.x + 40, y: corner.y + 97 })
+	await page.waitForTimeout(300)
+	const drawn = await save(page)
+	expect(drawn.bottomLeft[1]).toBeGreaterThan(100)
+
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await drag(page, { x: corner.x - 10, y: corner.y + 80 }, { x: corner.x + 45, y: corner.y + 110 })
+	await page.waitForTimeout(300)
+
+	// Sampling the source image leaves the mark untouched under the
+	// patch, which exports the very pixels the redaction claimed to hide
+	const redacted = await save(page)
+	expect(redacted.bottomLeft).not.toEqual(drawn.bottomLeft)
+})
+
+test('a redaction obfuscates the picture as adjusted, not as loaded', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	await page.locator('[data-test="tab-brightness"]').click()
+	await setInputValue(page.locator('[data-test="adjust-brightness"]'), '-50')
+	const adjusted = await save(page)
+	expect(adjusted.center[2]).toBeLessThan(100)
+
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	const corner = await imageTopLeft(page)
+	// Across the color boundary, so the center block is half of each and
+	// the region is not the flat color that pixelation cannot change
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })
+	await page.waitForTimeout(300)
+
+	// Half of the darkened 72 in each channel. The adjustments live on
+	// the image node rather than in the source the patch is built from,
+	// so sampling the source exports half of the original 200 instead
+	const redacted = await save(page)
+	expect(redacted.center[0]).toBeLessThan(60)
+	expect(redacted.center[2]).toBeLessThan(60)
+})
