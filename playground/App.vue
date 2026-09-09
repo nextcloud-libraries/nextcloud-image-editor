@@ -56,6 +56,33 @@ function makeLargeFixture(): Promise<Blob> {
 	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
 }
 
+/**
+ * 2000x1500 test image of mid-gray speckled with fixed pseudo-random
+ * noise, so a test can measure how much of the grain survives being
+ * shown smaller: a shrink that skips pixels keeps it, one that
+ * averages them smooths it out. Lossless, so the noise is exactly the
+ * noise generated.
+ */
+function makeNoiseFixture(): Promise<Blob> {
+	const canvas = document.createElement('canvas')
+	canvas.width = 2000
+	canvas.height = 1500
+	const context = canvas.getContext('2d')!
+	const image = context.createImageData(canvas.width, canvas.height)
+	// A linear congruential generator, so every run gets the same grain
+	let seed = 1
+	for (let offset = 0; offset < image.data.length; offset += 4) {
+		seed = (seed * 1103515245 + 12345) % 2147483648
+		const value = 128 + ((seed >>> 16) % 81) - 40
+		image.data[offset] = value
+		image.data[offset + 1] = value
+		image.data[offset + 2] = value
+		image.data[offset + 3] = 255
+	}
+	context.putImageData(image, 0, 0)
+	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
+}
+
 // Byte length of the source, so a test can tell an untouched save
 // (the same bytes back) from a re-encoded one
 const sourceSize = ref(0)
@@ -80,8 +107,9 @@ const restored: EditorState | undefined
 			}
 
 // ?src=test loads the deterministic fixture the Playwright suite probes,
-// ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=broken an
-// undecodable image; default is a real demo photo
+// ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=noise a
+// large grainy one, ?src=broken an undecodable image; default is a real
+// demo photo
 const src = shallowRef<Blob | string | null>(null)
 const requested = new URLSearchParams(window.location.search).get('src')
 if (requested === 'broken') {
@@ -101,6 +129,11 @@ if (requested === 'broken') {
 		})
 } else if (requested === 'large') {
 	makeLargeFixture().then((blob) => {
+		sourceSize.value = blob.size
+		src.value = blob
+	})
+} else if (requested === 'noise') {
+	makeNoiseFixture().then((blob) => {
 		sourceSize.value = blob.size
 		src.value = blob
 	})

@@ -138,3 +138,26 @@ test('panning past the edge does not leave the view stuck', async ({ page }) => 
 
 	expect((await imageView(page)).x).toBeGreaterThan(clamped.x)
 })
+
+test('a picture shown smaller than it is keeps its grain averaged, not sampled', async ({ page }) => {
+	await waitLoaded(page, 'noise')
+	const view = await imageView(page)
+
+	// Standard deviation of a patch of the drawn layer. The fixture is
+	// uniform noise of about 23 per channel: a single-pass shrink keeps
+	// most of it (around 16 at this size), averaging halves it
+	const deviation = await page.evaluate(({ x, y }) => {
+		const layer = window.Konva.stages[0]!.getLayers()[0]!.getCanvas()
+		const ratio = layer.getPixelRatio()
+		const context = layer._canvas.getContext('2d')!
+		const { data } = context.getImageData((x + 20) * ratio, (y + 20) * ratio, 100, 100)
+		const values: number[] = []
+		for (let index = 0; index < data.length; index += 4) {
+			values.push(data[index]!)
+		}
+		const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+		return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length)
+	}, view)
+
+	expect(deviation).toBeLessThan(12)
+})

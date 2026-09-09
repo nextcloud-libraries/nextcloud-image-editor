@@ -39,7 +39,7 @@ export interface SavedProbe {
  * fitted view is downscaled. The default page shows a real photo for
  * humans instead.
  */
-export async function waitLoaded(page: Page, src: 'test' | 'large' = 'test'): Promise<void> {
+export async function waitLoaded(page: Page, src: 'test' | 'large' | 'noise' = 'test'): Promise<void> {
 	await page.goto(`/?src=${src}`)
 	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
 }

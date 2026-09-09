@@ -8,6 +8,7 @@ import Konva from 'konva'
 import { canvasScaleFor } from './canvas-limits.ts'
 import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, sharpen, tonal, tone, vignette, warm } from './filters.ts'
 import { fontStack } from './fonts.ts'
+import { levelFor } from './mipmap.ts'
 import { redactShape } from './redact-shape.ts'
 import { textAlign } from './text-align.ts'
 import { outlineColor, outlineWidth } from './text-outline.ts'
@@ -581,9 +582,13 @@ export function createScene(stage: Konva.Stage): Scene {
 	let filterKey = ''
 
 	const update = (oriented: HTMLCanvasElement, state: EditorState, options: SceneOptions): void => {
-		const orientedChanged = imageNode.image() !== oriented
-		if (orientedChanged) {
-			imageNode.image(oriented)
+		// Shown smaller than it is, the picture is drawn from a copy near
+		// the size it lands at, scaled back up to the space it occupies
+		const level = levelFor(oriented, options.scale * layer.getCanvas().getPixelRatio())
+		const imageChanged = imageNode.image() !== level
+		if (imageChanged) {
+			imageNode.image(level)
+			imageNode.scale({ x: oriented.width / level.width, y: oriented.height / level.height })
 		}
 
 		// While the crop tool shows the full image for context, the view
@@ -605,11 +610,11 @@ export function createScene(stage: Konva.Stage): Scene {
 		}
 
 		const pixelRatio = options.fastFilters
-			? Math.min(1, options.scale * (globalThis.devicePixelRatio || 1))
+			? Math.min(1, options.scale * imageNode.scaleX() * (globalThis.devicePixelRatio || 1))
 			: 1
 		// Every adjustment, so a change to any of them redoes the cache
 		const nextFilterKey = `${Object.values(state.adjustments).join('|')}|${state.preset}|${pixelRatio}`
-		if (orientedChanged || nextFilterKey !== filterKey) {
+		if (imageChanged || nextFilterKey !== filterKey) {
 			applyFilters(imageNode, state, pixelRatio)
 			filterKey = nextFilterKey
 		}
