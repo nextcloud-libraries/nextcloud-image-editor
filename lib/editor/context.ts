@@ -67,6 +67,14 @@ export interface EditorContext {
 	textFont: ShallowRef<FontId>
 	/** How the lines of new text sit against each other */
 	textAlign: ShallowRef<TextAlign>
+	/** Whether new text is drawn heavier */
+	textBold: ShallowRef<boolean>
+	/** Whether new text is drawn slanted */
+	textItalic: ShallowRef<boolean>
+	/** Whether new text carries a line underneath */
+	textUnderline: ShallowRef<boolean>
+	/** Whether new text carries a line through it */
+	textStrikethrough: ShallowRef<boolean>
 	/** Emoji placed by the sticker tool */
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
@@ -187,6 +195,10 @@ export function createEditorContext(): EditorContext {
 		textBackground: shallowRef(false),
 		textFont: shallowRef<FontId>(DEFAULT_FONT),
 		textAlign: shallowRef<TextAlign>(DEFAULT_ALIGN),
+		textBold: shallowRef(false),
+		textItalic: shallowRef(false),
+		textUnderline: shallowRef(false),
+		textStrikethrough: shallowRef(false),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
 		redactShape: shallowRef<RedactShape>(DEFAULT_REDACT_SHAPE),

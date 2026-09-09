@@ -2,6 +2,8 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type Konva from 'konva'
+
 import { expect, test } from '@playwright/test'
 import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
@@ -659,6 +661,77 @@ test('the alignment of a placed caption can be changed from the selection', asyn
 	await undo(page)
 	const undone = await readState(page)
 	expect(undone.annotations.find((a: { type: string }) => a.type === 'text').align).toBe('left')
+})
+
+test('text can be emphasised, and the overlay matches', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+	await page.locator('[data-test="text-bold"]').click()
+	await page.locator('[data-test="text-italic"]').click()
+	await page.locator('[data-test="text-underline"]').click()
+	await page.locator('[data-test="text-strikethrough"]').click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+
+	// The overlay is the only preview there is, so it has to be cut the
+	// way the canvas will draw it
+	const overlay = page.locator('[data-test="text-overlay"]')
+	await expect(overlay).toHaveCSS('font-weight', '700')
+	await expect(overlay).toHaveCSS('font-style', 'italic')
+	await expect(overlay).toHaveCSS('text-decoration-line', 'underline line-through')
+
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	const text = state.annotations.find((a: { type: string }) => a.type === 'text')
+	expect(text).toMatchObject({ bold: true, italic: true, underline: true, strikethrough: true })
+
+	// And the canvas draws what the state says
+	const drawn = await page.evaluate(() => {
+		const node = window.Konva.stages[0]!.findOne<Konva.Text>('Text')!
+		return { fontStyle: node.fontStyle(), textDecoration: node.textDecoration() }
+	})
+	expect(drawn).toEqual({ fontStyle: 'italic bold', textDecoration: 'underline line-through' })
+})
+
+test('a placed caption can be made bold from the selection', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
+	await page.waitForTimeout(300)
+	await page.keyboard.type('caption')
+	await page.mouse.click(corner.x + 260, corner.y + 200)
+	await page.waitForTimeout(300)
+
+	const placed = await readState(page)
+	const id = placed.annotations.find((a: { type: string }) => a.type === 'text').id
+	expect(placed.annotations.find((a: { id: string }) => a.id === id).bold).toBe(false)
+
+	await page.getByRole('button', { name: 'Select', exact: true }).click()
+	await page.mouse.click(corner.x + 40, corner.y + 40)
+	await page.waitForTimeout(300)
+
+	const bold = page.locator('[data-test="selection-bold"]')
+	await expect(bold).toBeVisible()
+	await bold.click()
+	await page.waitForTimeout(300)
+
+	const styled = await readState(page)
+	expect(styled.annotations.find((a: { id: string }) => a.id === id).bold).toBe(true)
+	await expect(bold).toHaveAttribute('aria-pressed', 'true')
+
+	// One undoable step, like the other styling controls
+	await undo(page)
+	const undone = await readState(page)
+	expect(undone.annotations.find((a: { id: string }) => a.id === id).bold).toBe(false)
 })
 
 test('a redaction obfuscates what was drawn under it', async ({ page }) => {

@@ -9,6 +9,7 @@ import type { TextAlign } from '../editor/text-align.ts'
 import { onMounted, ref, useTemplateRef } from 'vue'
 import { fontStack } from '../editor/fonts.ts'
 import { textAlign } from '../editor/text-align.ts'
+import { textDecoration } from '../editor/text-emphasis.ts'
 import { outlineColor, outlineWidth } from '../editor/text-outline.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -31,6 +32,14 @@ const props = defineProps<{
 	font?: FontId
 	/** How the lines sit against each other */
 	align?: TextAlign
+	/** Heavier glyphs */
+	bold?: boolean
+	/** Slanted glyphs */
+	italic?: boolean
+	/** A line under the glyphs */
+	underline?: boolean
+	/** A line through the glyphs */
+	strikethrough?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -91,6 +100,9 @@ function onEnter(event: KeyboardEvent) {
 			// The same stack the canvas uses, or the overlay would measure
 			// and wrap differently from what gets drawn
 			fontFamily: fontStack(font),
+			fontWeight: bold === true ? 'bold' : 'normal',
+			fontStyle: italic === true ? 'italic' : 'normal',
+			textDecorationLine: textDecoration({ underline, strikethrough }) || 'none',
 			textAlign: textAlign(align),
 			...(background === true
 				? {

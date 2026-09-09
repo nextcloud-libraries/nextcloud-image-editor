@@ -16,7 +16,23 @@ export interface TextStyle {
 	background: WritableComputedRef<boolean>
 	font: WritableComputedRef<FontId>
 	align: WritableComputedRef<TextAlign>
+	bold: WritableComputedRef<boolean>
+	italic: WritableComputedRef<boolean>
+	underline: WritableComputedRef<boolean>
+	strikethrough: WritableComputedRef<boolean>
 }
+
+/** The boolean switches, each with the context field holding its default */
+const SWITCH_DEFAULTS = {
+	outline: 'textOutline',
+	background: 'textBackground',
+	bold: 'textBold',
+	italic: 'textItalic',
+	underline: 'textUnderline',
+	strikethrough: 'textStrikethrough',
+} as const
+
+type Switch = keyof typeof SWITCH_DEFAULTS
 
 /**
  * The switches that decide how text is drawn, over the selection when
@@ -44,10 +60,10 @@ export function useTextStyle(context: EditorContext): TextStyle {
 	 * Bind one switch to the selection, falling back to the tool default.
 	 *
 	 * @param key the annotation field the switch writes
-	 * @param fallback where the default for new text is kept
 	 * @param label what the step is called in the history
 	 */
-	function toggle(key: 'outline' | 'background', fallback: 'textOutline' | 'textBackground', label: string) {
+	function toggle(key: Switch, label: string) {
+		const fallback = SWITCH_DEFAULTS[key]
 		return computed({
 			get(): boolean {
 				return styleable()?.[key] ?? context[fallback].value
@@ -103,9 +119,13 @@ export function useTextStyle(context: EditorContext): TextStyle {
 	}
 
 	return {
-		outline: toggle('outline', 'textOutline', t('Outline')),
-		background: toggle('background', 'textBackground', t('Background')),
+		outline: toggle('outline', t('Outline')),
+		background: toggle('background', t('Background')),
 		font: choice<FontId>('font', 'textFont', t('Font')),
 		align: choice<TextAlign>('align', 'textAlign', t('Alignment')),
+		bold: toggle('bold', t('Bold')),
+		italic: toggle('italic', t('Italic')),
+		underline: toggle('underline', t('Underline')),
+		strikethrough: toggle('strikethrough', t('Strikethrough')),
 	}
 }

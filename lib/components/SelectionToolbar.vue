@@ -20,6 +20,7 @@ import FormatAlignRight from 'vue-material-design-icons/FormatAlignRight.vue'
 import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
 import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import GlassSurface from './base/GlassSurface.vue'
+import TextEmphasisButtons from './base/TextEmphasisButtons.vue'
 import { useTextStyle } from '../composables/useTextStyle.ts'
 import { useEditorContext } from '../editor/context.ts'
 import { TEXT_ALIGNS, textAlign } from '../editor/text-align.ts'
@@ -129,6 +130,7 @@ const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 				{{ entry.label }}
 			</NcActionButton>
 		</NcActions>
+		<TextEmphasisButtons v-if="isText" testPrefix="selection" :size="18" />
 		<NcButton
 			v-if="isText"
 			data-test="selection-outline"
