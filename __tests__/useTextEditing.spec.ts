@@ -132,20 +132,30 @@ describe('useTextEditing', () => {
 		expect(text(context)).toMatchObject({ id: original.id, text: 'Second' })
 	})
 
-	it('opens an existing annotation with its own size and colour', () => {
+	it('opens an existing annotation with its own size', () => {
 		const { context, textEdit, startTextEdit, confirmTextEdit } = setup()
 		startTextEdit({ x: 30, y: 10 })
 		confirmTextEdit('First')
-		const original = { ...text(context), color: '#00ff00', fontSize: 30 }
+		const original = { ...text(context), fontSize: 30 }
 
 		startTextEdit({ x: original.x, y: original.y }, original)
 
 		expect(textEdit.value).toMatchObject({
 			value: 'First',
-			color: '#00ff00',
 			screenFontSize: 30 * 2,
 			id: original.id,
 		})
+	})
+
+	it('gives new text the colour picked while it was typed', () => {
+		const { context, startTextEdit, confirmTextEdit } = setup()
+		context.drawColor.value = '#ff0000'
+		startTextEdit({ x: 30, y: 10 })
+		// The floating toolbar recolours the text before it is confirmed
+		context.drawColor.value = '#00ff00'
+		confirmTextEdit('Green')
+
+		expect(text(context).color).toBe('#00ff00')
 	})
 
 	it('deletes an annotation emptied of its text', () => {

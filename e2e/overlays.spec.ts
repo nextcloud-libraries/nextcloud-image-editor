@@ -97,11 +97,11 @@ test('the selection survives dragging an annotation', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 50, corner.y + 20)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
 	// Committing the drag rebuilds the node; the transformer has to
 	// re-find it instead of the whole selection being torn down
 	await slowDrag(page, { x: corner.x + 50, y: corner.y + 40 }, { x: corner.x + 70, y: corner.y + 50 })
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 	expect((await readState(page)).annotations).toHaveLength(1)
 })

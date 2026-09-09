@@ -35,7 +35,7 @@ const context = useEditorContext()
 		<CropPanel v-if="context.activeMode.value === 'crop'" :loaded="loaded" />
 		<AdjustPanel v-else-if="context.activeMode.value === 'finetune'" :loaded="loaded" />
 		<AnnotatePanel v-else-if="context.activeMode.value === 'annotate'" :loaded="loaded" />
-		<SelectPanel v-else-if="context.activeMode.value === 'select'" :loaded="loaded" />
+		<SelectPanel v-else-if="context.activeMode.value === 'select'" />
 		<StickerPanel v-else-if="context.activeMode.value === 'sticker'" :loaded="loaded" />
 		<RedactPanel v-else-if="context.activeMode.value === 'redact'" :loaded="loaded" />
 	</GlassSurface>

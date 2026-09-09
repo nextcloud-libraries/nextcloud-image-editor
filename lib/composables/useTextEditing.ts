@@ -18,7 +18,6 @@ export interface TextEdit {
 	screenX: number
 	screenY: number
 	screenFontSize: number
-	color: string
 	value: string
 	/** Existing annotation being edited, null when creating */
 	id: string | null
@@ -86,7 +85,6 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 			screenX: options.offset.x + (position.x - origin.x) * options.scale,
 			screenY: options.offset.y + (position.y - origin.y) * options.scale,
 			screenFontSize: (existing?.fontSize ?? context.fontSize.value) * options.scale,
-			color: existing?.color ?? context.drawColor.value,
 			value: existing?.text ?? '',
 			id: existing?.id ?? null,
 		}
@@ -122,7 +120,7 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 					x: edit.sceneX,
 					y: edit.sceneY,
 					text: trimmed,
-					color: edit.color,
+					color: context.drawColor.value,
 					fontSize: context.fontSize.value,
 					rotation: 0,
 					outline: context.textOutline.value,
