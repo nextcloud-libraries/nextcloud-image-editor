@@ -25,6 +25,7 @@ import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import VectorLine from 'vue-material-design-icons/VectorLine.vue'
 import EditorSlider from '../base/EditorSlider.vue'
+import TextEmphasisButtons from '../base/TextEmphasisButtons.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
@@ -218,6 +219,7 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					{{ entry.label }}
 				</NcActionButton>
 			</NcActions>
+			<TextEmphasisButtons testPrefix="text" :size="20" />
 			<NcButton
 				:aria-label="labels.outline"
 				:title="labels.outline"

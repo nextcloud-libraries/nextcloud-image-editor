@@ -10,6 +10,7 @@ import { berry, cinema, coast, cool, fade, golden, luna, mist, noir, saturate, s
 import { fontStack } from './fonts.ts'
 import { redactShape } from './redact-shape.ts'
 import { textAlign } from './text-align.ts'
+import { fontStyle, textDecoration } from './text-emphasis.ts'
 import { outlineColor, outlineWidth } from './text-outline.ts'
 
 /**
@@ -310,6 +311,8 @@ export function buildAnnotationNode(annotation: Annotation, source?: Size): Anno
 				rotation: annotation.rotation,
 				// Kept in sync with the text overlay for WYSIWYG editing
 				fontFamily: fontStack(annotation.font),
+				fontStyle: fontStyle(annotation),
+				textDecoration: textDecoration(annotation),
 				align: textAlign(annotation.align),
 				...(annotation.outline === true
 					? {

@@ -723,6 +723,10 @@ defineExpose({
 						:background="context.textBackground.value"
 						:font="context.textFont.value"
 						:align="context.textAlign.value"
+						:bold="context.textBold.value"
+						:italic="context.textItalic.value"
+						:underline="context.textUnderline.value"
+						:strikethrough="context.textStrikethrough.value"
 						@confirm="confirmTextEdit"
 						@cancel="textEdit = null" />
 					<SelectionToolbar

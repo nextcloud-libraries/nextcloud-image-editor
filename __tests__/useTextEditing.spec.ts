@@ -93,6 +93,16 @@ describe('useTextEditing', () => {
 		expect(context.canUndo.value).toBe(true)
 	})
 
+	it('gives new text the emphasis the tool is set to', () => {
+		const { context, startTextEdit, confirmTextEdit } = setup()
+		context.textBold.value = true
+		context.textStrikethrough.value = true
+		startTextEdit({ x: 30, y: 10 })
+		confirmTextEdit('Struck')
+
+		expect(text(context)).toMatchObject({ bold: true, italic: false, underline: false, strikethrough: true })
+	})
+
 	it('adds nothing for text that is only whitespace', () => {
 		const { context, startTextEdit, confirmTextEdit } = setup()
 		startTextEdit({ x: 30, y: 10 })

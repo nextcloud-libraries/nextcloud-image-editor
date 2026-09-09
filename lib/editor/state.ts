@@ -132,6 +132,14 @@ export interface TextAnnotation {
 	 * as its longest one.
 	 */
 	align?: TextAlign
+	/** Heavier glyphs. Absent on annotations made before it existed, which read as off */
+	bold?: boolean
+	/** Slanted glyphs */
+	italic?: boolean
+	/** A line under the glyphs */
+	underline?: boolean
+	/** A line through the glyphs */
+	strikethrough?: boolean
 }
 
 export interface RedactAnnotation {

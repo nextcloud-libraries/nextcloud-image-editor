@@ -129,6 +129,10 @@ export function useTextEditing(deps: TextEditingDeps): TextEditing {
 					background: context.textBackground.value,
 					font: context.textFont.value,
 					align: context.textAlign.value,
+					bold: context.textBold.value,
+					italic: context.textItalic.value,
+					underline: context.textUnderline.value,
+					strikethrough: context.textStrikethrough.value,
 				}],
 			}, t('Text'))
 		}
