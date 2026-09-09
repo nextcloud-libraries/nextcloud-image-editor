@@ -170,6 +170,14 @@ async function onSave(result: ExportResult) {
 	context.drawImage(bitmap, 0, 0)
 
 	const probe = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data)
+	// Spread of the red channel over a patch: how much grain survived
+	// the export, which a single pixel cannot tell
+	const grain = (x: number, y: number, size: number) => {
+		const { data } = context.getImageData(x, y, size, size)
+		const values = Array.from({ length: size * size }, (_, index) => data[index * 4]!)
+		const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+		return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length)
+	}
 	// Enough of the saved bytes to tell whether what the camera recorded
 	// came through, without teaching the playground to parse EXIF
 	const bytes = new Uint8Array(await result.blob.arrayBuffer())
@@ -190,6 +198,7 @@ async function onSave(result: ExportResult) {
 		topRight: probe(canvas.width - 1, 0),
 		bottomLeft: probe(0, canvas.height - 1),
 		center: probe(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2)),
+		grain: grain(20, 20, Math.min(100, canvas.width - 20, canvas.height - 20)),
 	})
 }
 

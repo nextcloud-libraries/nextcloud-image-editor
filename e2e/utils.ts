@@ -23,6 +23,8 @@ export interface SavedProbe {
 	topRight: number[]
 	bottomLeft: number[]
 	center: number[]
+	/** Standard deviation of the red channel over a patch near the corner */
+	grain: number
 	/** Whether the saved bytes still carry what the source recorded */
 	exif: boolean
 	xmp: boolean
