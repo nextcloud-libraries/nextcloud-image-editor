@@ -4,6 +4,7 @@
  */
 
 import type { FontId } from './fonts.ts'
+import type { RedactShape } from './redact-shape.ts'
 import type { TextAlign } from './text-align.ts'
 
 import { newId } from '../utils/id.ts'
@@ -140,6 +141,8 @@ export interface RedactAnnotation {
 	rect: Rect
 	/** How the region is destroyed */
 	style: 'pixelate' | 'blur'
+	/** The outline of the region, a rectangle when absent */
+	shape?: RedactShape
 }
 
 export type Annotation = DrawAnnotation | ArrowAnnotation | LineAnnotation | BoxAnnotation | TextAnnotation | RedactAnnotation

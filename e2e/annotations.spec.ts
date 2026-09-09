@@ -707,3 +707,46 @@ test('a redaction obfuscates the picture as adjusted, not as loaded', async ({ p
 	expect(redacted.center[0]).toBeLessThan(60)
 	expect(redacted.center[2]).toBeLessThan(60)
 })
+
+test('an oval redaction leaves the corners of its box alone', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw', exact: true }).click()
+	await setInputValue(page.locator('input[type="color"]'), '#00ff00')
+
+	const corner = await imageTopLeft(page)
+	// A mark in the bottom-left corner, which falls inside the box drawn
+	// below but outside the oval inscribed in it
+	await drag(page, { x: corner.x + 2, y: corner.y + 97 }, { x: corner.x + 20, y: corner.y + 97 })
+	await page.waitForTimeout(300)
+	const drawn = await save(page)
+
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.locator('[data-test="redact-ellipse"]').click()
+	await drag(page, { x: corner.x, y: corner.y + 40 }, { x: corner.x + 90, y: corner.y + 110 })
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations[1].shape).toBe('ellipse')
+
+	// An oval that obfuscated its whole box would be no better than the
+	// rectangle it replaces
+	const redacted = await save(page)
+	expect(redacted.bottomLeft).toEqual(drawn.bottomLeft)
+})
+
+test('an oval redaction still destroys what it covers', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.locator('[data-test="redact-ellipse"]').click()
+
+	const corner = await imageTopLeft(page)
+	// Centered on the color boundary, so the middle of the oval averages
+	// red and blue instead of staying either
+	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 142, y: corner.y + 80 })
+	await page.waitForTimeout(300)
+
+	const result = await save(page)
+	expect(result.center[0]).toBeGreaterThan(20)
+	expect(result.center[2]).toBeGreaterThan(20)
+})

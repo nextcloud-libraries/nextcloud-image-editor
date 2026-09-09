@@ -5,6 +5,7 @@
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
 import type { HistoryEntry } from '../composables/useHistory.ts'
 import type { FontId } from './fonts.ts'
+import type { RedactShape } from './redact-shape.ts'
 import type { EditorState } from './state.ts'
 import type { TextAlign } from './text-align.ts'
 import type { Point, ViewFit } from './view.ts'
@@ -13,6 +14,7 @@ import { inject, provide, shallowRef, watch } from 'vue'
 import { useHistory } from '../composables/useHistory.ts'
 import { t } from '../utils/l10n.ts'
 import { DEFAULT_FONT } from './fonts.ts'
+import { DEFAULT_REDACT_SHAPE } from './redact-shape.ts'
 import { createInitialState } from './state.ts'
 import { DEFAULT_ALIGN } from './text-align.ts'
 import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
@@ -69,6 +71,8 @@ export interface EditorContext {
 	sticker: ShallowRef<string>
 	/** Obfuscation style used by new redactions */
 	redactStyle: ShallowRef<'pixelate' | 'blur'>
+	/** The outline new redactions take */
+	redactShape: ShallowRef<RedactShape>
 	/** Crop aspect lock: width/height ratio, 'original', or null = free */
 	cropAspect: ShallowRef<number | 'original' | null>
 	/** View-only magnification of the canvas, 1 = fit */
@@ -185,6 +189,7 @@ export function createEditorContext(): EditorContext {
 		textAlign: shallowRef<TextAlign>(DEFAULT_ALIGN),
 		sticker: shallowRef('😀'),
 		redactStyle: shallowRef<'pixelate' | 'blur'>('pixelate'),
+		redactShape: shallowRef<RedactShape>(DEFAULT_REDACT_SHAPE),
 		cropAspect: shallowRef<number | 'original' | null>(null),
 		viewZoom,
 		viewPan,
