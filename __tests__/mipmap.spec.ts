@@ -61,6 +61,13 @@ describe('levelFor', () => {
 		expect([level.width, level.height]).toEqual([1, 1])
 	})
 
+	it('keeps halving a strip along its long side once the short one is a pixel', () => {
+		expect(levelFor(canvas(1, 1000), 0.1).height).toBe(125)
+		expect(levelFor(canvas(2, 1000), 0.1).height).toBe(125)
+		const wide = levelFor(canvas(1000, 1), 0.1)
+		expect([wide.width, wide.height]).toEqual([125, 1])
+	})
+
 	it('keeps the copies, so drawing at the same scale again costs nothing', () => {
 		const source = canvas(4000, 3000)
 		const first = levelFor(source, 0.2)

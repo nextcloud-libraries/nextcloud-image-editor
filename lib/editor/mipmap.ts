@@ -47,7 +47,7 @@ export function levelFor(source: HTMLCanvasElement, scale: number): HTMLCanvasEl
 	let level = source
 	let drawn = scale
 	let depth = 0
-	while (drawn <= 0.5 && level.width > 1 && level.height > 1) {
+	while (drawn <= 0.5 && (level.width > 1 || level.height > 1)) {
 		const cached = halves.get(source) ?? []
 		level = cached[depth] ?? halve(level)
 		cached[depth] = level
