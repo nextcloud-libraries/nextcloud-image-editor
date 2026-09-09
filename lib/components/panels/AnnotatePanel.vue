@@ -59,9 +59,6 @@ const alignments = TEXT_ALIGNS.map((id) => ({ id, ...ALIGN_META[id] }))
 /** The chosen alignment, shown on the trigger so it reads without opening */
 const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 
-/** The chosen family, named on the trigger so it reads without opening */
-const fontLabel = computed(() => fonts.find((entry) => entry.id === textStyle.font.value)?.label ?? '')
-
 const labels = {
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
@@ -175,56 +172,52 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					}">{{ FONT_SAMPLE }}</span>
 			</template>
 		</EditorSlider>
-		<NcActions
-			v-if="showTextOptions"
-			forceMenu
-			:aria-label="labels.font"
-			:title="labels.font"
-			:menuName="fontLabel"
-			variant="tertiary"
-			data-test="text-font">
-			<template #icon>
-				<FormatFont :size="20" />
-			</template>
-			<NcActionButton
-				v-for="entry in fonts"
-				:key="entry.id"
-				type="radio"
-				closeAfterClick
-				:modelValue="textStyle.font.value"
-				:value="entry.id"
-				:data-test="`text-font-${entry.id}`"
-				@click="textStyle.font.value = entry.id">
-				{{ entry.label }}
-			</NcActionButton>
-		</NcActions>
-		<NcActions
-			v-if="showTextOptions"
-			forceMenu
-			:aria-label="labels.align"
-			:title="labels.align"
-			:menuName="alignment.label"
-			variant="tertiary"
-			data-test="text-align">
-			<template #icon>
-				<component :is="alignment.icon" :size="20" />
-			</template>
-			<NcActionButton
-				v-for="entry in alignments"
-				:key="entry.id"
-				type="radio"
-				closeAfterClick
-				:modelValue="textStyle.align.value"
-				:value="entry.id"
-				:data-test="`text-align-${entry.id}`"
-				@click="textStyle.align.value = entry.id">
+		<div v-if="showTextOptions" class="annotate-panel__row" data-test="text-style">
+			<NcActions
+				forceMenu
+				:aria-label="labels.font"
+				:title="labels.font"
+				variant="tertiary"
+				data-test="text-font">
 				<template #icon>
-					<component :is="entry.icon" :size="20" />
+					<FormatFont :size="20" />
 				</template>
-				{{ entry.label }}
-			</NcActionButton>
-		</NcActions>
-		<div v-if="showTextOptions" class="annotate-panel__row">
+				<NcActionButton
+					v-for="entry in fonts"
+					:key="entry.id"
+					type="radio"
+					closeAfterClick
+					:modelValue="textStyle.font.value"
+					:value="entry.id"
+					:data-test="`text-font-${entry.id}`"
+					@click="textStyle.font.value = entry.id">
+					{{ entry.label }}
+				</NcActionButton>
+			</NcActions>
+			<NcActions
+				forceMenu
+				:aria-label="labels.align"
+				:title="labels.align"
+				variant="tertiary"
+				data-test="text-align">
+				<template #icon>
+					<component :is="alignment.icon" :size="20" />
+				</template>
+				<NcActionButton
+					v-for="entry in alignments"
+					:key="entry.id"
+					type="radio"
+					closeAfterClick
+					:modelValue="textStyle.align.value"
+					:value="entry.id"
+					:data-test="`text-align-${entry.id}`"
+					@click="textStyle.align.value = entry.id">
+					<template #icon>
+						<component :is="entry.icon" :size="20" />
+					</template>
+					{{ entry.label }}
+				</NcActionButton>
+			</NcActions>
 			<NcButton
 				:aria-label="labels.outline"
 				:title="labels.outline"

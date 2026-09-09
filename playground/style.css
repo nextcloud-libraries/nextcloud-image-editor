@@ -16,3 +16,11 @@ body {
 	color: var(--color-main-text);
 	background-color: var(--color-main-background);
 }
+
+/* The server resets lists, and the NcActions menu leans on that: its
+   entries are list items that would otherwise carry bullets */
+ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
