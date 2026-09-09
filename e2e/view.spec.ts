@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import type { Page } from '@playwright/test'
+import type Konva from 'konva'
 
 import { expect, test } from '@playwright/test'
-import { imageTopLeft, imageView, readState, waitLoaded } from './utils.ts'
+import { imageTopLeft, imageView, readState, save, waitLoaded } from './utils.ts'
 
 /**
  * The zoom percentage shown in the top bar.
@@ -137,4 +138,69 @@ test('panning past the edge does not leave the view stuck', async ({ page }) => 
 	await page.mouse.up()
 
 	expect((await imageView(page)).x).toBeGreaterThan(clamped.x)
+})
+
+test('a picture shown smaller than it is keeps its grain averaged, not sampled', async ({ page }) => {
+	await waitLoaded(page, 'noise')
+	const view = await imageView(page)
+
+	// Standard deviation of a patch of the drawn layer. The fixture is
+	// uniform noise of about 23 per channel: a single-pass shrink keeps
+	// most of it (around 16 at this size), averaging halves it
+	const deviation = await page.evaluate(({ x, y }) => {
+		const layer = window.Konva.stages[0]!.getLayers()[0]!.getCanvas()
+		const ratio = layer.getPixelRatio()
+		const context = layer._canvas.getContext('2d')!
+		const { data } = context.getImageData((x + 20) * ratio, (y + 20) * ratio, 100, 100)
+		const values: number[] = []
+		for (let index = 0; index < data.length; index += 4) {
+			values.push(data[index]!)
+		}
+		const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+		return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length)
+	}, view)
+
+	expect(deviation).toBeLessThan(12)
+})
+
+/**
+ * Width of the canvas the picture is drawn from, which is the source
+ * itself or one of the halved copies.
+ *
+ * @param page the test page
+ */
+async function drawnWidth(page: Page): Promise<number> {
+	return page.evaluate(() => {
+		const image = window.Konva.stages[0]!.findOne<Konva.Image>('Image')!
+		return (image.image() as HTMLCanvasElement).width
+	})
+}
+
+test('zooming in draws from the picture itself again', async ({ page }) => {
+	await waitLoaded(page, 'noise')
+	await centerPointer(page)
+
+	// The 2000 wide fixture is shown at under half its size, from a copy
+	expect(await drawnWidth(page)).toBe(1000)
+
+	// Past 50% no copy is close enough: the source is what is drawn
+	while (await zoom(page) < 200) {
+		await page.locator('[data-test="zoom-in"]').click()
+	}
+	await expect.poll(() => drawnWidth(page)).toBe(2000)
+
+	await page.locator('[data-test="zoom-reset"]').click()
+	await expect.poll(() => drawnWidth(page)).toBe(1000)
+})
+
+test('the saved picture is exported from the source, not the copy shown', async ({ page }) => {
+	await waitLoaded(page, 'noise')
+	expect(await drawnWidth(page)).toBe(1000)
+
+	const result = await save(page)
+	expect(result.width).toBe(2000)
+	expect(result.height).toBe(1500)
+	// The fixture's grain is about 23; drawn from the halved copy the
+	// export would carry half of that
+	expect(result.grain).toBeGreaterThan(18)
 })
