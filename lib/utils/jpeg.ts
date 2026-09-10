@@ -25,6 +25,12 @@ const TAG_EXIF_IFD = 0x8769
 const TAG_PIXEL_WIDTH = 0xA002
 const TAG_PIXEL_HEIGHT = 0xA003
 
+/** Where a thumbnail's pixels live, compressed or as strips */
+const TAG_STRIP_OFFSETS = 0x0111
+const TAG_STRIP_LENGTHS = 0x0117
+const TAG_THUMBNAIL_OFFSET = 0x0201
+const TAG_THUMBNAIL_LENGTH = 0x0202
+
 /**
  * Read the leading bytes of a segment as ASCII, to recognise it.
  *
@@ -91,14 +97,59 @@ export function readMetadataSegments(bytes: Uint8Array): Uint8Array[] {
 }
 
 /**
+ * Overwrite the pixels of the thumbnail an Exif block carries.
+ *
+ * The bytes are zeroed where they lie rather than cut out, because
+ * every offset in the block is measured from the start of the TIFF
+ * header: removing bytes would move everything after them and break
+ * the tags that point there. Zeroing costs a few unused kilobytes in
+ * the file and cannot corrupt it.
+ *
+ * @param out the Exif segment, modified in place
+ * @param tiff where the TIFF header starts within the segment
+ * @param ifd1 the thumbnail directory's offset, relative to that header
+ * @param eachEntry walker over one directory's entries
+ * @param u16 reads a 16 bit value in the block's byte order
+ * @param u32 reads a 32 bit value in the block's byte order
+ */
+function eraseThumbnail(
+	out: Uint8Array,
+	tiff: number,
+	ifd1: number,
+	eachEntry: (offset: number, visit: (entry: number, tag: number) => void) => number,
+	u16: (at: number) => number,
+	u32: (at: number) => number,
+): void {
+	if (ifd1 === 0) {
+		return
+	}
+	let at = 0
+	let length = 0
+	eachEntry(ifd1, (entry, tag) => {
+		// A thumbnail is a whole JPEG, or, rarely, one strip of raw
+		// pixels. Either way one tag says where and another how far.
+		if (tag === TAG_THUMBNAIL_OFFSET || tag === TAG_STRIP_OFFSETS) {
+			at = u16(entry + 2) === 3 ? u16(entry + 8) : u32(entry + 8)
+		}
+		if (tag === TAG_THUMBNAIL_LENGTH || tag === TAG_STRIP_LENGTHS) {
+			length = u16(entry + 2) === 3 ? u16(entry + 8) : u32(entry + 8)
+		}
+	})
+	if (at === 0 || length === 0) {
+		return
+	}
+	const from = Math.min(tiff + at, out.length)
+	out.fill(0, from, Math.min(from + length, out.length))
+}
+
+/**
  * Rewrite the parts of an Exif segment that the edit has made untrue.
  *
  * The orientation is baked into the pixels the editor exports, so a tag
  * saying to rotate them again would turn the image twice. The embedded
- * thumbnail is the one the camera made, which is no longer the picture;
- * it is dropped by unlinking the directory that holds it rather than by
- * moving the bytes that follow it. The recorded pixel size is replaced
- * with the size actually written.
+ * thumbnail is the one the camera made, which is no longer the picture:
+ * its pixels are overwritten and the directory holding it is unlinked.
+ * The recorded pixel size is replaced with the size actually written.
  *
  * @param segment an APP1 segment starting with the Exif header
  * @param size the size of the exported image
@@ -152,8 +203,13 @@ function rewriteExif(segment: Uint8Array, size: { width: number, height: number 
 		}
 	})
 
-	// The next directory is the thumbnail's, and it is the old picture
+	// The next directory is the thumbnail's, and it is the old picture:
+	// the frame as the camera saw it, before anything here was cropped
+	// out or redacted. Unlinking the directory hides it from a reader,
+	// but the pixels stay in the file and can be carved back out, so
+	// they are overwritten before the link is cut.
 	if (endOfIfd0 + 4 <= out.length) {
+		eraseThumbnail(out, tiff, u32(endOfIfd0), eachEntry, u16, u32)
 		view.setUint32(endOfIfd0, 0, little)
 	}
 
