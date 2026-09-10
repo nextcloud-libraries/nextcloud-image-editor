@@ -199,6 +199,39 @@ export function createInitialState(): EditorState {
 }
 
 /**
+ * A state safe to render, whatever version of this library wrote it.
+ *
+ * Adjustments are required fields, so a state stored by an older
+ * release is missing the ones added since. That is not a theoretical
+ * shape: `initialState` takes exactly what the change event emitted,
+ * and an app that stored one and then upgraded hands it back short.
+ *
+ * A missing adjustment is not zero, it is undefined, which reads as
+ * "not the default" everywhere the pipeline asks whether there is work
+ * to do, and turns into NaN the moment it is divided. NaN then passes
+ * the guards inside the filters, because it is equal to nothing, and
+ * every pixel it touches clamps to black.
+ *
+ * The guarantee this gives the pipeline is that every adjustment is a
+ * finite number. A state that already holds is returned untouched.
+ *
+ * @param state the state to make whole
+ */
+export function normaliseState(state: EditorState): EditorState {
+	const defaults = createInitialState().adjustments
+	const repaired = Object.entries(defaults)
+		.filter(([key]) => !Number.isFinite(state.adjustments[key as keyof Adjustments]))
+	if (repaired.length === 0) {
+		// Already whole, so hand back what was given rather than a copy
+		return state
+	}
+	return {
+		...state,
+		adjustments: { ...state.adjustments, ...Object.fromEntries(repaired) },
+	}
+}
+
+/**
  * Whether a state carries no edit at all, matching a fresh one from
  * createInitialState. Consumers can use it for a dirty check, and the
  * editor uses it to hand an untouched image back as it came in.

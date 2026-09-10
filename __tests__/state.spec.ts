@@ -12,6 +12,7 @@ import {
 	flipHorizontal,
 	flipVertical,
 	isPristine,
+	normaliseState,
 	orientedSize,
 	rotateCW,
 	translateAnnotation,
@@ -367,5 +368,73 @@ describe('line annotations travel with the image', () => {
 
 	it('moves by a delta like any other annotation', () => {
 		expect((translateAnnotation(line, 5, -5) as typeof line).points).toEqual([15, 15, 65, 35])
+	})
+})
+
+describe('normaliseState', () => {
+	/**
+	 * A state as an older release emitted it, before three adjustments
+	 * existed. An app that stored one and upgraded hands this back.
+	 *
+	 * @param missing the adjustments that release did not have
+	 */
+	function older(...missing: string[]): EditorState {
+		const state = createInitialState()
+		const adjustments = { ...state.adjustments } as Record<string, number>
+		for (const key of missing) {
+			delete adjustments[key]
+		}
+		return { ...state, adjustments: adjustments as unknown as EditorState['adjustments'] }
+	}
+
+	it('fills adjustments the writer never had', () => {
+		const whole = normaliseState(older('highlights', 'shadows', 'vignette'))
+		expect(whole.adjustments).toEqual(createInitialState().adjustments)
+	})
+
+	it('keeps the values the writer did have', () => {
+		const stored = older('vignette')
+		stored.adjustments.exposure = 40
+		stored.rotation = 90
+		stored.annotations = [{
+			id: 'a',
+			type: 'draw',
+			points: [0, 0, 1, 1],
+			color: '#fff',
+			strokeWidth: 2,
+		}]
+
+		const whole = normaliseState(stored)
+		expect(whole.adjustments.exposure).toBe(40)
+		expect(whole.adjustments.vignette).toBe(0)
+		expect(whole.rotation).toBe(90)
+		expect(whole.annotations).toHaveLength(1)
+	})
+
+	it('hands a state that is already whole straight back', () => {
+		const state = createInitialState()
+		expect(normaliseState(state)).toBe(state)
+	})
+
+	it('repairs a value that is not a number at all', () => {
+		const state = createInitialState()
+		state.adjustments.exposure = Number.NaN
+		expect(normaliseState(state).adjustments.exposure).toBe(0)
+	})
+
+	it('gives the filter pipeline nothing that reads as work to do', () => {
+		// applyFilters runs a filter whenever a value is not zero, and an
+		// absent one is not zero. It then divides it, which is NaN, which
+		// the guards inside the filter do not catch and which renders the
+		// whole image black.
+		const whole = normaliseState(older('highlights', 'shadows', 'vignette'))
+		for (const value of Object.values(whole.adjustments)) {
+			expect(value).toBe(0)
+			expect(Number.isFinite(value)).toBe(true)
+		}
+	})
+
+	it('still reads as untouched', () => {
+		expect(isPristine(normaliseState(older('highlights', 'shadows', 'vignette')))).toBe(true)
 	})
 })

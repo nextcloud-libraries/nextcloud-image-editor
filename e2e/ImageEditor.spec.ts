@@ -232,6 +232,19 @@ test('saving an edited image re-encodes it', async ({ page }) => {
 	expect(result.height).toBe(200)
 })
 
+test('renders a state stored before the newer adjustments existed', async ({ page }) => {
+	// The playground seeds only brightness, contrast and saturation, the
+	// way a host that stored a state and then upgraded would. A missing
+	// adjustment is not zero: it reads as work to do, is divided into
+	// NaN, and paints the whole image black.
+	await page.goto('/?src=test&restore=1')
+	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+
+	const result = await save(page)
+	// The fixture is red over blue, rotated a quarter turn by the state
+	expect(result.topLeft[0] + result.topLeft[1] + result.topLeft[2]).toBeGreaterThan(60)
+})
+
 test('opens on a state the host hands over', async ({ page }) => {
 	await page.goto('/?src=test&restore=1')
 	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
