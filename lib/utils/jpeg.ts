@@ -105,41 +105,40 @@ export function readMetadataSegments(bytes: Uint8Array): Uint8Array[] {
  * the tags that point there. Zeroing costs a few unused kilobytes in
  * the file and cannot corrupt it.
  *
+ * A thumbnail is usually one whole JPEG, named by a single pair of
+ * tags. It may also be raw pixels in strips, and then there is one
+ * offset and one length per strip, so every pair has to be erased.
+ *
  * @param out the Exif segment, modified in place
  * @param tiff where the TIFF header starts within the segment
  * @param ifd1 the thumbnail directory's offset, relative to that header
  * @param eachEntry walker over one directory's entries
- * @param u16 reads a 16 bit value in the block's byte order
- * @param u32 reads a 32 bit value in the block's byte order
+ * @param values reads everything one entry carries
  */
 function eraseThumbnail(
 	out: Uint8Array,
 	tiff: number,
 	ifd1: number,
 	eachEntry: (offset: number, visit: (entry: number, tag: number) => void) => number,
-	u16: (at: number) => number,
-	u32: (at: number) => number,
+	values: (entry: number) => number[],
 ): void {
 	if (ifd1 === 0) {
 		return
 	}
-	let at = 0
-	let length = 0
+	let offsets: number[] = []
+	let lengths: number[] = []
 	eachEntry(ifd1, (entry, tag) => {
-		// A thumbnail is a whole JPEG, or, rarely, one strip of raw
-		// pixels. Either way one tag says where and another how far.
 		if (tag === TAG_THUMBNAIL_OFFSET || tag === TAG_STRIP_OFFSETS) {
-			at = u16(entry + 2) === 3 ? u16(entry + 8) : u32(entry + 8)
+			offsets = values(entry)
 		}
 		if (tag === TAG_THUMBNAIL_LENGTH || tag === TAG_STRIP_LENGTHS) {
-			length = u16(entry + 2) === 3 ? u16(entry + 8) : u32(entry + 8)
+			lengths = values(entry)
 		}
 	})
-	if (at === 0 || length === 0) {
-		return
+	for (let i = 0; i < Math.min(offsets.length, lengths.length); i++) {
+		const from = Math.min(tiff + offsets[i]!, out.length)
+		out.fill(0, from, Math.min(from + lengths[i]!, out.length))
 	}
-	const from = Math.min(tiff + at, out.length)
-	out.fill(0, from, Math.min(from + length, out.length))
 }
 
 /**
@@ -191,6 +190,36 @@ function rewriteExif(segment: Uint8Array, size: { width: number, height: number 
 		return start + 2 + count * 12
 	}
 
+	/**
+	 * Everything one entry carries, whether it fits in the entry or not.
+	 *
+	 * An entry keeps its values in its last four bytes when they fit
+	 * there and a pointer to them when they do not, so anything with
+	 * more than one value, such as a thumbnail split across strips,
+	 * lives elsewhere in the block. Reading those four bytes as a value
+	 * would take the array's address for a strip's own.
+	 *
+	 * @param entry the absolute position of the entry
+	 */
+	function entryValues(entry: number): number[] {
+		const type = u16(entry + 2)
+		if (type !== 3 && type !== 4) {
+			return []
+		}
+		const width = type === 3 ? 2 : 4
+		const count = u32(entry + 4)
+		const base = count * width <= 4 ? entry + 8 : tiff + u32(entry + 8)
+		const found: number[] = []
+		for (let i = 0; i < count; i++) {
+			const at = base + i * width
+			if (at + width > out.length) {
+				break
+			}
+			found.push(width === 2 ? u16(at) : u32(at))
+		}
+		return found
+	}
+
 	const ifd0 = u32(tiff + 4)
 	let exifIfd = 0
 	const endOfIfd0 = eachEntry(ifd0, (entry, tag) => {
@@ -209,7 +238,7 @@ function rewriteExif(segment: Uint8Array, size: { width: number, height: number 
 	// but the pixels stay in the file and can be carved back out, so
 	// they are overwritten before the link is cut.
 	if (endOfIfd0 + 4 <= out.length) {
-		eraseThumbnail(out, tiff, u32(endOfIfd0), eachEntry, u16, u32)
+		eraseThumbnail(out, tiff, u32(endOfIfd0), eachEntry, entryValues)
 		view.setUint32(endOfIfd0, 0, little)
 	}
 
