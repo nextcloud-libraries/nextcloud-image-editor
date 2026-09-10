@@ -715,12 +715,42 @@ defineExpose({
 		<div class="image-editor__shell">
 			<div class="image-editor__frame">
 				<div class="image-editor__viewport">
-					<div
-						ref="container"
-						class="image-editor__canvas"
-						:style="{ cursor: canvasCursor }"
-						role="img"
-						:aria-label="label ?? labels.canvas" />
+					<!-- The overlay and the toolbar are placed in stage
+					     coordinates, so they share the stage's box -->
+					<div class="image-editor__stage">
+						<div
+							ref="container"
+							class="image-editor__canvas"
+							:style="{ cursor: canvasCursor }"
+							role="img"
+							:aria-label="label ?? labels.canvas" />
+						<TextOverlay
+							v-if="textEdit !== null"
+							ref="overlay"
+							:x="textEdit.screenX"
+							:y="textEdit.screenY"
+							:font-size="textEdit.screenFontSize"
+							:color="context.drawColor.value"
+							:initial="textEdit.value"
+							:outline="textStyle.outline.value"
+							:background="textStyle.background.value"
+							:font="textStyle.font.value"
+							:align="textStyle.align.value"
+							:bold="textStyle.bold.value"
+							:italic="textStyle.italic.value"
+							:underline="textStyle.underline.value"
+							:strikethrough="textStyle.strikethrough.value"
+							@resize="overlaySize = $event"
+							@confirm="confirmTextEdit"
+							@cancel="textEdit = null" />
+						<FloatingToolbar
+							v-if="toolbarBox !== null"
+							:box="toolbarBox"
+							:typing="textEdit !== null"
+							@refocus="overlay?.focus()"
+							@duplicate="onDuplicateSelection"
+							@delete="onDeleteSelection" />
+					</div>
 					<NcLoadingIcon
 						v-if="!loaded && !errored"
 						class="image-editor__loading"
@@ -731,32 +761,6 @@ defineExpose({
 							{{ labels.retry }}
 						</NcButton>
 					</div>
-					<TextOverlay
-						v-if="textEdit !== null"
-						ref="overlay"
-						:x="textEdit.screenX"
-						:y="textEdit.screenY"
-						:font-size="textEdit.screenFontSize"
-						:color="context.drawColor.value"
-						:initial="textEdit.value"
-						:outline="textStyle.outline.value"
-						:background="textStyle.background.value"
-						:font="textStyle.font.value"
-						:align="textStyle.align.value"
-						:bold="textStyle.bold.value"
-						:italic="textStyle.italic.value"
-						:underline="textStyle.underline.value"
-						:strikethrough="textStyle.strikethrough.value"
-						@resize="overlaySize = $event"
-						@confirm="confirmTextEdit"
-						@cancel="textEdit = null" />
-					<FloatingToolbar
-						v-if="toolbarBox !== null"
-						:box="toolbarBox"
-						:typing="textEdit !== null"
-						@refocus="overlay?.focus()"
-						@duplicate="onDuplicateSelection"
-						@delete="onDeleteSelection" />
 				</div>
 
 				<EditorTopBar
@@ -944,6 +948,12 @@ defineExpose({
 			border: 1px solid rgba(255, 255, 255, 0.09);
 			border-radius: var(--border-radius-large, 12px);
 		}
+	}
+
+	&__stage {
+		position: relative;
+		height: 100%;
+		width: 100%;
 	}
 
 	&__canvas {

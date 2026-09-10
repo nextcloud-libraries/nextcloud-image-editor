@@ -718,9 +718,14 @@ test('the toolbar floats over the text being typed, and recolors it', async ({ p
 	// Nothing placed yet, so nothing to duplicate or delete
 	await expect(page.locator('[data-test="duplicate"]')).toHaveCount(0)
 
-	// Above the field, centred on it
+	// The field opens where the pointer went down, not offset by the
+	// chrome around the stage
 	const overlay = page.locator('[data-test="text-overlay"]')
 	const field = (await overlay.boundingBox())!
+	expect(Math.abs(field.x - (corner.x + 30))).toBeLessThan(1)
+	expect(Math.abs(field.y - (corner.y + 80))).toBeLessThan(1)
+
+	// Above the field, centred on it
 	const bar = (await toolbar.boundingBox())!
 	expect(bar.y + bar.height).toBeLessThan(field.y)
 	expect(Math.abs(bar.x + bar.width / 2 - (field.x + field.width / 2))).toBeLessThan(2)
