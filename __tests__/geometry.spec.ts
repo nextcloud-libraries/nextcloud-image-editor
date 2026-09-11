@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { describe, expect, it } from 'vitest'
-import { coverScale, fitContain } from '../lib/utils/geometry.ts'
+import { coverScale, fitContain, snapAngle } from '../lib/utils/geometry.ts'
 
 describe('fitContain', () => {
 	it('downscales to the limiting dimension', () => {
@@ -70,5 +70,31 @@ describe('coverScale', () => {
 
 	it('rejects non-positive dimensions', () => {
 		expect(() => coverScale({ width: 0, height: 100 }, 10)).toThrow(RangeError)
+	})
+})
+
+describe('snapAngle', () => {
+	const from = { x: 10, y: 10 }
+
+	it('lands exactly on the axes', () => {
+		expect(snapAngle(from, { x: 50, y: 12 })).toEqual({ x: expect.closeTo(10 + Math.hypot(40, 2)), y: 10 })
+		expect(snapAngle(from, { x: 8, y: -30 })).toEqual({ x: 10, y: expect.closeTo(10 - Math.hypot(2, 40)) })
+	})
+
+	it('keeps the length on a diagonal', () => {
+		const snapped = snapAngle(from, { x: 40, y: 50 })
+		expect(snapped.x - from.x).toBeCloseTo(snapped.y - from.y)
+		expect(Math.hypot(snapped.x - from.x, snapped.y - from.y)).toBeCloseTo(50)
+	})
+
+	it('takes another step', () => {
+		// 41° from the axis: a diagonal at 45° steps, flat at 90° ones
+		const to = { x: 40, y: 36 }
+		expect(snapAngle(from, to).x - from.x).toBeCloseTo(snapAngle(from, to).y - from.y)
+		expect(snapAngle(from, to, Math.PI / 2)).toEqual({ x: expect.closeTo(10 + Math.hypot(30, 26)), y: 10 })
+	})
+
+	it('leaves a segment of no length where it is', () => {
+		expect(snapAngle(from, from)).toEqual(from)
 	})
 })

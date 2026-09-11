@@ -49,9 +49,12 @@ afterEach(() => {
 	}
 })
 
+/** The modifier keys a pointer event may carry */
+type Modifiers = Partial<Pick<PointerEvent, 'shiftKey' | 'ctrlKey'>>
+
 interface Harness {
 	deps: PointerToolDeps
-	fire(event: 'pointerdown' | 'pointermove' | 'pointerup', point?: { x: number, y: number }): void
+	fire(event: 'pointerdown' | 'pointermove' | 'pointerup', point?: { x: number, y: number }, modifiers?: Modifiers): void
 	committed(): EditorState | null
 	textEdits: { x: number, y: number }[]
 	/** Simulate a view pan taking over the pointer */
@@ -62,7 +65,7 @@ interface Harness {
  * A stage stub driving the pointer handlers without a canvas.
  */
 function harness(): Harness {
-	const handlers = new Map<string, () => void>()
+	const handlers = new Map<string, (event: { evt: Modifiers }) => void>()
 	let pointer: { x: number, y: number } | null = null
 	let lastCommit: EditorState | null = null
 	const textEdits: { x: number, y: number }[] = []
@@ -70,7 +73,7 @@ function harness(): Harness {
 
 	const deps: PointerToolDeps = {
 		stage: {
-			on: (names: string, handler: () => void) => {
+			on: (names: string, handler: (event: { evt: Modifiers }) => void) => {
 				for (const name of names.split(' ')) {
 					handlers.set(name.split('.')[0]!, handler)
 				}
@@ -94,9 +97,9 @@ function harness(): Harness {
 
 	return {
 		deps,
-		fire(event, point) {
+		fire(event, point, modifiers = {}) {
 			pointer = point ?? pointer
-			handlers.get(event)?.()
+			handlers.get(event)?.({ evt: { shiftKey: false, ctrlKey: false, ...modifiers } })
 		},
 		committed: () => lastCommit,
 		textEdits,
@@ -144,6 +147,58 @@ describe('attachPointerTools', () => {
 
 		const annotation = h.committed()!.annotations[0] as ArrowAnnotation
 		expect(annotation.points).toEqual([5, 5, 40, 30])
+	})
+
+	describe('a line held to 45° steps', () => {
+		it('snaps to the nearest step while Shift is down, keeping its length', () => {
+			const h = harness()
+			attach('line', h.deps)
+			h.fire('pointerdown', { x: 0, y: 0 })
+			h.fire('pointermove', { x: 30, y: 4 }, { shiftKey: true })
+			h.fire('pointerup')
+
+			const annotation = h.committed()!.annotations[0] as LineAnnotation
+			expect(annotation.points).toEqual([0, 0, expect.closeTo(Math.hypot(30, 4)), 0])
+		})
+
+		it('takes Ctrl as well, onto a diagonal', () => {
+			const h = harness()
+			attach('arrow', h.deps)
+			h.fire('pointerdown', { x: 10, y: 10 })
+			h.fire('pointermove', { x: 40, y: 50 }, { ctrlKey: true })
+			h.fire('pointerup')
+
+			const [,, x, y] = (h.committed()!.annotations[0] as ArrowAnnotation).points
+			expect(x).toBeCloseTo(y!)
+			expect(Math.hypot(x! - 10, y! - 10)).toBeCloseTo(50)
+		})
+
+		it('follows the modifier pressed and released while the pointer holds still', () => {
+			const h = harness()
+			attach('line', h.deps)
+			h.fire('pointerdown', { x: 0, y: 0 })
+			h.fire('pointermove', { x: 30, y: 4 })
+
+			window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift' }))
+			h.fire('pointerup')
+			expect((h.committed()!.annotations[0] as LineAnnotation).points[3]).toBe(0)
+
+			h.fire('pointerdown', { x: 0, y: 0 })
+			h.fire('pointermove', { x: 30, y: 4 }, { shiftKey: true })
+			window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift' }))
+			h.fire('pointerup')
+			expect((h.committed()!.annotations[1] as LineAnnotation).points).toEqual([0, 0, 30, 4])
+		})
+
+		it('leaves a freehand stroke alone', () => {
+			const h = harness()
+			attach('draw', h.deps)
+			h.fire('pointerdown', { x: 0, y: 0 })
+			h.fire('pointermove', { x: 30, y: 4 }, { shiftKey: true })
+			h.fire('pointerup')
+
+			expect((h.committed()!.annotations[0] as DrawAnnotation).points).toEqual([0, 0, 30, 4])
+		})
 	})
 
 	it('stamps redactions with the chosen style', () => {

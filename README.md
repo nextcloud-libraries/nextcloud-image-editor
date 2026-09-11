@@ -24,10 +24,10 @@ unmaintained Filerobot editor.
   golden, coast, cinema, berry, mist, warm, cool, fade) over
   monochromes (grayscale, noir, luna, sepia) to effects (invert,
   solarize, posterize)
-- Annotations: freehand drawing, rectangles, ellipses, arrows, text and
-  emoji stickers (the user's frequently used Nextcloud emojis plus the
-  full picker): movable, resizable, rotatable, recolorable,
-  duplicatable and deletable
+- Annotations: freehand drawing, rectangles, ellipses, lines and arrows
+  (held to 45° steps with Shift or Ctrl), text and emoji stickers (the
+  user's frequently used Nextcloud emojis plus the full picker):
+  movable, resizable, rotatable, recolorable, duplicatable and deletable
 - Redaction that destroys pixels (block averaging or strong blur),
   never just an overlay
 - Full undo/redo with Ctrl+Z/Y, a named history list to jump back to any
