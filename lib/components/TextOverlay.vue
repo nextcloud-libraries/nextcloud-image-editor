@@ -6,7 +6,7 @@
 import type { FontId } from '../editor/fonts.ts'
 import type { TextAlign } from '../editor/text-align.ts'
 
-import { onMounted, ref, useTemplateRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { fontStack } from '../editor/fonts.ts'
 import { textAlign } from '../editor/text-align.ts'
 import { textDecoration } from '../editor/text-emphasis.ts'
@@ -45,6 +45,8 @@ const props = defineProps<{
 const emit = defineEmits<{
 	confirm: [text: string]
 	cancel: []
+	/** The field grew or shrank with its content */
+	resize: [size: { width: number, height: number }]
 }>()
 
 const inputLabel = t('Annotation text')
@@ -64,12 +66,45 @@ function autosize() {
 	element.style.height = '0'
 	element.style.width = `${Math.max(element.scrollWidth + 4, props.fontSize * 2)}px`
 	element.style.height = `${Math.max(element.scrollHeight, props.fontSize * 1.2)}px`
+	emit('resize', { width: element.offsetWidth, height: element.offsetHeight })
 }
+
+/**
+ * Confirm when the pointer goes down anywhere but the field and the
+ * chrome that styles it. Blur cannot be the trigger: a native color
+ * picker takes the focus out of the window, and a menu takes it into
+ * a popover mounted on the body, neither of which ends the edit.
+ *
+ * @param event the pointer event
+ */
+function onPointerDown(event: PointerEvent) {
+	const target = event.target
+	if (!(target instanceof Element)
+		|| target === input.value
+		|| target.closest('.floating-toolbar, .v-popper__popper') !== null) {
+		return
+	}
+	emit('confirm', value.value)
+}
+
+/**
+ * Put the caret back, for after a menu took the focus.
+ */
+function focus() {
+	input.value?.focus()
+}
+
+defineExpose({ focus })
 
 onMounted(() => {
 	autosize()
 	input.value!.focus()
 	input.value!.select()
+	document.addEventListener('pointerdown', onPointerDown, { capture: true })
+})
+
+onBeforeUnmount(() => {
+	document.removeEventListener('pointerdown', onPointerDown, { capture: true })
 })
 
 /**
@@ -124,8 +159,7 @@ function onEnter(event: KeyboardEvent) {
 		rows="1"
 		@input="autosize"
 		@keydown.enter="onEnter"
-		@keydown.esc.stop="emit('cancel')"
-		@blur="emit('confirm', value)" />
+		@keydown.esc.stop="emit('cancel')" />
 </template>
 
 <style scoped>

@@ -3,33 +3,19 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { Component } from 'vue'
 import type { Tool } from '../../editor/context.ts'
-import type { FONT_STACKS } from '../../editor/fonts.ts'
-import type { TextAlign } from '../../editor/text-align.ts'
 
 import { computed } from 'vue'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
-import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
-import BorderOutside from 'vue-material-design-icons/BorderOutside.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
-import FormatAlignCenter from 'vue-material-design-icons/FormatAlignCenter.vue'
-import FormatAlignLeft from 'vue-material-design-icons/FormatAlignLeft.vue'
-import FormatAlignRight from 'vue-material-design-icons/FormatAlignRight.vue'
-import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
-import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import VectorLine from 'vue-material-design-icons/VectorLine.vue'
 import EditorSlider from '../base/EditorSlider.vue'
-import TextEmphasisButtons from '../base/TextEmphasisButtons.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
-import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
-import { TEXT_ALIGNS, textAlign } from '../../editor/text-align.ts'
 import { t } from '../../utils/l10n.ts'
 
 defineProps<{
@@ -39,35 +25,11 @@ defineProps<{
 
 const context = useEditorContext()
 const color = useAnnotationColor(context)
-const textStyle = useTextStyle(context)
-
-// Named for what they look like rather than for the faces behind them,
-// which differ per machine
-const fonts: { id: keyof typeof FONT_STACKS, label: string }[] = [
-	{ id: 'sans', label: t('Sans serif') },
-	{ id: 'serif', label: t('Serif') },
-	{ id: 'mono', label: t('Monospace') },
-]
-
-const ALIGN_META: Record<TextAlign, { label: string, icon: Component }> = {
-	left: { label: t('Align left'), icon: FormatAlignLeft },
-	center: { label: t('Align centre'), icon: FormatAlignCenter },
-	right: { label: t('Align right'), icon: FormatAlignRight },
-}
-
-const alignments = TEXT_ALIGNS.map((id) => ({ id, ...ALIGN_META[id] }))
-
-/** The chosen alignment, shown on the trigger so it reads without opening */
-const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 
 const labels = {
 	color: t('Color'),
 	strokeWidth: t('Stroke width'),
 	fontSize: t('Font size'),
-	outline: t('Outline'),
-	background: t('Background'),
-	font: t('Font'),
-	align: t('Alignment'),
 }
 
 // Stands in for the text being sized. Deliberately not translated: it
@@ -84,13 +46,6 @@ const subTools: { id: Tool, label: string, icon: unknown }[] = [
 ]
 
 const showStrokeOptions = computed(() => ['draw', 'rectangle', 'ellipse', 'arrow', 'line'].includes(context.activeTool.value))
-
-// Also while a caption is selected, which is when someone finds out it
-// needed an edge. Selecting one means leaving the text tool, so keying
-// this on the tool alone would hide the switches exactly then.
-const showTextOptions = computed(() => context.activeTool.value === 'text'
-	|| context.state.value.annotations
-		.some((entry) => entry.id === context.selectedId.value && entry.type === 'text'))
 
 /** Largest preview that still fits the control card */
 const PREVIEW_CAP = 44
@@ -173,76 +128,6 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 					}">{{ FONT_SAMPLE }}</span>
 			</template>
 		</EditorSlider>
-		<div v-if="showTextOptions" class="annotate-panel__row" data-test="text-style">
-			<NcActions
-				forceMenu
-				:aria-label="labels.font"
-				:title="labels.font"
-				variant="tertiary"
-				data-test="text-font">
-				<template #icon>
-					<FormatFont :size="20" />
-				</template>
-				<NcActionButton
-					v-for="entry in fonts"
-					:key="entry.id"
-					type="radio"
-					closeAfterClick
-					:modelValue="textStyle.font.value"
-					:value="entry.id"
-					:data-test="`text-font-${entry.id}`"
-					@click="textStyle.font.value = entry.id">
-					{{ entry.label }}
-				</NcActionButton>
-			</NcActions>
-			<NcActions
-				forceMenu
-				:aria-label="labels.align"
-				:title="labels.align"
-				variant="tertiary"
-				data-test="text-align">
-				<template #icon>
-					<component :is="alignment.icon" :size="20" />
-				</template>
-				<NcActionButton
-					v-for="entry in alignments"
-					:key="entry.id"
-					type="radio"
-					closeAfterClick
-					:modelValue="textStyle.align.value"
-					:value="entry.id"
-					:data-test="`text-align-${entry.id}`"
-					@click="textStyle.align.value = entry.id">
-					<template #icon>
-						<component :is="entry.icon" :size="20" />
-					</template>
-					{{ entry.label }}
-				</NcActionButton>
-			</NcActions>
-			<TextEmphasisButtons testPrefix="text" :size="20" />
-			<NcButton
-				:aria-label="labels.outline"
-				:title="labels.outline"
-				:pressed="textStyle.outline.value"
-				variant="tertiary"
-				data-test="text-outline"
-				@click="textStyle.outline.value = !textStyle.outline.value">
-				<template #icon>
-					<BorderOutside :size="20" />
-				</template>
-			</NcButton>
-			<NcButton
-				:aria-label="labels.background"
-				:title="labels.background"
-				:pressed="textStyle.background.value"
-				variant="tertiary"
-				data-test="text-background"
-				@click="textStyle.background.value = !textStyle.background.value">
-				<template #icon>
-					<FormatColorHighlight :size="20" />
-				</template>
-			</NcButton>
-		</div>
 	</div>
 </template>
 

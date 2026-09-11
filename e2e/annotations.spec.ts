@@ -153,7 +153,7 @@ test('the selection toolbar duplicates and deletes', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 50, corner.y + 20)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
 	await page.locator('[data-test="duplicate"]').click()
 	expect((await readState(page)).annotations).toHaveLength(2)
@@ -216,7 +216,7 @@ test('switching tools drops the selection instead of hiding it', async ({ page }
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 50, corner.y + 20)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
 	// Leaving the select mode must clear the (now invisible) selection:
 	// a Delete press afterwards may not remove anything
@@ -235,9 +235,9 @@ test('the color control recolors the selected annotation', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 50, corner.y + 20)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
-	await setInputValue(page.locator('input[type="color"]'), '#00ff00')
+	await setInputValue(page.locator('[data-test="toolbar-color"]'), '#00ff00')
 	const state = await readState(page)
 	expect(state.annotations[0].color).toBe('#00ff00')
 
@@ -257,7 +257,7 @@ test('freehand strokes scale and rotate through the transformer', async ({ page 
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 60, corner.y + 50)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
 	// Strokes expose the full transformer, rotation handle included
 	const handles = await page.evaluate(() => {
@@ -306,8 +306,8 @@ test('the color control hides where color has no effect', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 112, corner.y + 62)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
-	await expect(page.locator('.select-panel input[type="color"]')).toHaveCount(0)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="toolbar-color"]')).toHaveCount(0)
 	await expect(page.getByText('Drag to move, use the handles to resize')).toBeVisible()
 
 	// A redaction destroys pixels and stays axis-aligned: no color,
@@ -318,8 +318,8 @@ test('the color control hides where color has no effect', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 55, corner.y + 45)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
-	await expect(page.locator('.select-panel input[type="color"]')).toHaveCount(0)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="toolbar-color"]')).toHaveCount(0)
 	const rotatable = await page.evaluate(() => {
 		const transformer = window.Konva.stages[0].find('Transformer')[0] as unknown as { rotateEnabled(): boolean }
 		return transformer.rotateEnabled()
@@ -337,7 +337,7 @@ test('rectangle rotation survives rebuilds and round trips', async ({ page }) =>
 
 	await page.getByRole('button', { name: 'Select' }).click()
 	await page.mouse.click(corner.x + 100, corner.y + 30)
-	await expect(page.locator('[data-test="selection-toolbar"]')).toBeVisible()
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 
 	// Rotate through the transformer pipeline; the synthetic pointer
 	// drag on the tiny rotater handle is too flaky across engines
@@ -419,7 +419,7 @@ test('picking a color records one undo step, not one per shade', async ({ page }
 	await page.mouse.click(corner.x + 50, corner.y + 20)
 
 	// A native color picker reports every shade the pointer crosses
-	const picker = page.locator('[data-test="color"]')
+	const picker = page.locator('[data-test="toolbar-color"]')
 	for (const shade of ['#00ff00', '#00dd00', '#00bb00', '#009900', '#007700']) {
 		await picker.evaluate((element, value) => {
 			const input = element as HTMLInputElement
@@ -516,12 +516,13 @@ test('text can carry a contrasting edge, and remembers it in the state', async (
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-outline"]').click()
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
 	await page.waitForTimeout(300)
-	// The overlay shows the edge while it is being typed, not only after
+	// The switch floats next to the field, and the overlay shows the edge
+	// while it is being typed, not only after
+	await page.locator('[data-test="toolbar-outline"]').click()
 	const overlay = page.locator('[data-test="text-overlay"]')
 	// The browser normalises 'stroke fill' to 'stroke', the rest being implied
 	await expect(overlay).toHaveCSS('paint-order', 'stroke')
@@ -575,7 +576,7 @@ test('a caption can be restyled after it is placed', async ({ page }) => {
 
 	// The switches follow the selection, so they are reachable from the
 	// select tool where the annotate panel is not
-	const outline = page.locator('[data-test="selection-outline"]')
+	const outline = page.locator('[data-test="toolbar-outline"]')
 	await expect(outline).toBeVisible()
 	await outline.click()
 	await page.waitForTimeout(300)
@@ -593,15 +594,15 @@ test('text can be set in another family, and the overlay matches', async ({ page
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-font"] button').click()
-	await page.locator('[data-test="text-font-serif"]').click()
-	// The menu closes on its own; drawing while it is still up would only
-	// dismiss it
-	await expect(page.locator('[data-test="text-font-serif"]')).toHaveCount(0)
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
 	await page.waitForTimeout(300)
+	await page.locator('[data-test="toolbar-font"] button').click()
+	await page.locator('[data-test="toolbar-font-serif"]').click()
+	// The menu closes on its own and hands the caret back
+	await expect(page.locator('[data-test="toolbar-font-serif"]')).toHaveCount(0)
+	await expect(page.locator('[data-test="text-overlay"]')).toBeFocused()
 
 	// The overlay is the only preview there is, so it has to be the same
 	// stack the canvas draws, not merely a serif of its own choosing
@@ -632,8 +633,8 @@ test('the family of a placed caption can be changed from the selection', async (
 	await page.mouse.click(corner.x + 40, corner.y + 40)
 	await page.waitForTimeout(300)
 
-	await page.locator('[data-test="selection-font"] button').click()
-	await page.locator('[data-test="selection-font-mono"]').click()
+	await page.locator('[data-test="toolbar-font"] button').click()
+	await page.locator('[data-test="toolbar-font-mono"]').click()
 	await page.waitForTimeout(300)
 
 	const state = await readState(page)
@@ -644,13 +645,13 @@ test('text can be aligned, and the overlay matches', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-align"] button').click()
-	await page.locator('[data-test="text-align-right"]').click()
-	await expect(page.locator('[data-test="text-align-right"]')).toHaveCount(0)
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
 	await page.waitForTimeout(300)
+	await page.locator('[data-test="toolbar-align"] button').click()
+	await page.locator('[data-test="toolbar-align-right"]').click()
+	await expect(page.locator('[data-test="toolbar-align-right"]')).toHaveCount(0)
 
 	await expect(page.locator('[data-test="text-overlay"]')).toHaveCSS('text-align', 'right')
 
@@ -678,8 +679,8 @@ test('the alignment of a placed caption can be changed from the selection', asyn
 	await page.mouse.click(corner.x + 40, corner.y + 40)
 	await page.waitForTimeout(300)
 
-	await page.locator('[data-test="selection-align"] button').click()
-	await page.locator('[data-test="selection-align-center"]').click()
+	await page.locator('[data-test="toolbar-align"] button').click()
+	await page.locator('[data-test="toolbar-align-center"]').click()
 	await page.waitForTimeout(300)
 
 	const state = await readState(page)
@@ -696,14 +697,16 @@ test('text can be emphasised, and the overlay matches', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
 	await page.getByRole('button', { name: 'Text', exact: true }).click()
-	await page.locator('[data-test="text-bold"]').click()
-	await page.locator('[data-test="text-italic"]').click()
-	await page.locator('[data-test="text-underline"]').click()
-	await page.locator('[data-test="text-strikethrough"]').click()
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 30, y: corner.y + 30 }, { x: corner.x + 150, y: corner.y + 60 })
 	await page.waitForTimeout(300)
+	await page.locator('[data-test="toolbar-bold"]').click()
+	await page.locator('[data-test="toolbar-italic"]').click()
+	await page.locator('[data-test="toolbar-underline"]').click()
+	await page.locator('[data-test="toolbar-strikethrough"]').click()
+	// Plain buttons leave the caret where it was
+	await expect(page.locator('[data-test="text-overlay"]')).toBeFocused()
 
 	// The overlay is the only preview there is, so it has to be cut the
 	// way the canvas will draw it
@@ -728,6 +731,48 @@ test('text can be emphasised, and the overlay matches', async ({ page }) => {
 	expect(drawn).toEqual({ fontStyle: 'italic bold', textDecoration: 'underline line-through' })
 })
 
+test('the toolbar floats over the text being typed, and recolors it', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	// Nothing to hang off before the field opens
+	const toolbar = page.locator('[data-test="floating-toolbar"]')
+	await expect(toolbar).toHaveCount(0)
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 30, y: corner.y + 80 }, { x: corner.x + 150, y: corner.y + 110 })
+	await page.waitForTimeout(300)
+	await expect(toolbar).toBeVisible()
+	// Nothing placed yet, so nothing to duplicate or delete
+	await expect(page.locator('[data-test="duplicate"]')).toHaveCount(0)
+
+	// The field opens where the pointer went down, not offset by the
+	// chrome around the stage
+	const overlay = page.locator('[data-test="text-overlay"]')
+	const field = (await overlay.boundingBox())!
+	expect(Math.abs(field.x - (corner.x + 30))).toBeLessThan(1)
+	expect(Math.abs(field.y - (corner.y + 80))).toBeLessThan(1)
+
+	// Above the field, centred on it
+	const bar = (await toolbar.boundingBox())!
+	expect(bar.y + bar.height).toBeLessThan(field.y)
+	expect(Math.abs(bar.x + bar.width / 2 - (field.x + field.width / 2))).toBeLessThan(2)
+
+	await setInputValue(page.locator('[data-test="toolbar-color"]'), '#00ff00')
+	await expect(overlay).toHaveCSS('color', 'rgb(0, 255, 0)')
+	await expect(overlay).toBeFocused()
+
+	await page.keyboard.type('green')
+	await page.keyboard.press('Enter')
+	await page.waitForTimeout(300)
+
+	const state = await readState(page)
+	expect(state.annotations.find((a: { type: string }) => a.type === 'text').color).toBe('#00ff00')
+	// The bar leaves with the field
+	await expect(toolbar).toHaveCount(0)
+})
+
 test('a placed caption can be made bold from the selection', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
@@ -748,7 +793,7 @@ test('a placed caption can be made bold from the selection', async ({ page }) =>
 	await page.mouse.click(corner.x + 40, corner.y + 40)
 	await page.waitForTimeout(300)
 
-	const bold = page.locator('[data-test="selection-bold"]')
+	const bold = page.locator('[data-test="toolbar-bold"]')
 	await expect(bold).toBeVisible()
 	await bold.click()
 	await page.waitForTimeout(300)

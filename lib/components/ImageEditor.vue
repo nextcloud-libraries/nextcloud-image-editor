@@ -20,13 +20,14 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import EditorPanel from './EditorPanel.vue'
 import EditorSidebar from './EditorSidebar.vue'
 import EditorTopBar from './EditorTopBar.vue'
-import SelectionToolbar from './SelectionToolbar.vue'
+import FloatingToolbar from './FloatingToolbar.vue'
 import TextOverlay from './TextOverlay.vue'
 import { useAmbient } from '../composables/useAmbient.ts'
 import { useAnnouncements } from '../composables/useAnnouncements.ts'
 import { useEditorShortcuts } from '../composables/useEditorShortcuts.ts'
 import { useExportImage } from '../composables/useExportImage.ts'
 import { useTextEditing } from '../composables/useTextEditing.ts'
+import { useTextStyle } from '../composables/useTextStyle.ts'
 import { useWheelControls } from '../composables/useWheelControls.ts'
 import { playTransition } from '../editor/animate.ts'
 import { canvasScaleFor } from '../editor/canvas-limits.ts'
@@ -128,7 +129,7 @@ const { ambient, backdrop } = useAmbient(sourceImage)
 const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
 
-/** Stage-space bounds of the selected annotation, for the mini toolbar */
+/** Stage-space bounds of the selected annotation, for the floating toolbar */
 const selectionBox = shallowRef<{ x: number, y: number, width: number, height: number } | null>(null)
 
 // Konva objects are deliberately non-reactive: proxying them breaks
@@ -213,6 +214,24 @@ const { textEdit, startTextEdit, confirmTextEdit } = useTextEditing({
 	viewOptions: () => viewOptions.value,
 	oriented: () => orientedCanvas.value,
 })
+
+/** On-screen size of the text overlay, which the toolbar hangs off while typing */
+const overlaySize = shallowRef<Size>({ width: 0, height: 0 })
+const overlay = useTemplateRef<InstanceType<typeof TextOverlay>>('overlay')
+
+// The text being typed wins over a selection: editing a caption keeps
+// it selected, and the bar belongs with the field the keystrokes go to
+const toolbarBox = computed(() => {
+	const edit = textEdit.value
+	if (edit !== null) {
+		return { x: edit.screenX, y: edit.screenY, ...overlaySize.value }
+	}
+	return selectionBox.value
+})
+
+// The overlay is drawn the way the toolbar says: the caption's own
+// styling when one is being edited, the tool defaults for a new one
+const textStyle = useTextStyle(context)
 
 const { exporting, exportImage, save: onSave } = useExportImage({
 	oriented: () => orientedCanvas.value,
@@ -696,12 +715,42 @@ defineExpose({
 		<div class="image-editor__shell">
 			<div class="image-editor__frame">
 				<div class="image-editor__viewport">
-					<div
-						ref="container"
-						class="image-editor__canvas"
-						:style="{ cursor: canvasCursor }"
-						role="img"
-						:aria-label="label ?? labels.canvas" />
+					<!-- The overlay and the toolbar are placed in stage
+					     coordinates, so they share the stage's box -->
+					<div class="image-editor__stage">
+						<div
+							ref="container"
+							class="image-editor__canvas"
+							:style="{ cursor: canvasCursor }"
+							role="img"
+							:aria-label="label ?? labels.canvas" />
+						<TextOverlay
+							v-if="textEdit !== null"
+							ref="overlay"
+							:x="textEdit.screenX"
+							:y="textEdit.screenY"
+							:font-size="textEdit.screenFontSize"
+							:color="context.drawColor.value"
+							:initial="textEdit.value"
+							:outline="textStyle.outline.value"
+							:background="textStyle.background.value"
+							:font="textStyle.font.value"
+							:align="textStyle.align.value"
+							:bold="textStyle.bold.value"
+							:italic="textStyle.italic.value"
+							:underline="textStyle.underline.value"
+							:strikethrough="textStyle.strikethrough.value"
+							@resize="overlaySize = $event"
+							@confirm="confirmTextEdit"
+							@cancel="textEdit = null" />
+						<FloatingToolbar
+							v-if="toolbarBox !== null"
+							:box="toolbarBox"
+							:typing="textEdit !== null"
+							@refocus="overlay?.focus()"
+							@duplicate="onDuplicateSelection"
+							@delete="onDeleteSelection" />
+					</div>
 					<NcLoadingIcon
 						v-if="!loaded && !errored"
 						class="image-editor__loading"
@@ -712,28 +761,6 @@ defineExpose({
 							{{ labels.retry }}
 						</NcButton>
 					</div>
-					<TextOverlay
-						v-if="textEdit !== null"
-						:x="textEdit.screenX"
-						:y="textEdit.screenY"
-						:font-size="textEdit.screenFontSize"
-						:color="textEdit.color"
-						:initial="textEdit.value"
-						:outline="context.textOutline.value"
-						:background="context.textBackground.value"
-						:font="context.textFont.value"
-						:align="context.textAlign.value"
-						:bold="context.textBold.value"
-						:italic="context.textItalic.value"
-						:underline="context.textUnderline.value"
-						:strikethrough="context.textStrikethrough.value"
-						@confirm="confirmTextEdit"
-						@cancel="textEdit = null" />
-					<SelectionToolbar
-						v-if="selectionBox !== null"
-						:box="selectionBox"
-						@duplicate="onDuplicateSelection"
-						@delete="onDeleteSelection" />
 				</div>
 
 				<EditorTopBar
@@ -921,6 +948,12 @@ defineExpose({
 			border: 1px solid rgba(255, 255, 255, 0.09);
 			border-radius: var(--border-radius-large, 12px);
 		}
+	}
+
+	&__stage {
+		position: relative;
+		height: 100%;
+		width: 100%;
 	}
 
 	&__canvas {
