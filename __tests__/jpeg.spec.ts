@@ -139,3 +139,215 @@ describe('withMetadata', () => {
 		expect(withMetadata(source, [], { width: 1, height: 1 })).toEqual(source)
 	})
 })
+
+/**
+ * Append one twelve byte directory entry.
+ *
+ * @param tiff the block being built
+ * @param tag which tag it carries
+ * @param type 3 for a short, 4 for a long
+ * @param count how many values it holds
+ * @param value the value itself, or where the values live when more
+ * than four bytes of them are needed
+ */
+function pushEntry(tiff: number[], tag: number, type: number, count: number, value: number): void {
+	const u16 = (v: number) => tiff.push(v & 0xFF, (v >> 8) & 0xFF)
+	const u32 = (v: number) => tiff.push(v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >> 24) & 0xFF)
+	u16(tag)
+	u16(type)
+	u32(count)
+	if (type === 3 && count * 2 <= 4) {
+		u16(value)
+		u16(0)
+	} else {
+		u32(value)
+	}
+}
+
+/**
+ * A JPEG whose Exif block carries a thumbnail, the way a camera writes
+ * one: IFD0, then a second directory pointing at an embedded JPEG.
+ *
+ * @param marker recognisable bytes standing in for the thumbnail pixels
+ */
+function withThumbnail(marker: string): Uint8Array {
+	const tiff: number[] = []
+	const u16 = (value: number) => tiff.push(value & 0xFF, (value >> 8) & 0xFF)
+	const u32 = (value: number) => tiff.push(
+		value & 0xFF,
+		(value >> 8) & 0xFF,
+		(value >> 16) & 0xFF,
+		(value >> 24) & 0xFF,
+	)
+
+	tiff.push(0x49, 0x49)
+	u16(42)
+	u32(8)
+	// IFD0: one entry, then the thumbnail directory at offset 26
+	u16(1)
+	pushEntry(tiff, 0x0112, 3, 1, 6)
+	u32(26)
+	// IFD1: where the thumbnail is and how long it runs
+	u16(2)
+	pushEntry(tiff, 0x0201, 4, 1, 56)
+	pushEntry(tiff, 0x0202, 4, 1, marker.length + 4)
+	u32(0)
+	const thumbnail = [0xFF, 0xD8, ...[...marker].map((c) => c.charCodeAt(0)), 0xFF, 0xD9]
+	tiff.push(...thumbnail)
+
+	const payload = [...[...'Exif\0\0'].map((c) => c.charCodeAt(0)), ...tiff]
+	const length = payload.length + 2
+	return new Uint8Array([
+		0xFF,
+		0xD8,
+		0xFF,
+		0xE1,
+		(length >> 8) & 0xFF,
+		length & 0xFF,
+		...payload,
+		0xFF,
+		0xDA,
+		0x00,
+		0x08,
+		1,
+		1,
+		0,
+		0,
+		0x3F,
+		0x00,
+		0xAA,
+		0xBB,
+		0xFF,
+		0xD9,
+	])
+}
+
+describe('the thumbnail the camera embedded', () => {
+	const exported = () => withMetadata(
+		encoded(),
+		readMetadataSegments(withThumbnail('CAMERAFRAME')),
+		{ width: 64, height: 48 },
+	)
+
+	it('is unlinked from the directory that held it', () => {
+		const out = exported()
+		// The Exif segment starts at the SOI; IFD0 holds one entry, so its
+		// next-directory pointer follows the header at tiff + 8 + 2 + 12
+		const exif = out.indexOf(0xE1) - 1
+		const nextIfd = exif + 10 + 22
+		expect([...out.subarray(nextIfd, nextIfd + 4)]).toEqual([0, 0, 0, 0])
+	})
+
+	it('has its pixels overwritten, not merely hidden', () => {
+		// Unlinking alone leaves the frame as the camera saw it sitting in
+		// the file, recoverable by carving, which undoes a redaction
+		const text = String.fromCharCode(...exported())
+		expect(text).not.toContain('CAMERAFRAME')
+	})
+
+	it('leaves the rest of the block alone', () => {
+		const out = exported()
+		expect(String.fromCharCode(...out)).toContain('Exif')
+		// The scan the editor encoded is still the last thing in the file
+		expect([...out.subarray(-3)]).toEqual([0xBB, 0xFF, 0xD9])
+	})
+
+	it('copes with a block that has no thumbnail at all', () => {
+		const carried = withMetadata(encoded(), readMetadataSegments(fixture), { width: 64, height: 48 })
+		expect(carried.length).toBeGreaterThan(encoded().length)
+	})
+})
+
+/**
+ * A JPEG whose Exif thumbnail is raw pixels in two strips, so IFD1
+ * holds a pair of arrays rather than a pair of values.
+ *
+ * @param first bytes of the first strip
+ * @param second bytes of the second strip
+ */
+function withStrippedThumbnail(first: string, second: string): Uint8Array {
+	const tiff: number[] = []
+	const u16 = (value: number) => tiff.push(value & 0xFF, (value >> 8) & 0xFF)
+	const u32 = (value: number) => tiff.push(
+		value & 0xFF,
+		(value >> 8) & 0xFF,
+		(value >> 16) & 0xFF,
+		(value >> 24) & 0xFF,
+	)
+
+	// Header, then IFD0 with one entry and a pointer to IFD1 at 26
+	tiff.push(0x49, 0x49)
+	u16(42)
+	u32(8)
+	u16(1)
+	pushEntry(tiff, 0x0112, 3, 1, 1)
+	u32(26)
+
+	// IFD1 at 26: two entries, each pointing at a two-value array
+	const offsetsAt = 26 + 2 + 24 + 4
+	const lengthsAt = offsetsAt + 8
+	// The strips sit well past the arrays that point at them. Reading an
+	// entry's last four bytes as a value rather than an address erases a
+	// range near the arrays, which would cover the strips too if they
+	// were packed right behind them, and the test would prove nothing.
+	const padding = 256
+	const stripsAt = lengthsAt + 8 + padding
+	u16(2)
+	pushEntry(tiff, 0x0111, 4, 2, offsetsAt)
+	pushEntry(tiff, 0x0117, 4, 2, lengthsAt)
+	u32(0)
+	u32(stripsAt)
+	u32(stripsAt + first.length)
+	u32(first.length)
+	u32(second.length)
+	tiff.push(...Array.from({ length: padding }, () => 0x20))
+	tiff.push(...[...first + second].map((c) => c.charCodeAt(0)))
+
+	const payload = [...[...'Exif\0\0'].map((c) => c.charCodeAt(0)), ...tiff]
+	const length = payload.length + 2
+	return new Uint8Array([
+		0xFF,
+		0xD8,
+		0xFF,
+		0xE1,
+		(length >> 8) & 0xFF,
+		length & 0xFF,
+		...payload,
+		0xFF,
+		0xDA,
+		0x00,
+		0x08,
+		1,
+		1,
+		0,
+		0,
+		0x3F,
+		0x00,
+		0xAA,
+		0xBB,
+		0xFF,
+		0xD9,
+	])
+}
+
+describe('a thumbnail stored as strips', () => {
+	it('has every strip erased, not just the first', () => {
+		// With more than one value the entry holds a pointer to an array
+		// rather than the value itself, so reading its last four bytes
+		// finds the array's address and erases the wrong bytes
+		const source = withStrippedThumbnail('STRIPONE', 'STRIPTWO')
+		const out = withMetadata(encoded(), readMetadataSegments(source), { width: 64, height: 48 })
+
+		const text = String.fromCharCode(...out)
+		expect(text).not.toContain('STRIPONE')
+		expect(text).not.toContain('STRIPTWO')
+	})
+
+	it('leaves the block it could not understand alone', () => {
+		// An entry typed as something other than a short or a long says
+		// nothing this can act on, so nothing is overwritten on a guess
+		const source = withThumbnail('CAMERAFRAME')
+		const out = withMetadata(encoded(), readMetadataSegments(source), { width: 64, height: 48 })
+		expect(String.fromCharCode(...out)).toContain('Exif')
+	})
+})
