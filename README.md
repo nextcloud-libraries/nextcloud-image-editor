@@ -113,7 +113,7 @@ async function onSave({ blob, mimeType }: ExportResult) {
 |------|------|-------------|
 | `src` | `Blob \| string` | Image to edit (Blob, File or URL). Required. |
 | `label` | `string` | Accessible label of the canvas area. |
-| `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to PNG at natural resolution. |
+| `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to the source's format, PNG when it is unknown, at natural resolution. |
 | `initialState` | `EditorState` | State to open with, as emitted by `change`, for resuming an unfinished edit. Read when the source loads. |
 | `saving` | `boolean` | Raise while your app stores the saved image. The editor shows the same progress it shows for its own export, so one indicator covers the whole wait. |
 
