@@ -4,6 +4,76 @@
 -->
 # Changelog
 
+## 1.0.0-beta.3 – 2026-09-11
+
+### Added
+
+- Text styling. A caption can carry a contrasting edge, derived from
+  the text colour rather than picked (#23), a plate that takes the photo
+  out from behind it (#24), one of three system font families (#25),
+  an alignment for its lines (#29) and bold, italic, underline and
+  strikethrough in any combination (#34). Each applies to the next
+  caption and to a selected one alike
+- The text controls and the colour picker float next to what they
+  change: the overlay while a caption is typed, the selection
+  otherwise. The bottom panel keeps the tool picker, the colour default
+  and the size slider (#37)
+- Lines and arrows snap to 45° steps while Shift or Ctrl is held, and
+  the key can be pressed or released mid-drag (#38)
+- Oval redactions, inscribed in the same drag as the rectangle (#31)
+- Highlights, shadows and a vignette in the adjust panel (#21)
+- The saved JPEG carries the source's Exif, XMP, ICC and IPTC blocks,
+  with the orientation reset, the size corrected and the embedded
+  thumbnail removed. Only when the editor was handed bytes: a URL gives
+  it no source to copy from (#22)
+- Before opening an image larger than the browser will paint, the
+  editor says what it would shrink it to and asks. `ExportResult`
+  gains `downscaled` for hosts that want to warn again before
+  overwriting (#20)
+- The edit history opens from the back arrow, its entries are radios
+  that announce the step they land on, and a long list scrolls (#15,
+  #16)
+
+### Fixed
+
+- A redaction hid the source pixels, not what was under it: annotations
+  drawn below it and the adjustments applied to the image stayed
+  readable in the export. It now samples the layer as drawn (#30)
+- The embedded camera thumbnail was unlinked but its pixels stayed in
+  the file and could be carved back out, the uncropped, unredacted
+  frame included. Every strip of it is zeroed before the link is cut
+  (#35)
+- A state stored by an older release, missing the adjustments added
+  since, rendered black: an undefined value ran the filter and left NaN
+  in the node. `reset` and `initialState` now fill in what is missing
+  (#36)
+- A picture shown smaller than half its size is drawn from a halved
+  pyramid instead of being sampled in one pass, so fine grain and thin
+  lines match what an `<img>` shows. Export and thumbnails still scale
+  in one pass (#33)
+- The text overlay opened 16px left and 56px above the click, and the
+  selection toolbar sat off-centre by the same amount: both were placed
+  in stage coordinates but positioned inside the padded viewport (#37)
+
+### Changed
+
+- Saving defaults to the format the image arrived in rather than PNG,
+  so a photo is saved as a photo. Hosts asking for a format still get
+  it (#22)
+- The text controls read like the rest of the panel and share one row
+  (#26, #32)
+
+### Still missing
+
+- No translations yet: the Transifex resource behind `l10n/` is not set
+  up, so every string falls back to English
+- Annotations cannot be created from the keyboard alone, and the
+  editor's shortcuts are bound to the window rather than to itself
+- Export and preset thumbnails still downscale in one pass, so a saved
+  copy bound by `maxSize` is coarser than the same picture on screen
+- The eraser, multi-select, per-annotation opacity, freehand redaction
+  and exact-pixel crop are not here yet (#2)
+
 ## 1.0.0-beta.2 – 2026-09-02
 
 ### Added
