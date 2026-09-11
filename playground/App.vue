@@ -88,7 +88,10 @@ function makeNoiseFixture(): Promise<Blob> {
 const sourceSize = ref(0)
 
 // ?restore=1 opens with an edit already in place, standing in for a
-// host resuming a session it stored earlier
+// host resuming a session it stored earlier. The adjustments below are
+// deliberately only the three that existed in 1.0.0-beta.2: a state
+// stored then and handed back now is exactly the shape the editor has
+// to tolerate, and e2e asserts it still renders.
 const restored: EditorState | undefined
 	= new URLSearchParams(window.location.search).get('restore') === null
 		? undefined

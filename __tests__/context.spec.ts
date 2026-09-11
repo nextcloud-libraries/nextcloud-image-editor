@@ -139,6 +139,21 @@ describe('reset', () => {
 		expect(context.historyEntries.value[0]!.snapshot).toBe(restored)
 	})
 
+	it('fills in adjustments a state stored by an older release lacks', () => {
+		const { context } = setupContext()
+		const stored = createInitialState()
+		const adjustments = { ...stored.adjustments } as Record<string, number>
+		delete adjustments.highlights
+		delete adjustments.shadows
+		delete adjustments.vignette
+
+		context.reset({ ...stored, adjustments: adjustments as unknown as typeof stored.adjustments })
+
+		// Left as they were, the missing three read as work to do and
+		// divide into NaN, which paints the image black
+		expect(context.state.value.adjustments).toEqual(stored.adjustments)
+	})
+
 	it('names the starting point after where it came from', () => {
 		const fresh = setupContext().context
 		fresh.reset()

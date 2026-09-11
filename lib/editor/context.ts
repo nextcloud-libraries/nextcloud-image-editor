@@ -15,7 +15,7 @@ import { useHistory } from '../composables/useHistory.ts'
 import { t } from '../utils/l10n.ts'
 import { DEFAULT_FONT } from './fonts.ts'
 import { DEFAULT_REDACT_SHAPE } from './redact-shape.ts'
-import { createInitialState } from './state.ts'
+import { createInitialState, normaliseState } from './state.ts'
 import { DEFAULT_ALIGN } from './text-align.ts'
 import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
 
@@ -259,7 +259,9 @@ export function createEditorContext(): EditorContext {
 		},
 		reset(next) {
 			history.clear()
-			state.value = next ?? createInitialState()
+			// Whatever wrote this state, it has to be whole before the
+			// render pipeline reads it
+			state.value = next === undefined ? createInitialState() : normaliseState(next)
 			activeMode.value = 'crop'
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
