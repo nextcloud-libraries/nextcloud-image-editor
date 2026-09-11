@@ -77,3 +77,33 @@ export function fitContain(content: Box, container: Box): FitResult {
 		y: (container.height - height) / 2,
 	}
 }
+
+export interface Point {
+	x: number
+	y: number
+}
+
+/**
+ * Move the end of a segment onto the nearest multiple of the given
+ * angle, keeping its length. Horizontal and vertical ends land exactly.
+ *
+ * @param from where the segment starts
+ * @param to where the pointer is
+ * @param step the angle to snap to, in radians
+ */
+export function snapAngle(from: Point, to: Point, step = Math.PI / 4): Point {
+	const dx = to.x - from.x
+	const dy = to.y - from.y
+	if (dx === 0 && dy === 0) {
+		return to
+	}
+	const length = Math.hypot(dx, dy)
+	const angle = Math.round(Math.atan2(dy, dx) / step) * step
+	// cos and sin of a right angle are not exactly 0, and a line drawn
+	// straight should be straight
+	const round = (value: number) => (Math.abs(value) < 1e-9 ? 0 : value)
+	return {
+		x: from.x + length * round(Math.cos(angle)),
+		y: from.y + length * round(Math.sin(angle)),
+	}
+}

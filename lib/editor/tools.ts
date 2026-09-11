@@ -8,6 +8,7 @@ import type { RedactShape } from './redact-shape.ts'
 import type { AnnotationNode } from './render.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
 
+import { snapAngle } from '../utils/geometry.ts'
 import { newId } from '../utils/id.ts'
 import { t } from '../utils/l10n.ts'
 import { buildAnnotationNode } from './render.ts'
@@ -66,6 +67,10 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	let previewNode: AnnotationNode | null = null
 	let start = { x: 0, y: 0 }
 	let pendingText: { x: number, y: number } | null = null
+	/** Where the pointer last was, so a modifier can re-place the end */
+	let last = { x: 0, y: 0 }
+	/** Whether a line is held to 45° steps: Shift as in other editors, or Ctrl */
+	let constrained = false
 
 	const scenePointer = () => {
 		const pointer = deps.stage.getPointerPosition()
@@ -115,13 +120,15 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		previewNode = null
 	}
 
-	const onPointerDown = () => {
+	const onPointerDown = (event?: Konva.KonvaEventObject<PointerEvent>) => {
 		const point = scenePointer()
 		if (point === null || deps.panning()) {
 			return
 		}
 		const options = deps.options()
 		start = point
+		last = point
+		constrained = event !== undefined && (event.evt.shiftKey || event.evt.ctrlKey)
 
 		switch (tool) {
 			case 'draw':
@@ -168,7 +175,19 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		refreshPreview()
 	}
 
-	const onPointerMove = () => {
+	/**
+	 * Point the line or arrow in progress at the last pointer position,
+	 * snapped to 45° when a modifier asks for it.
+	 */
+	const followLine = () => {
+		if (active === null || (active.type !== 'arrow' && active.type !== 'line')) {
+			return
+		}
+		const end = constrained ? snapAngle(start, last) : last
+		active.points = [start.x, start.y, end.x, end.y]
+	}
+
+	const onPointerMove = (event?: Konva.KonvaEventObject<PointerEvent>) => {
 		if (active === null) {
 			return
 		}
@@ -182,6 +201,10 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		if (point === null) {
 			return
 		}
+		last = point
+		if (event !== undefined) {
+			constrained = event.evt.shiftKey || event.evt.ctrlKey
+		}
 
 		switch (active.type) {
 			case 'draw':
@@ -191,7 +214,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				break
 			case 'arrow':
 			case 'line':
-				active.points = [start.x, start.y, point.x, point.y]
+				followLine()
 				break
 			case 'rectangle':
 			case 'ellipse':
@@ -224,6 +247,17 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		discard()
 	}
 
+	// The modifier may be pressed or released while the pointer holds
+	// still, and the line should follow either way
+	const onModifier = (event: KeyboardEvent) => {
+		if (event.key !== 'Shift' && event.key !== 'Control') {
+			return
+		}
+		constrained = event.type === 'keydown'
+		followLine()
+		refreshPreview()
+	}
+
 	deps.stage.on('pointerdown.tool', onPointerDown)
 	deps.stage.on('pointermove.tool', onPointerMove)
 	deps.stage.on('pointerup.tool', onPointerUp)
@@ -233,11 +267,15 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	window.addEventListener('pointerup', onPointerUp)
 	// An interrupted gesture is not a finished one
 	window.addEventListener('pointercancel', discard)
+	window.addEventListener('keydown', onModifier)
+	window.addEventListener('keyup', onModifier)
 
 	return () => {
 		deps.stage.off('.tool')
 		window.removeEventListener('pointerup', onPointerUp)
 		window.removeEventListener('pointercancel', discard)
+		window.removeEventListener('keydown', onModifier)
+		window.removeEventListener('keyup', onModifier)
 		previewNode?.destroy()
 	}
 }

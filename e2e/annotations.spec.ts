@@ -462,6 +462,35 @@ test('the line tool draws a straight stroke', async ({ page }) => {
 	expectColor(result.center, [0, 255, 0], 60)
 })
 
+test('a line held with Shift stays level', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Line', exact: true }).click()
+
+	// Drift downwards on the way: with Shift down the end snaps back onto
+	// the horizontal through the start, and only once released does the
+	// line follow the pointer again
+	const corner = await imageTopLeft(page)
+	await page.mouse.move(corner.x + 20, corner.y + 50)
+	await page.mouse.down()
+	await page.keyboard.down('Shift')
+	await page.mouse.move(corner.x + 120, corner.y + 62, { steps: 4 })
+	await page.mouse.up()
+	await page.keyboard.up('Shift')
+
+	await page.mouse.move(corner.x + 20, corner.y + 50)
+	await page.mouse.down()
+	await page.mouse.move(corner.x + 120, corner.y + 62, { steps: 4 })
+	await page.mouse.up()
+
+	const { annotations } = await readState(page)
+	expect(annotations).toHaveLength(2)
+	const [held, free] = annotations
+	expect(held.points[3]).toBeCloseTo(held.points[1], 3)
+	expect(held.points[2]).toBeGreaterThan(held.points[0] + 90)
+	expect(free.points[3]).toBeGreaterThan(free.points[1] + 5)
+})
+
 test('a line survives a rotation in the export', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Annotate' }).click()
