@@ -18,7 +18,7 @@ const context = useEditorContext()
 
 const labels = {
 	pixelate: t('Pixelate'),
-	blur: t('Blur'),
+	blur: t('Smooth'),
 	rectangle: t('Rectangular area'),
 	ellipse: t('Oval area'),
 }

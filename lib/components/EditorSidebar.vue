@@ -30,7 +30,7 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 	{ id: 'filter', label: t('Filter'), icon: PaletteOutline },
 	{ id: 'annotate', label: t('Annotate'), icon: Pencil },
 	{ id: 'sticker', label: t('Sticker'), icon: StickerEmoji },
-	{ id: 'redact', label: t('Redact'), icon: Blur },
+	{ id: 'redact', label: t('Blur'), icon: Blur },
 ]
 </script>
 
