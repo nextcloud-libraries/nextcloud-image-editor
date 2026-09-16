@@ -756,6 +756,9 @@ defineExpose({
 							@duplicate="onDuplicateSelection"
 							@delete="onDeleteSelection" />
 					</div>
+					<!-- The mode rail is the one surface still floating over
+					     the picture; every panel sits under it, in the flow -->
+					<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 					<NcLoadingIcon
 						v-if="!loaded && !errored"
 						class="image-editor__loading"
@@ -776,14 +779,13 @@ defineExpose({
 					@save="onSave"
 					@cancel="emit('cancel')" />
 
-				<EditorPanel
-					:class="context.activeMode.value === 'filter'
-						? 'image-editor__strip'
-						: 'image-editor__controls'"
-					:loaded="loaded"
-					:oriented="orientedCanvas" />
+				<div class="image-editor__dock">
+					<EditorPanel
+						class="image-editor__controls"
+						:loaded="loaded"
+						:oriented="orientedCanvas" />
+				</div>
 
-				<EditorSidebar class="image-editor__rail" :loaded="loaded" />
 				<span class="hidden-visually" role="status" aria-live="polite">{{ announcement }}</span>
 			</div>
 		</div>
@@ -917,6 +919,8 @@ defineExpose({
 
 	&__frame {
 		position: relative;
+		display: flex;
+		flex-direction: column;
 		height: 100%;
 		width: 100%;
 		overflow: hidden;
@@ -927,10 +931,12 @@ defineExpose({
 	}
 
 	&__viewport {
-		position: absolute;
-		inset: 0;
-		// The stage runs under the floating glass chrome; the fit margin
-		// keeps interactive handles visible
+		position: relative;
+		// Takes what the control card leaves, so the picture is never
+		// under it. The top bar still floats over the stage, which the
+		// padding keeps clear of the handles.
+		flex: 1;
+		min-height: 0;
 		padding: 56px 16px 16px;
 	}
 
@@ -940,25 +946,17 @@ defineExpose({
 			padding: 56px 8px 8px;
 		}
 
-		// Doubled class specificity so these beat the card's own sizing
-		& .image-editor__controls {
-			inset-inline: 8px;
-			transform: none;
-			min-width: 0;
-			max-width: none;
-			width: auto;
+		& .image-editor__dock {
+			// The crop panel wraps onto a third row at this width
+			block-size: 232px;
+			padding: 0 8px calc(var(--default-grid-baseline) * 2);
 		}
 
-		// The preset strip lies down above the bottom edge on phones
-		& .image-editor__strip {
-			flex-direction: row;
-			inset-inline: 8px;
-			inset-block-start: auto;
-			inset-block-end: calc(var(--default-grid-baseline) * 4);
-			transform: none;
-			max-height: none;
-			overflow-x: auto;
-			overflow-y: hidden;
+		// Doubled class specificity so these beat the card's own sizing
+		& .image-editor__controls {
+			min-width: 0;
+			max-width: none;
+			width: 100%;
 		}
 
 		// Anchored under the top bar with its height capped so it can
@@ -1008,19 +1006,23 @@ defineExpose({
 		transform: translateY(-50%);
 	}
 
-	&__controls {
-		position: absolute;
-		inset-block-end: calc(var(--default-grid-baseline) * 5);
-		inset-inline-start: 50%;
-		transform: translateX(-50%);
+	// Holds the panel of whichever mode is active. Its height is fixed so
+	// that switching mode does not resize the picture above it, and the
+	// panels differ by a hundred pixels between the shortest and the
+	// tallest; each one sits at the bottom of it.
+	&__dock {
+		flex: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		block-size: 184px;
+		padding: 0 calc(var(--default-grid-baseline) * 4) calc(var(--default-grid-baseline) * 5);
 	}
 
-	&__strip {
-		position: absolute;
-		inset-inline-end: calc(var(--default-grid-baseline) * 4);
-		inset-block-start: 50%;
-		transform: translateY(-50%);
-		max-height: calc(100% - 160px);
+	&__controls {
+		// The panel scrolls sideways rather than growing into the picture
+		max-width: 100%;
+		max-height: 100%;
 	}
 
 	.hidden-visually {

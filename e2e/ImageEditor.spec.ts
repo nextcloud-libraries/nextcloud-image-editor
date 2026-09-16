@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, imageView, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
@@ -280,4 +280,26 @@ test('the save button reports progress until the host is done', async ({ page })
 	// And lets go again once the host does
 	await expect(spinner).toBeHidden({ timeout: 5000 })
 	await expect(button).toBeEnabled()
+})
+
+test('the picture sits above the controls and stays put between modes', async ({ page }) => {
+	await waitLoaded(page)
+
+	const dock = (await page.locator('.image-editor__dock').boundingBox())!
+	const views = []
+	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Blur']) {
+		await page.getByRole('button', { name: mode, exact: true }).click()
+		await page.waitForTimeout(150)
+		const view = await imageView(page)
+		views.push(view)
+
+		// The panel of the mode is under the picture, never over it
+		const bottom = view.y + 100 * view.scale
+		expect(bottom, `the picture runs under the ${mode} panel`).toBeLessThanOrEqual(dock.y + 1)
+	}
+
+	// The panels differ in height, the picture does not move with them
+	for (const view of views) {
+		expect(view).toEqual(views[0])
+	}
 })

@@ -90,11 +90,11 @@ function setPreset(preset: FilterPreset, label: string) {
 <style scoped lang="scss">
 .filter-strip {
 	display: flex;
-	flex-direction: column;
 	gap: calc(var(--default-grid-baseline) * 2);
 	padding: calc(var(--default-grid-baseline) * 2);
-	overflow-y: auto;
-	max-height: 100%;
+	// One row under the picture, the rest a swipe away
+	max-width: 100%;
+	overflow-x: auto;
 
 	// The strip scrolls, the chips keep their size
 	> * {

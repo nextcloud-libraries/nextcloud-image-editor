@@ -24,8 +24,8 @@ const context = useEditorContext()
 </script>
 
 <template>
-	<!-- Filter mode gets a vertical preview strip, everything else the
-		bottom control card; each mode's controls live in its own panel -->
+	<!-- Filter mode gets the preset strip, everything else a control
+		card; each mode's controls live in its own panel -->
 	<FilterStrip
 		v-if="context.activeMode.value === 'filter'"
 		:loaded="loaded"
