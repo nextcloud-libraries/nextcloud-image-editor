@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { cropAnchor, cropStageRect, drag, imageTopLeft, imageView, readState, slowDrag, waitLoaded } from './utils.ts'
+import { cropAnchor, cropStageRect, drag, imageTopLeft, imageView, readState, save, slowDrag, waitLoaded } from './utils.ts'
 
 /**
  * The crop rectangle in image coordinates, which is what has to
@@ -80,11 +80,14 @@ test('resetting the crop returns the overlay to the whole image', async ({ page 
 	// Back to crop, drop the crop: the overlay has to follow the state
 	await page.getByRole('button', { name: 'Crop', exact: true }).click()
 	await page.locator('[data-test="reset-crop"]').click()
+	// The overlay now covers the whole image again, which is the
+	// uncropped state: applying it records nothing
 	await page.locator('[data-test="apply-crop"]').click()
 
-	const { crop } = await readState(page)
-	expect(crop.width).toBe(2000)
-	expect(crop.height).toBe(1500)
+	expect((await readState(page)).crop).toBeNull()
+	const result = await save(page)
+	expect(result.width).toBe(2000)
+	expect(result.height).toBe(1500)
 })
 
 test('the selection survives dragging an annotation', async ({ page }) => {

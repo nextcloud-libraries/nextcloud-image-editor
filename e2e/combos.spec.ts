@@ -145,7 +145,8 @@ test('a mixed edit stack unwinds fully through undo', async ({ page }) => {
 test('fine rotation combines with crop and annotations', async ({ page }) => {
 	await waitLoaded(page)
 	await setInputValue(page.locator('[data-test="fine-rotation"]'), '20')
-	await page.locator('[data-test="aspect-original"]').click()
+	// A ratio the image does not already have, so the crop is a real one
+	await page.locator('[data-test="aspect-1:1"]').click()
 	await page.locator('[data-test="apply-crop"]').click()
 
 	await page.getByRole('button', { name: 'Annotate' }).click()

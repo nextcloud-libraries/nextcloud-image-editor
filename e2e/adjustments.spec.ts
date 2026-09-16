@@ -256,3 +256,34 @@ test('the adjustment tabs stay on one row on a phone and scroll to the rest', as
 	await vignette.click()
 	await expect(vignette).toBeInViewport({ ratio: 1 })
 })
+
+test('a slider snaps back onto neutral and marks where that is', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	const slider = page.locator('[data-test="adjust-exposure"]')
+
+	// Landing within 2% of the travel of neutral means neutral: the last
+	// pixel before it is otherwise the only way back to an untouched value
+	await setInputValue(slider, '3')
+	expect((await readState(page)).adjustments.exposure).toBe(0)
+
+	await setInputValue(slider, '10')
+	expect((await readState(page)).adjustments.exposure).toBe(10)
+
+	// The mark sits at the middle of a symmetric range
+	const track = page.locator('.editor-slider__track')
+	const mark = page.locator('.editor-slider__origin')
+	const trackBox = (await track.boundingBox())!
+	const markBox = (await mark.boundingBox())!
+	expect(markBox.x + markBox.width / 2).toBeCloseTo(trackBox.x + trackBox.width / 2, 0)
+})
+
+test('a slider that never reaches neutral has no mark', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw', exact: true }).click()
+
+	// Stroke width runs from 1 to 32: there is no neutral to return to
+	await expect(page.locator('[aria-label="Stroke width"]')).toBeVisible()
+	await expect(page.locator('.editor-slider__origin')).toHaveCount(0)
+})

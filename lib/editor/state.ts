@@ -282,6 +282,19 @@ export function clampRect(rect: Rect, bounds: Size): Rect {
 }
 
 /**
+ * Whether two rectangles cover the same area.
+ *
+ * @param a one rectangle, or none
+ * @param b the other, or none
+ */
+export function sameRect(a: Rect | null, b: Rect | null): boolean {
+	if (a === null || b === null) {
+		return a === b
+	}
+	return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+}
+
+/**
  * Rotate a flat point list 90° clockwise: (x, y) becomes (height - y, x).
  *
  * @param points flat [x1, y1, …] list

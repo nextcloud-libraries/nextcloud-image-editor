@@ -37,7 +37,7 @@ import { attachCropOverlay } from '../editor/cropOverlay.ts'
 import { orientImage } from '../editor/orient.ts'
 import { createScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
-import { clampRect, createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, orientedSize, rotateCW } from '../editor/state.ts'
+import { clampRect, createInitialState, duplicateAnnotation, flipHorizontal, flipVertical, orientedSize, rotateCW, sameRect } from '../editor/state.ts'
 import { attachPointerTools } from '../editor/tools.ts'
 import { clampPan, panBounds, VIEW_MARGIN } from '../editor/view.ts'
 import { fitContain } from '../utils/geometry.ts'
@@ -544,14 +544,20 @@ function onFlipVertical(): void {
  * Apply the crop overlay rect and zoom into the cropped view.
  */
 function onApplyCrop(): void {
-	if (cropOverlay !== null) {
-		const crop = cropOverlay.getRect()
-		// Capture before the mode switches so the zoom starts from the
-		// full-image crop view
-		pendingTransition = { kind: 'crop', context: captureView() }
-		context.commit({ ...context.state.value, crop }, t('Crop'))
-		context.setMode('annotate')
+	if (cropOverlay === null) {
+		return
 	}
+	const crop = cropOverlay.getRect()
+	// An untouched selection is not an edit: it would record a step that
+	// changes nothing and replay the zoom over the same view. A selection
+	// covering the whole image is the uncropped state, however it got there.
+	if (sameRect(crop, visibleRect(context.state.value, currentOriented()))) {
+		return
+	}
+	// Capture before the view switches so the zoom starts from the
+	// full-image crop view
+	pendingTransition = { kind: 'crop', context: captureView() }
+	context.commit({ ...context.state.value, crop }, t('Crop'))
 }
 
 /**
