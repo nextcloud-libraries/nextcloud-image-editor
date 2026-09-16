@@ -897,3 +897,24 @@ test('an oval redaction still destroys what it covers', async ({ page }) => {
 	expect(result.center[0]).toBeGreaterThan(20)
 	expect(result.center[2]).toBeGreaterThan(20)
 })
+
+test('a thin line can be selected without hitting it exactly', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Line', exact: true }).click()
+	await setInputValue(page.locator('[aria-label="Stroke width"]'), '1')
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 50 }, { x: corner.x + 180, y: corner.y + 50 })
+	expect((await readState(page)).annotations).toHaveLength(1)
+
+	// A one pixel line used to be a one pixel target: clicking beside it
+	// selected nothing, and the only way in was to zoom until it was wide
+	await page.getByRole('button', { name: 'Select' }).click()
+	await page.mouse.click(corner.x + 100, corner.y + 58)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
+
+	// Far from the line is still empty space
+	await page.mouse.click(corner.x + 100, corner.y + 95)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeHidden()
+})
