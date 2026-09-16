@@ -207,12 +207,13 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		rotateEnabled: false,
 		flipEnabled: false,
 		keepRatio: false,
-		// Pintura-style solid round corner dots
+		// Round corner dots, light with a dark ring: the image behind them
+		// is any image, and a dark dot disappears into half of them
 		enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 		anchorSize: 14,
 		anchorCornerRadius: 7,
-		anchorFill: '#111',
-		anchorStroke: '#111',
+		anchorFill: '#fff',
+		anchorStroke: 'rgba(0, 0, 0, 0.5)',
 		anchorStrokeWidth: 1,
 		borderStroke: 'rgba(255, 255, 255, 0.7)',
 		boundBoxFunc: (oldBox, newBox) => ({ ...newBox, ...clampCropBox(imageBounds, oldBox, newBox, ratioLocked) }),
