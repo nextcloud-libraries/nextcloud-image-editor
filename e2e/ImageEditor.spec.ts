@@ -257,7 +257,8 @@ test('opens on a state the host hands over', async ({ page }) => {
 
 	// A resumed session starts from the state it was handed, not from
 	// the untouched image
-	await expect(page.locator('[data-test="revert"]')).toBeDisabled()
+	// Revert lives in the history menu, which stays shut with nothing to undo
+	await expect(page.locator('[data-test="history"] button')).toBeDisabled()
 	const result = await save(page)
 	expect(result.width).toBe(100)
 	expect(result.height).toBe(200)

@@ -7,6 +7,7 @@ import { showConfirmation } from '@nextcloud/dialogs'
 import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import Close from 'vue-material-design-icons/Close.vue'
@@ -18,6 +19,7 @@ import Restore from 'vue-material-design-icons/Restore.vue'
 import Undo from 'vue-material-design-icons/Undo.vue'
 import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
+import { historyIcon } from '../editor/history-icons.ts'
 import { MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -62,6 +64,7 @@ const historySteps = computed(() => context.historyEntries.value
 	.map((entry, index) => ({
 		index,
 		label: entry.label ?? labels.step,
+		icon: historyIcon(entry.label ?? labels.step),
 	}))
 	.reverse())
 
@@ -106,20 +109,6 @@ async function onRevert() {
 
 		<div class="editor-topbar__history">
 			<NcButton
-				data-test="revert"
-				:aria-label="labels.revert"
-				:title="labels.revert"
-				:disabled="!loaded || !context.canUndo.value"
-				variant="tertiary"
-				@click="onRevert">
-				<template #icon>
-					<Restore :size="20" />
-				</template>
-			</NcButton>
-
-			<span class="editor-topbar__separator" />
-
-			<NcButton
 				data-test="undo"
 				:aria-label="labels.undo"
 				:title="labels.undo"
@@ -143,6 +132,17 @@ async function onRevert() {
 				<template #icon>
 					<History :size="20" />
 				</template>
+				<!-- Leaving the whole edit behind belongs with the steps it
+				     throws away, above them, where the list is read from. -->
+				<NcActionButton
+					data-test="revert"
+					@click="onRevert">
+					<template #icon>
+						<Restore :size="20" />
+					</template>
+					{{ labels.revert }}
+				</NcActionButton>
+				<NcActionSeparator />
 				<!-- A radio rather than a plain entry: which step the image is on
 				     is state, and `aria-current` would land on the presentational
 				     list item where nothing reads it. -->
@@ -154,6 +154,9 @@ async function onRevert() {
 					:value="String(step.index)"
 					:data-test="`history-step-${step.index}`"
 					@click="context.jumpTo(step.index)">
+					<template #icon>
+						<component :is="step.icon" :size="20" />
+					</template>
 					{{ step.label }}
 				</NcActionButton>
 			</NcActions>

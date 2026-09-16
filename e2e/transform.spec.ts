@@ -123,6 +123,7 @@ test('dismissing the revert confirmation keeps every edit', async ({ page }) => 
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
 
+	await page.locator('[data-test="history"] button').click()
 	await page.locator('[data-test="revert"]').click()
 	const dialog = page.getByRole('dialog')
 	await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -136,6 +137,7 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 	await page.getByRole('button', { name: 'Rotate right' }).click()
 	await page.getByRole('button', { name: 'Flip horizontal' }).click()
 
+	await page.locator('[data-test="history"] button').click()
 	await page.locator('[data-test="revert"]').click()
 	// The shared confirmation dialog is spawned outside the editor
 	await page.getByRole('dialog').getByRole('button', { name: 'Revert all changes' }).click()
@@ -331,4 +333,25 @@ test('undo steps back without opening the history', async ({ page }) => {
 	await page.locator('[data-test="undo"]').click()
 	await expect.poll(async () => (await readState(page)).rotation).toBe(0)
 	await expect(page.locator('[data-test="history"] .action-item__popper')).toHaveCount(0)
+})
+
+test('the history menu leads with revert and shows what each step was', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await page.getByRole('button', { name: 'Flip horizontal' }).click()
+	await expect.poll(async () => (await readState(page)).flipY).toBe(true)
+
+	await page.locator('[data-test="history"] button').click()
+	// The menu renders in the editor rather than inside the trigger
+	const entries = page.locator('ul[role="menu"] > li')
+
+	// Revert first, then a separator, then the steps newest first
+	await expect(entries.nth(0)).toHaveAttribute('data-test', 'revert')
+	await expect(entries.nth(1)).toHaveClass(/separator/)
+	await expect(entries.nth(2)).toHaveAttribute('data-test', 'history-step-2')
+
+	// Every step carries the icon of what it was
+	for (const index of [0, 1, 2]) {
+		await expect(page.locator(`[data-test="history-step-${index}"] .material-design-icon`).first()).toBeVisible()
+	}
 })
