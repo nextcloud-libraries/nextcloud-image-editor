@@ -10,6 +10,7 @@ import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import Close from 'vue-material-design-icons/Close.vue'
+import History from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
 import Redo from 'vue-material-design-icons/Redo.vue'
@@ -118,10 +119,19 @@ async function onRevert() {
 
 			<span class="editor-topbar__separator" />
 
-			<!-- The back arrow opens the history rather than stepping once, so
-			     the steps sit under the control that goes back to them. One
-			     click back is Ctrl+Z; `forceMenu` keeps the trigger a trigger
-			     even when the original is the only entry. -->
+			<NcButton
+				data-test="undo"
+				:aria-label="labels.undo"
+				:title="labels.undo"
+				:disabled="!loaded || !context.canUndo.value"
+				variant="tertiary"
+				@click="context.undo()">
+				<template #icon>
+					<Undo :size="20" />
+				</template>
+			</NcButton>
+			<!-- `forceMenu` keeps the trigger a trigger even when the original
+			     is the only entry. -->
 			<NcActions
 				forceMenu
 				:container="popoverContainer ?? 'body'"
@@ -131,7 +141,7 @@ async function onRevert() {
 				variant="tertiary"
 				data-test="history">
 				<template #icon>
-					<Undo :size="20" />
+					<History :size="20" />
 				</template>
 				<!-- A radio rather than a plain entry: which step the image is on
 				     is state, and `aria-current` would land on the presentational

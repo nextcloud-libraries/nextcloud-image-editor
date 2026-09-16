@@ -320,3 +320,15 @@ test('the history menu sits against the control that opened it', async ({ page }
 	})
 	expect(gap).toBe(0)
 })
+
+test('undo steps back without opening the history', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	// The menu used to be the only way back, one click at a time through
+	// a list that opened over the image
+	await page.locator('[data-test="undo"]').click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(0)
+	await expect(page.locator('[data-test="history"] .action-item__popper')).toHaveCount(0)
+})
