@@ -8,6 +8,20 @@ import { expect, test } from '@playwright/test'
 import { cropAnchor, cropStageRect, drag, imageTopLeft, imageView, readState, save, slowDrag, waitLoaded } from './utils.ts'
 
 /**
+ * Rough brightness of a CSS color Konva was given, 0 to 255.
+ *
+ * @param color a #rgb, #rrggbb or rgb()/rgba() string
+ */
+function luminance(color: string): number {
+	const channels = color.startsWith('#')
+		? (color.length === 4
+				? [...color.slice(1)].map((digit) => parseInt(digit + digit, 16))
+				: [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16)))
+		: color.match(/[\d.]+/g)!.slice(0, 3).map(Number)
+	return (channels[0]! + channels[1]! + channels[2]!) / 3
+}
+
+/**
  * The crop rectangle in image coordinates, which is what has to
  * survive a view change. The overlay draws in stage pixels, so the
  * view scale divides back out.
@@ -107,4 +121,20 @@ test('the selection survives dragging an annotation', async ({ page }) => {
 	await slowDrag(page, { x: corner.x + 50, y: corner.y + 40 }, { x: corner.x + 70, y: corner.y + 50 })
 	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
 	expect((await readState(page)).annotations).toHaveLength(1)
+})
+
+test('the crop handles stay visible over a dark image', async ({ page }) => {
+	await waitLoaded(page)
+	await cropAnchor(page, 'top-left')
+
+	// The handles sit on the image, which is any image: a dark dot is
+	// invisible on half of them, so they are light with a dark ring
+	const style = await page.evaluate(() => {
+		const anchor = window.Konva.stages[0]!.findOne('.top-left')!
+		return { fill: anchor.fill(), stroke: anchor.stroke(), strokeWidth: anchor.strokeWidth() }
+	})
+
+	expect(luminance(style.fill)).toBeGreaterThan(200)
+	expect(luminance(style.stroke)).toBeLessThan(100)
+	expect(style.strokeWidth).toBeGreaterThan(0)
 })
