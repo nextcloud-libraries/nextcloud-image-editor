@@ -15,6 +15,7 @@ import {
 	normaliseState,
 	orientedSize,
 	rotateCW,
+	sameRect,
 	translateAnnotation,
 } from '../lib/editor/state.ts'
 
@@ -39,6 +40,26 @@ describe('orientedSize', () => {
 	it('swaps size at 90 and 270 degrees', () => {
 		expect(orientedSize(ORIENTED, 90)).toEqual({ width: 100, height: 200 })
 		expect(orientedSize(ORIENTED, 270)).toEqual({ width: 100, height: 200 })
+	})
+})
+
+describe('sameRect', () => {
+	it('sees two rects over the same area as one', () => {
+		expect(sameRect({ x: 1, y: 2, width: 3, height: 4 }, { x: 1, y: 2, width: 3, height: 4 })).toBe(true)
+	})
+
+	it('tells apart rects differing in any dimension', () => {
+		const rect = { x: 1, y: 2, width: 3, height: 4 }
+		expect(sameRect(rect, { ...rect, x: 0 })).toBe(false)
+		expect(sameRect(rect, { ...rect, y: 0 })).toBe(false)
+		expect(sameRect(rect, { ...rect, width: 30 })).toBe(false)
+		expect(sameRect(rect, { ...rect, height: 40 })).toBe(false)
+	})
+
+	it('treats the uncropped state as equal to itself and to nothing else', () => {
+		expect(sameRect(null, null)).toBe(true)
+		expect(sameRect(null, { x: 0, y: 0, width: 200, height: 100 })).toBe(false)
+		expect(sameRect({ x: 0, y: 0, width: 200, height: 100 }, null)).toBe(false)
 	})
 })
 

@@ -151,6 +151,37 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 	expect(restored.flipY).toBe(true)
 })
 
+test('applying a crop stays in the crop mode', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await page.waitForTimeout(100)
+
+	const view = await imageView(page)
+	const anchor = await cropAnchor(page, 'top-left')
+	await slowDrag(page, anchor, { x: anchor.x + 50 * view.scale, y: anchor.y + 25 * view.scale })
+	await page.locator('[data-test="apply-crop"]').click()
+	await expect.poll(async () => (await readState(page)).crop).not.toBeNull()
+
+	// The crop tools are where someone who just cropped wants to be, and
+	// the editor used to drop them in the annotate mode instead
+	await expect(page.getByRole('button', { name: 'Crop', exact: true })).toHaveAttribute('aria-pressed', 'true')
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+})
+
+test('applying an untouched selection records nothing', async ({ page }) => {
+	await waitLoaded(page)
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await page.waitForTimeout(100)
+
+	await page.locator('[data-test="apply-crop"]').click()
+	await page.waitForTimeout(300)
+
+	expect((await readState(page)).crop).toBeNull()
+	// Nothing to undo: the history trigger only enables once a step was
+	// recorded, and applying the untouched selection recorded none
+	await expect(page.locator('[data-test="history"] button')).toBeDisabled()
+})
+
 test('aspect presets lock the crop ratio', async ({ page }) => {
 	await waitLoaded(page)
 	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
