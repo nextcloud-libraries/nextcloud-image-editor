@@ -3,7 +3,7 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { showConfirmation } from '@nextcloud/dialogs'
+import { getDialogBuilder, showConfirmation } from '@nextcloud/dialogs'
 import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
@@ -20,6 +20,7 @@ import Undo from 'vue-material-design-icons/Undo.vue'
 import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
 import { historyIcon } from '../editor/history-icons.ts'
+import { isPristine } from '../editor/state.ts'
 import { MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -54,6 +55,9 @@ const labels = {
 	resetZoom: t('Reset zoom'),
 	save: t('Save'),
 	cancel: t('Cancel'),
+	close: t('Close the editor'),
+	unsaved: t('Save your edits before closing?'),
+	unsavedText: t('The image has edits that were never saved.'),
 	discard: t('Discard changes'),
 	history: t('Edit history'),
 	step: t('Edit'),
@@ -83,6 +87,27 @@ function stepZoom(direction: 1 | -1) {
  */
 function resetZoom() {
 	context.setViewZoom(MIN_ZOOM)
+}
+
+/**
+ * Leave the editor, asking what to do with the edits first where there
+ * are any. The dialog is dismissable, which is the third answer: stay.
+ */
+async function onClose() {
+	if (isPristine(context.state.value)) {
+		emit('cancel')
+		return
+	}
+	const dialog = getDialogBuilder(labels.unsaved)
+		.setText(labels.unsavedText)
+		.setSeverity('warning')
+		.addButton({ label: labels.cancel, callback: () => {} })
+		.addButton({ label: labels.discard, variant: 'error', callback: () => emit('cancel') })
+		.addButton({ label: labels.save, variant: 'primary', callback: () => emit('save') })
+		.build()
+	// Closing the dialog rejects it, and staying in the editor is what
+	// closing it means
+	await dialog.show().catch(() => {})
 }
 
 /**
@@ -209,24 +234,6 @@ async function onRevert() {
 
 		<div class="editor-topbar__actions">
 			<NcButton
-				data-test="cancel"
-				class="editor-topbar__cancel-text"
-				variant="tertiary"
-				@click="emit('cancel')">
-				{{ labels.discard }}
-			</NcButton>
-			<NcButton
-				data-test="cancel-icon"
-				class="editor-topbar__cancel-icon"
-				:aria-label="labels.discard"
-				:title="labels.discard"
-				variant="tertiary"
-				@click="emit('cancel')">
-				<template #icon>
-					<Close :size="20" />
-				</template>
-			</NcButton>
-			<NcButton
 				data-test="save"
 				variant="primary"
 				:disabled="!loaded || saving"
@@ -238,6 +245,16 @@ async function onRevert() {
 					<NcLoadingIcon :size="20" data-test="saving" />
 				</template>
 				{{ labels.save }}
+			</NcButton>
+			<NcButton
+				data-test="cancel"
+				:aria-label="labels.close"
+				:title="labels.close"
+				variant="tertiary"
+				@click="onClose">
+				<template #icon>
+					<Close :size="20" />
+				</template>
 			</NcButton>
 		</div>
 	</div>
@@ -306,21 +323,8 @@ async function onRevert() {
 		justify-content: flex-end;
 	}
 
-	// Text cancel on wide layouts, icon-only on narrow ones
-	&__cancel-icon {
-		display: none !important;
-	}
-
 	@container editor (max-width: 600px) {
 		padding-inline: calc(var(--default-grid-baseline) * 2);
-
-		&__cancel-text {
-			display: none !important;
-		}
-
-		&__cancel-icon {
-			display: inline-flex !important;
-		}
 
 		&__zoom {
 			min-width: 40px;
