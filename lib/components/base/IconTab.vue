@@ -15,7 +15,8 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-	click: []
+	/** The tab was clicked, with the event so a caller can reach the button */
+	click: [event: MouseEvent]
 }>()
 </script>
 
@@ -27,7 +28,7 @@ const emit = defineEmits<{
 		:disabled="disabled"
 		:data-test="dataTest"
 		:aria-pressed="active"
-		@click="emit('click')">
+		@click="emit('click', $event)">
 		<slot />
 		<span>{{ label }}</span>
 	</button>

@@ -53,6 +53,18 @@ const display = computed(() => {
 })
 
 /**
+ * Make an adjustment the active one and bring its tab fully into view,
+ * as one at the edge of the scrolled row is only half visible.
+ *
+ * @param id the adjustment to select
+ * @param event the click, whose target is the tab
+ */
+function select(id: AdjustmentKey, event: MouseEvent) {
+	activeAdjustment.value = id
+	;(event.currentTarget as HTMLElement | null)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+/**
  * Live-preview the active adjustment while the slider is dragged.
  *
  * @param value the new adjustment value
@@ -83,7 +95,7 @@ function onSliderCommit() {
 				:active="activeAdjustment === adjustment.id"
 				:disabled="!loaded"
 				:data-test="`tab-${adjustment.id}`"
-				@click="activeAdjustment = adjustment.id">
+				@click="select(adjustment.id, $event)">
 				<component :is="adjustment.icon" :size="20" />
 			</IconTab>
 		</div>
@@ -112,10 +124,34 @@ function onSliderCommit() {
 	&__tabs {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		// Seven of them do not fit one row on a narrow card
-		flex-wrap: wrap;
+		// Centred while they fit, scrolled from the start once they do not:
+		// plain `center` would push the first tabs out of reach
+		justify-content: safe center;
 		gap: calc(var(--default-grid-baseline) * 2);
+		// One row whatever the width, the rest is a swipe away
+		max-width: 100%;
+		overflow-x: auto;
+		// Room for the focus ring, which the scroll box would clip otherwise
+		padding: 2px;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+
+		> * {
+			flex-shrink: 0;
+		}
+
+		&::-webkit-scrollbar {
+			height: 6px;
+		}
+
+		&::-webkit-scrollbar-thumb {
+			background: rgba(255, 255, 255, 0.22);
+			border-radius: 3px;
+		}
+
+		&::-webkit-scrollbar-track {
+			background: transparent;
+		}
 	}
 }
 </style>
