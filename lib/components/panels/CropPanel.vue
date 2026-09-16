@@ -148,7 +148,7 @@ function onSliderCommit() {
 			</NcButton>
 			<NcButton
 				data-test="apply-crop"
-				variant="secondary"
+				variant="tertiary"
 				:disabled="!loaded"
 				@click="commands.applyCrop()">
 				{{ labels.applyCrop }}
