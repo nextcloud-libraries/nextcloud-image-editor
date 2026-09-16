@@ -10,6 +10,7 @@ import FlipVertical from 'vue-material-design-icons/FlipVertical.vue'
 import RotateLeft from 'vue-material-design-icons/RotateLeft.vue'
 import RotateRight from 'vue-material-design-icons/RotateRight.vue'
 import EditorSlider from '../base/EditorSlider.vue'
+import IconTab from '../base/IconTab.vue'
 import { useEditorCommands } from '../../editor/commands.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
@@ -74,16 +75,14 @@ function onSliderCommit() {
 <template>
 	<div class="crop-panel">
 		<div class="crop-panel__row">
-			<NcButton
+			<IconTab
 				v-for="preset in aspectPresets"
 				:key="String(preset.id)"
 				:data-test="`aspect-${preset.id === null ? 'free' : preset.id === 'original' ? 'original' : preset.label}`"
-				:pressed="context.cropAspect.value === preset.id"
+				:label="preset.label"
+				:active="context.cropAspect.value === preset.id"
 				:disabled="!loaded"
-				variant="tertiary"
-				@click="context.cropAspect.value = preset.id">
-				{{ preset.label }}
-			</NcButton>
+				@click="context.cropAspect.value = preset.id" />
 		</div>
 		<div class="crop-panel__row">
 			<NcButton
@@ -129,16 +128,14 @@ function onSliderCommit() {
 
 			<span class="crop-panel__divider" />
 
-			<NcButton
+			<IconTab
 				v-for="control in cropControls"
 				:key="control.id"
 				:data-test="`tab-${control.id}`"
-				:pressed="activeCropControl === control.id"
+				:label="control.label"
+				:active="activeCropControl === control.id"
 				:disabled="!loaded"
-				variant="tertiary"
-				@click="activeCropControl = control.id">
-				{{ control.label }}
-			</NcButton>
+				@click="activeCropControl = control.id" />
 
 			<span class="crop-panel__divider" />
 
@@ -203,7 +200,7 @@ function onSliderCommit() {
 	&__divider {
 		width: 1px;
 		height: 24px;
-		background-color: rgba(255, 255, 255, 0.12);
+		background-color: var(--color-border);
 	}
 }
 </style>

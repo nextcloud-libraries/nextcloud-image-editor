@@ -6,7 +6,6 @@
 import type { Tool } from '../../editor/context.ts'
 
 import { computed } from 'vue'
-import NcButton from '@nextcloud/vue/components/NcButton'
 import ArrowTopRight from 'vue-material-design-icons/ArrowTopRight.vue'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
 import FormatText from 'vue-material-design-icons/FormatText.vue'
@@ -14,6 +13,7 @@ import Pencil from 'vue-material-design-icons/Pencil.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
 import VectorLine from 'vue-material-design-icons/VectorLine.vue'
 import EditorSlider from '../base/EditorSlider.vue'
+import IconTab from '../base/IconTab.vue'
 import { useAnnotationColor } from '../../composables/useAnnotationColor.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
@@ -62,19 +62,16 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 <template>
 	<div class="annotate-panel">
 		<div class="annotate-panel__row">
-			<NcButton
+			<IconTab
 				v-for="tool in subTools"
 				:key="tool.id"
-				:aria-label="tool.label"
-				:title="tool.label"
+				:label="tool.label"
+				:active="context.activeTool.value === tool.id"
 				:disabled="!loaded"
-				:pressed="context.activeTool.value === tool.id"
-				variant="tertiary"
+				iconOnly
 				@click="context.activeTool.value = tool.id">
-				<template #icon>
-					<component :is="tool.icon" :size="20" />
-				</template>
-			</NcButton>
+				<component :is="tool.icon" :size="20" />
+			</IconTab>
 
 			<span class="annotate-panel__divider" />
 
@@ -150,22 +147,20 @@ const fontPreview = computed(() => Math.min(PREVIEW_CAP, Math.max(8, context.fon
 	&__divider {
 		width: 1px;
 		height: 24px;
-		background-color: rgba(255, 255, 255, 0.12);
+		background-color: var(--color-border);
 	}
 
 	&__option {
 		display: flex;
 		align-items: center;
 		gap: var(--default-grid-baseline);
-		font-size: 12px;
-		opacity: 0.9;
 	}
 
 	// A ring so the mark stays visible whatever color it is drawn in
 	&__dot {
 		display: block;
 		border-radius: 50%;
-		box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+		box-shadow: 0 0 0 1px var(--color-border-maxcontrast);
 	}
 
 	&__glyph {

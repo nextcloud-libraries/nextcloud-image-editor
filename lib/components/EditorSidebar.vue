@@ -49,12 +49,12 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 </template>
 
 <style scoped lang="scss">
-// Vertical labeled tool rail: icon above label, the active tab softly
-// tinted by the image's ambient color (see IconTab)
+// Vertical labeled tool rail: icon above label (see IconTab)
 .editor-sidebar {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	// Every tab as wide as the longest label
+	align-items: stretch;
 	gap: calc(var(--default-grid-baseline) * 2);
 	padding: var(--default-grid-baseline);
 }

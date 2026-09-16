@@ -3,9 +3,9 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import NcButton from '@nextcloud/vue/components/NcButton'
 import EllipseOutline from 'vue-material-design-icons/EllipseOutline.vue'
 import RectangleOutline from 'vue-material-design-icons/RectangleOutline.vue'
+import IconTab from '../base/IconTab.vue'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -26,47 +26,37 @@ const labels = {
 
 <template>
 	<div class="redact-panel">
-		<NcButton
+		<IconTab
 			data-test="redact-pixelate"
-			:pressed="context.redactStyle.value === 'pixelate'"
+			:label="labels.pixelate"
+			:active="context.redactStyle.value === 'pixelate'"
 			:disabled="!loaded"
-			variant="tertiary"
-			@click="context.redactStyle.value = 'pixelate'">
-			{{ labels.pixelate }}
-		</NcButton>
-		<NcButton
+			@click="context.redactStyle.value = 'pixelate'" />
+		<IconTab
 			data-test="redact-blur"
-			:pressed="context.redactStyle.value === 'blur'"
+			:label="labels.blur"
+			:active="context.redactStyle.value === 'blur'"
 			:disabled="!loaded"
-			variant="tertiary"
-			@click="context.redactStyle.value = 'blur'">
-			{{ labels.blur }}
-		</NcButton>
+			@click="context.redactStyle.value = 'blur'" />
 		<span class="redact-panel__divider" />
-		<NcButton
+		<IconTab
 			data-test="redact-rectangle"
-			:aria-label="labels.rectangle"
-			:title="labels.rectangle"
-			:pressed="context.redactShape.value === 'rectangle'"
+			:label="labels.rectangle"
+			:active="context.redactShape.value === 'rectangle'"
 			:disabled="!loaded"
-			variant="tertiary"
+			iconOnly
 			@click="context.redactShape.value = 'rectangle'">
-			<template #icon>
-				<RectangleOutline :size="20" />
-			</template>
-		</NcButton>
-		<NcButton
+			<RectangleOutline :size="20" />
+		</IconTab>
+		<IconTab
 			data-test="redact-ellipse"
-			:aria-label="labels.ellipse"
-			:title="labels.ellipse"
-			:pressed="context.redactShape.value === 'ellipse'"
+			:label="labels.ellipse"
+			:active="context.redactShape.value === 'ellipse'"
 			:disabled="!loaded"
-			variant="tertiary"
+			iconOnly
 			@click="context.redactShape.value = 'ellipse'">
-			<template #icon>
-				<EllipseOutline :size="20" />
-			</template>
-		</NcButton>
+			<EllipseOutline :size="20" />
+		</IconTab>
 	</div>
 </template>
 

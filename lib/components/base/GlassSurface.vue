@@ -17,9 +17,9 @@ defineProps<{
 
 <style scoped lang="scss">
 .glass-surface {
-	background: var(--editor-glass, rgba(20, 20, 26, 0.6));
+	background: var(--editor-glass);
 	backdrop-filter: blur(24px) saturate(1.4);
-	border: 1px solid rgba(255, 255, 255, 0.09);
+	border: 1px solid var(--color-border);
 	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 
 	&--card {

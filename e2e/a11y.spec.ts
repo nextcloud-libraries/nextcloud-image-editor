@@ -30,8 +30,12 @@ async function clickableArea(page: Page): Promise<number> {
 async function expectClickable(control: Locator, name: string, minimum: number): Promise<void> {
 	const box = await control.boundingBox()
 	expect(box, `${name} is not rendered`).not.toBeNull()
-	expect(box!.width, `${name} is only ${box!.width}px wide`).toBeGreaterThanOrEqual(minimum)
-	expect(box!.height, `${name} is only ${box!.height}px tall`).toBeGreaterThanOrEqual(minimum)
+	// Firefox lays out in app units, so a 34px control inside a translated
+	// parent can measure 33.99997px: compare to the hundredth
+	const width = Math.round(box!.width * 100) / 100
+	const height = Math.round(box!.height * 100) / 100
+	expect(width, `${name} is only ${box!.width}px wide`).toBeGreaterThanOrEqual(minimum)
+	expect(height, `${name} is only ${box!.height}px tall`).toBeGreaterThanOrEqual(minimum)
 }
 
 test('the mode rail meets the minimum pointer target', async ({ page }) => {
