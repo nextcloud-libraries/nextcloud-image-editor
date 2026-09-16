@@ -259,6 +259,8 @@ async function onRevert() {
 		border: none;
 		background: transparent;
 		color: var(--color-text-maxcontrast);
+		// A button does not inherit the page font, it gets the browser's own
+		font: inherit;
 		font-variant-numeric: tabular-nums;
 		cursor: pointer;
 		padding: 0 4px;
