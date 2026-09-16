@@ -3,13 +3,15 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { getDialogBuilder, showConfirmation } from '@nextcloud/dialogs'
-import { computed } from 'vue'
+import { showConfirmation } from '@nextcloud/dialogs'
+import { computed, shallowRef } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import Close from 'vue-material-design-icons/Close.vue'
 import History from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
@@ -89,25 +91,33 @@ function resetZoom() {
 	context.setViewZoom(MIN_ZOOM)
 }
 
+/** Whether the editor is asking what to do with unsaved edits */
+const closing = shallowRef(false)
+
 /**
  * Leave the editor, asking what to do with the edits first where there
- * are any. The dialog is dismissable, which is the third answer: stay.
+ * are any.
  */
-async function onClose() {
+function onClose() {
 	if (isPristine(context.state.value)) {
 		emit('cancel')
 		return
 	}
-	const dialog = getDialogBuilder(labels.unsaved)
-		.setText(labels.unsavedText)
-		.setSeverity('warning')
-		.addButton({ label: labels.cancel, callback: () => {} })
-		.addButton({ label: labels.discard, variant: 'error', callback: () => emit('cancel') })
-		.addButton({ label: labels.save, variant: 'primary', callback: () => emit('save') })
-		.build()
-	// Closing the dialog rejects it, and staying in the editor is what
-	// closing it means
-	await dialog.show().catch(() => {})
+	closing.value = true
+}
+
+/**
+ * Answer the closing dialog.
+ *
+ * @param answer what to do with the edits
+ */
+function onCloseAnswer(answer: 'stay' | 'discard' | 'save') {
+	closing.value = false
+	if (answer === 'save') {
+		emit('save')
+	} else if (answer === 'discard') {
+		emit('cancel')
+	}
 }
 
 /**
@@ -257,10 +267,48 @@ async function onRevert() {
 				</template>
 			</NcButton>
 		</div>
+
+		<!-- Every way out of the editor is a button of the dialog, so it
+		     has no close of its own -->
+		<NcDialog
+			v-if="closing"
+			:name="labels.unsaved"
+			noClose
+			data-test="closing-dialog"
+			@update:open="onCloseAnswer('stay')">
+			<NcNoteCard type="warning" :text="labels.unsavedText" />
+			<template #actions>
+				<NcButton
+					class="editor-topbar__stay"
+					data-test="closing-cancel"
+					variant="tertiary"
+					@click="onCloseAnswer('stay')">
+					{{ labels.cancel }}
+				</NcButton>
+				<NcButton
+					data-test="closing-discard"
+					variant="error"
+					@click="onCloseAnswer('discard')">
+					{{ labels.discard }}
+				</NcButton>
+				<NcButton
+					data-test="closing-save"
+					variant="primary"
+					@click="onCloseAnswer('save')">
+					{{ labels.save }}
+				</NcButton>
+			</template>
+		</NcDialog>
 	</div>
 </template>
 
 <style scoped lang="scss">
+// The dialog renders in the body, away from the bar: staying sits apart
+// from the two answers that leave
+.editor-topbar__stay {
+	margin-inline-end: auto;
+}
+
 .editor-topbar {
 	display: flex;
 	align-items: center;
