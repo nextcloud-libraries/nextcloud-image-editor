@@ -73,6 +73,7 @@ const emit = defineEmits<{
 	&--active {
 		background: var(--editor-active);
 		color: var(--color-main-text);
+		box-shadow: inset 0 0 0 1px var(--color-border), 0 4px 16px rgba(0, 0, 0, 0.3);
 	}
 
 	&--icon-only {

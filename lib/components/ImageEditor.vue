@@ -900,7 +900,9 @@ defineExpose({
 		height: 100%;
 		width: 100%;
 		overflow: hidden;
-		background: color-mix(in srgb, var(--color-main-background) 55%, transparent);
+		// Occlusion over the wallpaper, a shadow like the box-shadows rather
+		// than a surface of the palette
+		background: rgba(14, 14, 18, 0.55);
 		backdrop-filter: blur(40px);
 	}
 
@@ -976,7 +978,7 @@ defineExpose({
 		inset-block-start: 0;
 		inset-inline: 0;
 		// Legibility scrim over bright images
-		background: linear-gradient(color-mix(in srgb, var(--color-main-background) 50%, transparent), transparent);
+		background: linear-gradient(rgba(8, 8, 12, 0.5), transparent);
 	}
 
 	&__rail {
