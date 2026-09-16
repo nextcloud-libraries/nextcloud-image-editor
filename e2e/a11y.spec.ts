@@ -126,3 +126,23 @@ test('the controls follow the host pointer target rather than their own', async 
 	const box = (await page.locator('[data-test="aspect-free"]').boundingBox())!
 	expect(box.height).toBe(34)
 })
+
+test('the chrome is one text size throughout', async ({ page }) => {
+	await waitLoaded(page)
+	// @nextcloud/vue components size themselves from --default-font-size
+	// instead of inheriting, so a button and the tab next to it drifted apart
+	// A native button does not inherit the page font either, so the tabs
+	// and the zoom readout have to ask for it
+	const font = (locator: Locator) => locator.evaluate((element) => {
+		const style = getComputedStyle(element)
+		return `${style.fontSize} ${style.fontFamily}`
+	})
+
+	const tab = await font(page.locator('[data-test="aspect-free"]'))
+	expect(await font(page.locator('[data-test="apply-crop"]'))).toBe(tab)
+	expect(await font(page.getByRole('button', { name: 'Save' }))).toBe(tab)
+	expect(await font(page.locator('[data-test="zoom-reset"]'))).toBe(tab)
+
+	await page.getByRole('button', { name: 'Adjust' }).click()
+	expect(await font(page.locator('[data-test="tab-exposure"]'))).toBe(tab)
+})

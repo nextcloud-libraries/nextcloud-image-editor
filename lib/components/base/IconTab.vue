@@ -55,7 +55,8 @@ const emit = defineEmits<{
 	border-radius: var(--border-radius-large, 12px);
 	background: transparent;
 	color: var(--color-text-maxcontrast);
-	font-size: var(--font-size-small);
+	// A button does not inherit the page font, it gets the browser's own
+	font: inherit;
 	letter-spacing: 0.01em;
 	cursor: pointer;
 	transition: background-color 0.12s ease, color 0.12s ease;

@@ -832,7 +832,11 @@ defineExpose({
 	--color-border-maxcontrast: color-mix(in srgb, var(--color-main-text) 50%, transparent);
 	--editor-active: color-mix(in srgb, var(--color-primary-element) 25%, transparent);
 	--editor-glass: color-mix(in srgb, var(--color-main-background) 60%, transparent);
-	font-size: var(--font-size-small, 13px);
+	// The chrome is small text throughout. @nextcloud/vue components size
+	// themselves from --default-font-size rather than inheriting, so the
+	// buttons would sit two points above the tabs beside them without this.
+	--default-font-size: var(--font-size-small, 13px);
+	font-size: var(--default-font-size);
 
 	position: relative;
 	height: 100%;
@@ -851,6 +855,16 @@ defineExpose({
 	& :deep(*)::before,
 	& :deep(*)::after {
 		box-sizing: border-box;
+	}
+
+	// Form controls take the browser's own font rather than the page's,
+	// which leaves buttons in Arial wherever the host stylesheet does not
+	// say otherwise
+	& :deep(button),
+	& :deep(input),
+	& :deep(select),
+	& :deep(textarea) {
+		font-family: inherit;
 	}
 
 	// Full-window implementation, author decision: the editor fills its
