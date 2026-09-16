@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { describe, expect, it } from 'vitest'
-import { supportsContextFilter, thumbnailKey } from '../lib/editor/render.ts'
+import { hitAreaWidth, supportsContextFilter, thumbnailKey } from '../lib/editor/render.ts'
 import { createInitialState } from '../lib/editor/state.ts'
 
 /** A context that honors the filter property, like Chrome or Firefox */
@@ -68,5 +68,25 @@ describe('thumbnailKey', () => {
 			}],
 		}
 		expect(thumbnailKey(annotated)).toBe(thumbnailKey(state))
+	})
+})
+
+describe('hitAreaWidth', () => {
+	it('widens a hairline to something a pointer can hit', () => {
+		// 24 screen pixels at 1:1
+		expect(hitAreaWidth(2, 1)).toBe(24)
+	})
+
+	it('shrinks with the zoom so the band stays the same on screen', () => {
+		expect(hitAreaWidth(2, 2)).toBe(12)
+		expect(hitAreaWidth(2, 0.5)).toBe(48)
+	})
+
+	it('never narrows a stroke that is already wider', () => {
+		expect(hitAreaWidth(40, 1)).toBe(40)
+	})
+
+	it('survives a scale of zero rather than returning infinity', () => {
+		expect(Number.isFinite(hitAreaWidth(2, 0))).toBe(true)
 	})
 })

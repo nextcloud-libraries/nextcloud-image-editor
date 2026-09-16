@@ -241,6 +241,25 @@ function backgroundPadding(fontSize: number): number {
 }
 
 /**
+ * Smallest comfortable grab area for a stroked annotation, in screen
+ * pixels. A two pixel line is two pixels of target without it, which is
+ * a shape only a steady hand can select.
+ */
+const MIN_HIT_AREA = 24
+
+/**
+ * Width of the invisible band that catches clicks around a stroke, in
+ * image pixels: the same on screen whatever the view is zoomed to, and
+ * never narrower than the stroke it stands in for.
+ *
+ * @param strokeWidth the drawn width, in image pixels
+ * @param scale on-screen pixels per image pixel
+ */
+export function hitAreaWidth(strokeWidth: number, scale: number): number {
+	return Math.max(strokeWidth, MIN_HIT_AREA / Math.max(scale, Number.EPSILON))
+}
+
+/**
  * Build the Konva node for one annotation. Nodes carry the annotation id
  * and the 'annotation' name so tools can map them back to state entries.
  *
@@ -642,6 +661,14 @@ export function createScene(stage: Konva.Stage): Scene {
 			if (!seen.has(id)) {
 				entry.node.destroy()
 				built.delete(id)
+			}
+		}
+
+		// The grab area of a stroke follows the view rather than the node,
+		// so it is set here and not where the node is built
+		for (const { node } of built.values()) {
+			if (node instanceof Konva.Shape && node.strokeWidth() > 0) {
+				node.hitStrokeWidth(hitAreaWidth(node.strokeWidth(), options.scale))
 			}
 		}
 
