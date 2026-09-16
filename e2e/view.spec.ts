@@ -142,25 +142,33 @@ test('panning past the edge does not leave the view stuck', async ({ page }) => 
 
 test('a picture shown smaller than it is keeps its grain averaged, not sampled', async ({ page }) => {
 	await waitLoaded(page, 'noise')
-	const view = await imageView(page)
 
 	// Standard deviation of a patch of the drawn layer. The fixture is
 	// uniform noise of about 23 per channel: a single-pass shrink keeps
-	// most of it (around 16 at this size), averaging halves it
-	const deviation = await page.evaluate(({ x, y }) => {
-		const layer = window.Konva.stages[0]!.getLayers()[0]!.getCanvas()
+	// most of it (around 16 at this size), averaging halves it.
+	//
+	// Polled rather than measured once: the editor settles into its
+	// container over a couple of frames, and a patch read from the layer
+	// while the picture is still moving lands partly beside it, which
+	// reads as noise of its own.
+	await expect.poll(async () => page.evaluate(() => {
+		const stage = window.Konva.stages[0]
+		const layer = stage?.getLayers()[0]?.getCanvas()
+		const image = stage?.findOne<Konva.Image>('Image')
+		if (layer === undefined || image === undefined) {
+			return null
+		}
 		const ratio = layer.getPixelRatio()
+		const position = image.getAbsolutePosition()
 		const context = layer._canvas.getContext('2d')!
-		const { data } = context.getImageData((x + 20) * ratio, (y + 20) * ratio, 100, 100)
+		const { data } = context.getImageData((position.x + 20) * ratio, (position.y + 20) * ratio, 100, 100)
 		const values: number[] = []
 		for (let index = 0; index < data.length; index += 4) {
 			values.push(data[index]!)
 		}
 		const mean = values.reduce((sum, value) => sum + value, 0) / values.length
 		return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length)
-	}, view)
-
-	expect(deviation).toBeLessThan(12)
+	}), { message: 'The drawn grain never settled' }).toBeLessThan(12)
 })
 
 /**
