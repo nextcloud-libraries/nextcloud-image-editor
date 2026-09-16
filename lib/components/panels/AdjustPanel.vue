@@ -134,7 +134,7 @@ function onSliderCommit() {
 		// Room for the focus ring, which the scroll box would clip otherwise
 		padding: 2px;
 		scrollbar-width: thin;
-		scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+		scrollbar-color: var(--color-border-dark) transparent;
 
 		> * {
 			flex-shrink: 0;
@@ -145,7 +145,7 @@ function onSliderCommit() {
 		}
 
 		&::-webkit-scrollbar-thumb {
-			background: rgba(255, 255, 255, 0.22);
+			background: var(--color-border-dark);
 			border-radius: 3px;
 		}
 

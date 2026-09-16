@@ -20,6 +20,7 @@ import FormatAlignRight from 'vue-material-design-icons/FormatAlignRight.vue'
 import FormatColorHighlight from 'vue-material-design-icons/FormatColorHighlight.vue'
 import FormatFont from 'vue-material-design-icons/FormatFont.vue'
 import GlassSurface from './base/GlassSurface.vue'
+import IconTab from './base/IconTab.vue'
 import TextEmphasisButtons from './base/TextEmphasisButtons.vue'
 import { useAnnotationColor } from '../composables/useAnnotationColor.ts'
 import { useTextStyle } from '../composables/useTextStyle.ts'
@@ -169,30 +170,24 @@ const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 			</NcActionButton>
 		</NcActions>
 		<TextEmphasisButtons v-if="isText" testPrefix="toolbar" :size="18" />
-		<NcButton
+		<IconTab
 			v-if="isText"
 			data-test="toolbar-outline"
-			:aria-label="labels.outline"
-			:pressed="textStyle.outline.value"
-			:title="labels.outline"
-			variant="tertiary"
+			:label="labels.outline"
+			:active="textStyle.outline.value"
+			iconOnly
 			@click="textStyle.outline.value = !textStyle.outline.value">
-			<template #icon>
-				<BorderOutside :size="18" />
-			</template>
-		</NcButton>
-		<NcButton
+			<BorderOutside :size="18" />
+		</IconTab>
+		<IconTab
 			v-if="isText"
 			data-test="toolbar-background"
-			:aria-label="labels.background"
-			:pressed="textStyle.background.value"
-			:title="labels.background"
-			variant="tertiary"
+			:label="labels.background"
+			:active="textStyle.background.value"
+			iconOnly
 			@click="textStyle.background.value = !textStyle.background.value">
-			<template #icon>
-				<FormatColorHighlight :size="18" />
-			</template>
-		</NcButton>
+			<FormatColorHighlight :size="18" />
+		</IconTab>
 		<template v-if="!typing">
 			<NcButton
 				data-test="duplicate"
@@ -250,7 +245,7 @@ const alignment = computed(() => ALIGN_META[textAlign(textStyle.align.value)])
 			}
 
 			&::-webkit-color-swatch {
-				border: 1px solid rgba(255, 255, 255, 0.5);
+				border: 1px solid var(--color-border-maxcontrast);
 				border-radius: 50%;
 			}
 		}

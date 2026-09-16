@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ambientBackdrop, ambientColor, primaryColor } from '../lib/utils/theme.ts'
+import { ambientBackdrop, primaryColor } from '../lib/utils/theme.ts'
 
 /**
  * Fill an 8x8 sample with the given pixels, repeated to length.
@@ -51,44 +51,6 @@ describe('primaryColor', () => {
 			getPropertyValue: () => '',
 		} as unknown as CSSStyleDeclaration)
 		expect(primaryColor()).toBe('#0082c9')
-	})
-})
-
-describe('ambientColor', () => {
-	afterEach(() => vi.restoreAllMocks())
-
-	it('averages a flat image to its own colour', () => {
-		stubCanvas(sampleOf(120, 60, 30, 255))
-		expect(ambientColor(document.createElement('canvas'))).toBe('120, 60, 30')
-	})
-
-	it('leans towards the colourful pixels rather than the grey ones', () => {
-		// Half mid-grey, half saturated red: a flat average would land
-		// near 190,128,128, the weighting pulls it towards the red
-		const data = sampleOf(128, 128, 128, 255, 255, 0, 0, 255)
-		stubCanvas(data)
-		const [red, green] = ambientColor(document.createElement('canvas')).split(', ').map(Number)
-
-		expect(red!).toBeGreaterThan(190)
-		expect(green!).toBeLessThan(110)
-	})
-
-	it('falls back to a neutral tint without a context', () => {
-		stubCanvas(null)
-		expect(ambientColor(document.createElement('canvas'))).toBe('88, 86, 112')
-	})
-
-	it('falls back rather than throwing on a tainted canvas', () => {
-		// Reading back an image fetched without CORS is a SecurityError,
-		// and the chrome tint is decoration
-		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-			drawImage: () => {},
-			getImageData: () => {
-				throw new DOMException('Tainted canvases may not be read', 'SecurityError')
-			},
-		} as unknown as CanvasRenderingContext2D)
-
-		expect(ambientColor(document.createElement('canvas'))).toBe('88, 86, 112')
 	})
 })
 

@@ -73,7 +73,7 @@ function onInput(event: Event) {
 		flex: 1;
 		height: 20px;
 		margin: 0;
-		background: linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.25)) center / 100% 2px no-repeat;
+		background: linear-gradient(var(--color-border-dark), var(--color-border-dark)) center / 100% 2px no-repeat;
 		cursor: ew-resize;
 
 		&::-webkit-slider-thumb {
@@ -81,7 +81,7 @@ function onInput(event: Event) {
 			width: 14px;
 			height: 14px;
 			border-radius: 50%;
-			background: #fff;
+			background: var(--color-main-text);
 			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 		}
 
@@ -90,13 +90,13 @@ function onInput(event: Event) {
 			height: 14px;
 			border: none;
 			border-radius: 50%;
-			background: #fff;
+			background: var(--color-main-text);
 			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 		}
 
 		&:focus-visible {
-			outline: 2px solid var(--color-primary-element);
-			outline-offset: 2px;
+			outline: 2px solid var(--color-main-text);
+			box-shadow: 0 0 0 4px var(--color-main-background);
 		}
 	}
 
@@ -107,7 +107,6 @@ function onInput(event: Event) {
 		min-width: 44px;
 		min-height: 44px;
 		text-align: end;
-		font-size: 13px;
 		font-variant-numeric: tabular-nums;
 	}
 }

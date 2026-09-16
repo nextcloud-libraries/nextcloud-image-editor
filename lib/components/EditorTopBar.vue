@@ -242,9 +242,9 @@ async function onRevert() {
 		gap: 2px;
 		padding: 2px;
 		border-radius: var(--border-radius-pill, 100px);
-		background: var(--editor-glass, rgba(22, 22, 26, 0.6));
+		background: var(--editor-glass);
 		backdrop-filter: blur(24px) saturate(1.4);
-		border: 1px solid rgba(255, 255, 255, 0.09);
+		border: 1px solid var(--color-border);
 	}
 
 	&__separator {
@@ -257,20 +257,18 @@ async function onRevert() {
 		min-width: 48px;
 		border: none;
 		background: transparent;
-		color: var(--color-main-text);
-		font-size: 12px;
+		color: var(--color-text-maxcontrast);
 		font-variant-numeric: tabular-nums;
-		opacity: 0.8;
 		cursor: pointer;
 		padding: 0 4px;
 
 		&:hover:not(:disabled) {
-			opacity: 1;
+			color: var(--color-main-text);
 		}
 
 		&:focus-visible {
-			outline: 2px solid var(--color-primary-element);
-			outline-offset: 2px;
+			outline: 2px solid var(--color-main-text);
+			box-shadow: 0 0 0 4px var(--color-main-background);
 		}
 
 		&:disabled {

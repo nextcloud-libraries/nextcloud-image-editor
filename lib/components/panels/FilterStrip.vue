@@ -7,7 +7,7 @@ import type { FilterPreset } from '../../editor/state.ts'
 
 import { shallowRef, watch } from 'vue'
 import GlassSurface from '../base/GlassSurface.vue'
-import PresetChip from '../base/PresetChip.vue'
+import IconTab from '../base/IconTab.vue'
 import { useEditorContext } from '../../editor/context.ts'
 import { presetThumbnail, thumbnailKey } from '../../editor/render.ts'
 import { t } from '../../utils/l10n.ts'
@@ -74,15 +74,16 @@ function setPreset(preset: FilterPreset, label: string) {
 
 <template>
 	<GlassSurface variant="strip" class="filter-strip">
-		<PresetChip
+		<IconTab
 			v-for="preset in presetPreviews"
 			:key="preset.id"
-			:url="preset.url"
 			:label="preset.label"
 			:active="context.state.value.preset === preset.id"
 			:disabled="!loaded"
 			:data-test="`preset-${preset.id}`"
-			@click="setPreset(preset.id, preset.label)" />
+			@click="setPreset(preset.id, preset.label)">
+			<img :src="preset.url" :alt="preset.label">
+		</IconTab>
 	</GlassSurface>
 </template>
 
@@ -95,9 +96,14 @@ function setPreset(preset: FilterPreset, label: string) {
 	overflow-y: auto;
 	max-height: 100%;
 
+	// The strip scrolls, the chips keep their size
+	> * {
+		flex-shrink: 0;
+	}
+
 	// Slim glass-fitting scrollbar
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+	scrollbar-color: var(--color-border-dark) transparent;
 
 	&::-webkit-scrollbar {
 		width: 6px;
@@ -105,8 +111,15 @@ function setPreset(preset: FilterPreset, label: string) {
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: rgba(255, 255, 255, 0.22);
+		background: var(--color-border-dark);
 		border-radius: 3px;
+	}
+
+	img {
+		width: 64px;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		border-radius: var(--border-radius-large, 12px);
 	}
 
 	&::-webkit-scrollbar-track {

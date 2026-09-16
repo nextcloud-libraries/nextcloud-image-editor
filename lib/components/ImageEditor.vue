@@ -125,7 +125,7 @@ const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
 const sourceImage = shallowRef<HTMLImageElement | null>(null)
-const { ambient, backdrop } = useAmbient(sourceImage)
+const { backdrop } = useAmbient(sourceImage)
 const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
 
@@ -709,7 +709,6 @@ defineExpose({
 		ref="root"
 		class="image-editor"
 		:style="{
-			'--editor-ambient': ambient,
 			'--editor-backdrop': backdrop ? `url(${backdrop})` : 'none',
 		}">
 		<div class="image-editor__shell">
@@ -808,17 +807,26 @@ defineExpose({
 }
 
 .image-editor {
-	// Always-dark chrome floating over the image, every surface tinted
-	// by the image itself: --editor-ambient carries its dominant color,
-	// --editor-backdrop a tiny blurred copy used as the wallpaper
+	// Always-dark chrome floating over the image, with --editor-backdrop
+	// carrying a tiny blurred copy of it as the wallpaper. The host's
+	// palette is made for its page, not for glass over a photo, so the
+	// chrome derives its own from two anchors: every translucent color
+	// is a mix of the text color, the background color or the host's
+	// primary color, and the components only ever use these tokens.
 	--color-main-text: #f2f2f7;
 	--color-main-background: #141416;
-	--color-background-hover: rgba(255, 255, 255, 0.08);
-	--color-background-dark: rgba(255, 255, 255, 0.14);
-	--color-border: rgba(255, 255, 255, 0.09);
-	--color-element-hover: rgba(255, 255, 255, 0.08);
-	--editor-glass: rgba(20, 20, 26, 0.6);
-	font-size: 13px;
+	--color-text-maxcontrast: color-mix(in srgb, var(--color-main-text) 75%, transparent);
+	// Same tint NcButton uses on hover, so a tab and a button beside it
+	// answer the pointer the same way
+	--color-background-hover: color-mix(in srgb, var(--color-primary-element) 8%, transparent);
+	--color-element-hover: var(--color-background-hover);
+	--color-background-dark: color-mix(in srgb, var(--color-main-text) 14%, transparent);
+	--color-border: color-mix(in srgb, var(--color-main-text) 10%, transparent);
+	--color-border-dark: color-mix(in srgb, var(--color-main-text) 25%, transparent);
+	--color-border-maxcontrast: color-mix(in srgb, var(--color-main-text) 50%, transparent);
+	--editor-active: color-mix(in srgb, var(--color-primary-element) 25%, transparent);
+	--editor-glass: color-mix(in srgb, var(--color-main-background) 60%, transparent);
+	font-size: var(--font-size-small, 13px);
 
 	position: relative;
 	height: 100%;
@@ -892,7 +900,7 @@ defineExpose({
 		height: 100%;
 		width: 100%;
 		overflow: hidden;
-		background: rgba(14, 14, 18, 0.55);
+		background: color-mix(in srgb, var(--color-main-background) 55%, transparent);
 		backdrop-filter: blur(40px);
 	}
 
@@ -945,7 +953,7 @@ defineExpose({
 			padding: var(--default-grid-baseline);
 			background: var(--editor-glass);
 			backdrop-filter: blur(24px) saturate(1.4);
-			border: 1px solid rgba(255, 255, 255, 0.09);
+			border: 1px solid var(--color-border);
 			border-radius: var(--border-radius-large, 12px);
 		}
 	}
@@ -968,7 +976,7 @@ defineExpose({
 		inset-block-start: 0;
 		inset-inline: 0;
 		// Legibility scrim over bright images
-		background: linear-gradient(rgba(8, 8, 12, 0.5), transparent);
+		background: linear-gradient(color-mix(in srgb, var(--color-main-background) 50%, transparent), transparent);
 	}
 
 	&__rail {

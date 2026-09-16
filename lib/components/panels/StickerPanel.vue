@@ -7,6 +7,7 @@ import { emojiSearch } from '@nextcloud/vue/functions/emoji'
 import { computed } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmojiPicker from '@nextcloud/vue/components/NcEmojiPicker'
+import IconTab from '../base/IconTab.vue'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
@@ -46,17 +47,17 @@ const stickers = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
 
 <template>
 	<div class="sticker-panel">
-		<NcButton
+		<IconTab
 			v-for="sticker in stickers"
 			:key="sticker"
-			:aria-label="sticker"
-			:pressed="context.sticker.value === sticker"
+			:label="sticker"
+			:active="context.sticker.value === sticker"
 			:disabled="!loaded"
 			class="sticker-panel__emoji"
-			variant="tertiary"
+			iconOnly
 			@click="context.sticker.value = sticker">
 			{{ sticker }}
-		</NcButton>
+		</IconTab>
 		<NcEmojiPicker @select="context.sticker.value = $event">
 			<NcButton data-test="emoji-picker" variant="tertiary">
 				{{ moreLabel }}
@@ -73,11 +74,9 @@ const stickers = computed(() => DEFAULT_STICKERS.includes(context.sticker.value)
 	flex-wrap: wrap;
 	gap: calc(var(--default-grid-baseline) * 2);
 
-	// The emoji is the button's label, so it inherits the editor's small
-	// chrome font and leaves the target too short to hit. Size the glyph
-	// to fill the pointer target instead.
-	:deep(.sticker-panel__emoji) {
-		min-height: var(--default-clickable-area, 44px);
+	// The emoji stands in for the icon: sized to fill the pointer target
+	// rather than at the chrome's small font
+	.sticker-panel__emoji {
 		font-size: 22px;
 		line-height: 1;
 	}

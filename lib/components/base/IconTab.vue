@@ -4,12 +4,14 @@
 -->
 <script setup lang="ts">
 defineProps<{
-	/** Visible label under the icon */
+	/** Name of the tab: shown under the icon, or only read out when iconOnly */
 	label: string
 	/** Whether this tab is the active one */
 	active?: boolean
 	/** Whether the tab is disabled */
 	disabled?: boolean
+	/** Square tab showing the icon slot alone, the label becomes its tooltip */
+	iconOnly?: boolean
 	/** Hook for the browser test suite */
 	dataTest?: string
 }>()
@@ -24,23 +26,27 @@ const emit = defineEmits<{
 	<button
 		type="button"
 		class="icon-tab"
-		:class="{ 'icon-tab--active': active }"
+		:class="{ 'icon-tab--active': active, 'icon-tab--icon-only': iconOnly }"
 		:disabled="disabled"
 		:data-test="dataTest"
 		:aria-pressed="active"
+		:aria-label="iconOnly ? label : undefined"
+		:title="iconOnly ? label : undefined"
 		@click="emit('click', $event)">
 		<slot />
-		<span>{{ label }}</span>
+		<span v-if="!iconOnly">{{ label }}</span>
 	</button>
 </template>
 
 <style scoped lang="scss">
-// Icon-above-label tab, softly tinted by the image's ambient color
-// while active
+// The one toggle of the editor chrome: a mode on the rail, an
+// adjustment, a filter, a crop ratio, a drawing tool. Hover, active and
+// focus match NcButton so the two can sit in one row.
 .icon-tab {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: center;
 	gap: 4px;
 	min-width: max(64px, var(--default-clickable-area, 44px));
 	min-height: var(--default-clickable-area, 44px);
@@ -48,31 +54,30 @@ const emit = defineEmits<{
 	border: none;
 	border-radius: var(--border-radius-large, 12px);
 	background: transparent;
-	color: rgba(242, 242, 247, 0.75);
-	font-size: 11px;
+	color: var(--color-text-maxcontrast);
+	font-size: var(--font-size-small);
 	letter-spacing: 0.01em;
 	cursor: pointer;
-	transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
-
-	&:active:not(:disabled) {
-		transform: scale(0.96);
-	}
+	transition: background-color 0.12s ease, color 0.12s ease;
 
 	&:hover:not(:disabled) {
-		background-color: rgba(255, 255, 255, 0.07);
+		background-color: var(--color-background-hover);
 		color: var(--color-main-text);
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--color-primary-element);
-		outline-offset: 2px;
+		outline: 2px solid var(--color-main-text);
+		box-shadow: 0 0 0 4px var(--color-main-background);
 	}
 
 	&--active {
-		background: rgba(var(--editor-ambient, 88, 86, 112), 0.3);
+		background: var(--editor-active);
 		color: var(--color-main-text);
-		box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 4px 16px rgba(0, 0, 0, 0.3);
-		backdrop-filter: blur(12px);
+	}
+
+	&--icon-only {
+		min-width: var(--default-clickable-area, 44px);
+		padding: 0;
 	}
 
 	&:disabled {
@@ -84,7 +89,10 @@ const emit = defineEmits<{
 		// Narrower, but never under the pointer target
 		min-width: var(--default-clickable-area, 44px);
 		padding: var(--default-grid-baseline) 2px;
-		font-size: 10px;
+
+		&--icon-only {
+			padding: 0;
+		}
 	}
 }
 </style>

@@ -6,11 +6,11 @@
 import type { Component } from 'vue'
 import type { TextEmphasis } from '../../editor/text-emphasis.ts'
 
-import NcButton from '@nextcloud/vue/components/NcButton'
 import FormatBold from 'vue-material-design-icons/FormatBold.vue'
 import FormatItalic from 'vue-material-design-icons/FormatItalic.vue'
 import FormatStrikethrough from 'vue-material-design-icons/FormatStrikethrough.vue'
 import FormatUnderline from 'vue-material-design-icons/FormatUnderline.vue'
+import IconTab from './IconTab.vue'
 import { useTextStyle } from '../../composables/useTextStyle.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { TEXT_EMPHASES } from '../../editor/text-emphasis.ts'
@@ -38,17 +38,14 @@ const emphases = TEXT_EMPHASES.map((id) => ({ id, ...META[id] }))
 </script>
 
 <template>
-	<NcButton
+	<IconTab
 		v-for="entry in emphases"
 		:key="entry.id"
-		:aria-label="entry.label"
-		:title="entry.label"
-		:pressed="textStyle[entry.id].value"
-		variant="tertiary"
+		:label="entry.label"
+		:active="textStyle[entry.id].value"
 		:data-test="`${testPrefix}-${entry.id}`"
+		iconOnly
 		@click="textStyle[entry.id].value = !textStyle[entry.id].value">
-		<template #icon>
-			<component :is="entry.icon" :size="size" />
-		</template>
-	</NcButton>
+		<component :is="entry.icon" :size="size" />
+	</IconTab>
 </template>
