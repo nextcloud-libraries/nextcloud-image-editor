@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+[build]
+	command = "npm run build:demo"
+	publish = "playground/dist"
+
+[build.environment]
+	NODE_VERSION = "24"
+	NPM_VERSION = "11"
