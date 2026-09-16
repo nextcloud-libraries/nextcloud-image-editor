@@ -239,3 +239,20 @@ test('a vignette below zero lightens the corners instead', async ({ page }) => {
 	const after = await save(page)
 	expect(after.topLeft[0]).toBeGreaterThan(before.topLeft[0]!)
 })
+
+test('the adjustment tabs stay on one row on a phone and scroll to the rest', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 })
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Adjust' }).click()
+
+	const tabs = page.locator('[data-test^="tab-"]')
+	const tops = await tabs.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top))
+	expect(new Set(tops).size).toBe(1)
+
+	// The row does not fit, so the last tab starts out of view and a click
+	// on it brings it in
+	const vignette = page.locator('[data-test="tab-vignette"]')
+	await expect(vignette).not.toBeInViewport({ ratio: 1 })
+	await vignette.click()
+	await expect(vignette).toBeInViewport({ ratio: 1 })
+})
