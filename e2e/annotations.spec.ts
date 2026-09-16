@@ -127,7 +127,7 @@ test('annotations rotate with the image', async ({ page }) => {
 
 test('redact pixelates the selected region destructively', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 
 	const corner = await imageTopLeft(page)
 	// Off-grid rect crossing the color boundary so the center block
@@ -164,7 +164,7 @@ test('the selection toolbar duplicates and deletes', async ({ page }) => {
 
 test('redact can blur instead of pixelate', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await page.locator('[data-test="redact-blur"]').click()
 
 	const corner = await imageTopLeft(page)
@@ -191,7 +191,7 @@ test('blur redaction falls back to pixelation without canvas filter support', as
 		})
 	})
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await page.locator('[data-test="redact-blur"]').click()
 
 	const corner = await imageTopLeft(page)
@@ -313,7 +313,7 @@ test('the color control hides where color has no effect', async ({ page }) => {
 	// A redaction destroys pixels and stays axis-aligned: no color,
 	// and no rotation handle either
 	await page.keyboard.press('Delete')
-	await page.getByRole('button', { name: 'Redact' }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 90, y: corner.y + 70 })
 
 	await page.getByRole('button', { name: 'Select' }).click()
@@ -822,7 +822,7 @@ test('a redaction obfuscates what was drawn under it', async ({ page }) => {
 	const drawn = await save(page)
 	expect(drawn.bottomLeft[1]).toBeGreaterThan(100)
 
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await drag(page, { x: corner.x - 10, y: corner.y + 80 }, { x: corner.x + 45, y: corner.y + 110 })
 	await page.waitForTimeout(300)
 
@@ -840,7 +840,7 @@ test('a redaction obfuscates the picture as adjusted, not as loaded', async ({ p
 	const adjusted = await save(page)
 	expect(adjusted.center[2]).toBeLessThan(100)
 
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	const corner = await imageTopLeft(page)
 	// Across the color boundary, so the center block is half of each and
 	// the region is not the flat color that pixelation cannot change
@@ -868,7 +868,7 @@ test('an oval redaction leaves the corners of its box alone', async ({ page }) =
 	await page.waitForTimeout(300)
 	const drawn = await save(page)
 
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await page.locator('[data-test="redact-ellipse"]').click()
 	await drag(page, { x: corner.x, y: corner.y + 40 }, { x: corner.x + 90, y: corner.y + 110 })
 	await page.waitForTimeout(300)
@@ -884,7 +884,7 @@ test('an oval redaction leaves the corners of its box alone', async ({ page }) =
 
 test('an oval redaction still destroys what it covers', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 	await page.locator('[data-test="redact-ellipse"]').click()
 
 	const corner = await imageTopLeft(page)

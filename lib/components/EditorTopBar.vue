@@ -45,12 +45,13 @@ const labels = {
 	undo: t('Undo'),
 	redo: t('Redo'),
 	revert: t('Revert all changes'),
-	revertText: t('All edits will be discarded. This cannot be undone by closing the dialog.'),
+	revertText: t('All edits will be discarded. This action cannot be undone.'),
 	zoomIn: t('Zoom in'),
 	zoomOut: t('Zoom out'),
 	resetZoom: t('Reset zoom'),
 	save: t('Save'),
 	cancel: t('Cancel'),
+	discard: t('Discard changes'),
 	history: t('Edit history'),
 	step: t('Edit'),
 }
@@ -199,13 +200,13 @@ async function onRevert() {
 				class="editor-topbar__cancel-text"
 				variant="tertiary"
 				@click="emit('cancel')">
-				{{ labels.cancel }}
+				{{ labels.discard }}
 			</NcButton>
 			<NcButton
 				data-test="cancel-icon"
 				class="editor-topbar__cancel-icon"
-				:aria-label="labels.cancel"
-				:title="labels.cancel"
+				:aria-label="labels.discard"
+				:title="labels.discard"
 				variant="tertiary"
 				@click="emit('cancel')">
 				<template #icon>

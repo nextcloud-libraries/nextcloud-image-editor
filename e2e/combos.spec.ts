@@ -100,7 +100,7 @@ test('rotate, crop, filter, draw and export work as one pipeline', async ({ page
 
 test('flips remap redactions with the image', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 10, y: corner.y + 20 }, { x: corner.x + 50, y: corner.y + 60 })
@@ -165,7 +165,7 @@ test('fine rotation combines with crop and annotations', async ({ page }) => {
 
 test('redaction survives a rotation in the export', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Redact', exact: true }).click()
+	await page.getByRole('button', { name: 'Blur', exact: true }).click()
 
 	const corner = await imageTopLeft(page)
 	await drag(page, { x: corner.x + 58, y: corner.y + 20 }, { x: corner.x + 138, y: corner.y + 80 })

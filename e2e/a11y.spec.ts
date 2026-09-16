@@ -37,7 +37,7 @@ async function expectClickable(control: Locator, name: string, minimum: number):
 test('the mode rail meets the minimum pointer target', async ({ page }) => {
 	await waitLoaded(page)
 	const minimum = await clickableArea(page)
-	for (const mode of ['Select', 'Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Redact']) {
+	for (const mode of ['Select', 'Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Blur']) {
 		await expectClickable(page.getByRole('button', { name: mode, exact: true }), `the ${mode} tab`, minimum)
 	}
 })
@@ -81,7 +81,7 @@ test('the rail keeps its pointer target on a phone-sized container', async ({ pa
 	// never narrower than the pointer target
 	await page.setViewportSize({ width: 420, height: 720 })
 	const minimum = await clickableArea(page)
-	for (const mode of ['Select', 'Crop', 'Annotate', 'Redact']) {
+	for (const mode of ['Select', 'Crop', 'Annotate', 'Blur']) {
 		await expectClickable(page.getByRole('button', { name: mode, exact: true }), `the ${mode} tab`, minimum)
 	}
 })

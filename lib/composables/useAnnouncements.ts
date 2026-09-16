@@ -26,7 +26,7 @@ export function useAnnouncements(context: EditorContext): Ref<string> {
 		filter: t('Filter'),
 		annotate: t('Annotate'),
 		sticker: t('Sticker'),
-		redact: t('Redact'),
+		redact: t('Blur'),
 	}
 
 	watch(context.activeMode, (mode) => {

@@ -48,7 +48,7 @@ const TOOL_LABELS: Partial<Record<Tool, string>> = {
 	arrow: t('Arrow'),
 	line: t('Line'),
 	sticker: t('Sticker'),
-	redact: t('Redact'),
+	redact: t('Blur'),
 }
 
 /**

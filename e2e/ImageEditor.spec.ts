@@ -7,7 +7,7 @@ import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, 
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Discard changes' })).toBeEnabled()
 	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker']) {
 		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
 	}
@@ -16,7 +16,7 @@ test('renders the canvas stage and chrome', async ({ page }) => {
 
 test('emits cancel', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Cancel' }).click()
+	await page.getByRole('button', { name: 'Discard changes' }).click()
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('1')
 })
 
@@ -79,7 +79,7 @@ test('adapts to a phone-sized container', async ({ page }) => {
 	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 	expect(overflow).toBe(0)
 
-	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Redact']) {
+	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker', 'Blur']) {
 		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
 	}
 
