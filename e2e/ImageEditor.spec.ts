@@ -7,16 +7,46 @@ import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, 
 
 test('renders the canvas stage and chrome', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.getByRole('button', { name: 'Discard changes' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Close the editor' })).toBeEnabled()
 	for (const mode of ['Crop', 'Adjust', 'Filter', 'Annotate', 'Sticker']) {
 		await expect(page.getByRole('button', { name: mode, exact: true })).toBeEnabled()
 	}
 	await expect(page.locator('[role="img"] canvas').first()).toBeVisible()
 })
 
-test('emits cancel', async ({ page }) => {
+test('closing an untouched image asks nothing', async ({ page }) => {
 	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close the editor' }).click()
+	await expect(page.locator('[data-test="cancelled"]')).toHaveText('1')
+	await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('closing an edited image offers to save it', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	// Dismissing the dialog is the third answer: stay in the editor
+	await page.getByRole('button', { name: 'Close the editor' }).click()
+	const dialog = page.getByRole('dialog')
+	await dialog.getByRole('button', { name: 'Cancel' }).click()
+	await expect(page.locator('[data-test="cancelled"]')).toHaveText('0')
+	await expect(page.locator('[data-test="saved"]')).toHaveText('')
+
+	// Saving from the dialog is the save button
+	await page.getByRole('button', { name: 'Close the editor' }).click()
+	await dialog.getByRole('button', { name: 'Save' }).click()
+	await expect(page.locator('[data-test="saved"]')).not.toHaveText('')
+	await expect(page.locator('[data-test="cancelled"]')).toHaveText('0')
+})
+
+test('discarding from the close dialog leaves the editor', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	await page.getByRole('button', { name: 'Close the editor' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('1')
 })
 
@@ -257,7 +287,8 @@ test('opens on a state the host hands over', async ({ page }) => {
 
 	// A resumed session starts from the state it was handed, not from
 	// the untouched image
-	await expect(page.locator('[data-test="revert"]')).toBeDisabled()
+	// Revert lives in the history menu, which stays shut with nothing to undo
+	await expect(page.locator('[data-test="history"] button')).toBeDisabled()
 	const result = await save(page)
 	expect(result.width).toBe(100)
 	expect(result.height).toBe(200)

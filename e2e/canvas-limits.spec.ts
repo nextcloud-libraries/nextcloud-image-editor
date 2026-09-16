@@ -35,14 +35,15 @@ test('a photo past the canvas cap asks before shrinking it', async ({ page }) =>
 	await expect(dialog).toContainText('larger than this browser can edit')
 	// The numbers are the point: what it is, and what it would become
 	await expect(dialog).toContainText('megapixels')
-	await expect(page.getByRole('button', { name: 'Continue with a smaller copy' })).toBeVisible()
-	await expect(page.getByRole('button', { name: 'Close the editor' })).toBeVisible()
+	await expect(dialog.getByRole('button', { name: 'Continue with a smaller copy' })).toBeVisible()
+	// The editor's own close button carries the same name behind the dialog
+	await expect(dialog.getByRole('button', { name: 'Close the editor' })).toBeVisible()
 })
 
 test('closing the warning leaves the editor instead of shrinking', async ({ page }) => {
 	await capCanvasAt(page, 640 * 640)
 	await page.goto('/?src=large')
-	await page.getByRole('button', { name: 'Close the editor' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close the editor' }).click()
 
 	// The library asks to be closed rather than closing itself, and it
 	// never loads the image it was not allowed to shrink

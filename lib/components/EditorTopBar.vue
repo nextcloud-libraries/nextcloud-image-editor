@@ -4,12 +4,16 @@
 -->
 <script setup lang="ts">
 import { showConfirmation } from '@nextcloud/dialogs'
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import Close from 'vue-material-design-icons/Close.vue'
+import History from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
 import Redo from 'vue-material-design-icons/Redo.vue'
@@ -17,6 +21,8 @@ import Restore from 'vue-material-design-icons/Restore.vue'
 import Undo from 'vue-material-design-icons/Undo.vue'
 import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
+import { historyIcon } from '../editor/history-icons.ts'
+import { isPristine } from '../editor/state.ts'
 import { MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -51,6 +57,9 @@ const labels = {
 	resetZoom: t('Reset zoom'),
 	save: t('Save'),
 	cancel: t('Cancel'),
+	close: t('Close the editor'),
+	unsaved: t('Save your edits before closing?'),
+	unsavedText: t('The image has edits that were never saved.'),
 	discard: t('Discard changes'),
 	history: t('Edit history'),
 	step: t('Edit'),
@@ -61,6 +70,7 @@ const historySteps = computed(() => context.historyEntries.value
 	.map((entry, index) => ({
 		index,
 		label: entry.label ?? labels.step,
+		icon: historyIcon(entry.label ?? labels.step),
 	}))
 	.reverse())
 
@@ -79,6 +89,35 @@ function stepZoom(direction: 1 | -1) {
  */
 function resetZoom() {
 	context.setViewZoom(MIN_ZOOM)
+}
+
+/** Whether the editor is asking what to do with unsaved edits */
+const closing = shallowRef(false)
+
+/**
+ * Leave the editor, asking what to do with the edits first where there
+ * are any.
+ */
+function onClose() {
+	if (isPristine(context.state.value)) {
+		emit('cancel')
+		return
+	}
+	closing.value = true
+}
+
+/**
+ * Answer the closing dialog.
+ *
+ * @param answer what to do with the edits
+ */
+function onCloseAnswer(answer: 'stay' | 'discard' | 'save') {
+	closing.value = false
+	if (answer === 'save') {
+		emit('save')
+	} else if (answer === 'discard') {
+		emit('cancel')
+	}
 }
 
 /**
@@ -105,23 +144,18 @@ async function onRevert() {
 
 		<div class="editor-topbar__history">
 			<NcButton
-				data-test="revert"
-				:aria-label="labels.revert"
-				:title="labels.revert"
+				data-test="undo"
+				:aria-label="labels.undo"
+				:title="labels.undo"
 				:disabled="!loaded || !context.canUndo.value"
 				variant="tertiary"
-				@click="onRevert">
+				@click="context.undo()">
 				<template #icon>
-					<Restore :size="20" />
+					<Undo :size="20" />
 				</template>
 			</NcButton>
-
-			<span class="editor-topbar__separator" />
-
-			<!-- The back arrow opens the history rather than stepping once, so
-			     the steps sit under the control that goes back to them. One
-			     click back is Ctrl+Z; `forceMenu` keeps the trigger a trigger
-			     even when the original is the only entry. -->
+			<!-- `forceMenu` keeps the trigger a trigger even when the original
+			     is the only entry. -->
 			<NcActions
 				forceMenu
 				:container="popoverContainer ?? 'body'"
@@ -131,8 +165,19 @@ async function onRevert() {
 				variant="tertiary"
 				data-test="history">
 				<template #icon>
-					<Undo :size="20" />
+					<History :size="20" />
 				</template>
+				<!-- Leaving the whole edit behind belongs with the steps it
+				     throws away, above them, where the list is read from. -->
+				<NcActionButton
+					data-test="revert"
+					@click="onRevert">
+					<template #icon>
+						<Restore :size="20" />
+					</template>
+					{{ labels.revert }}
+				</NcActionButton>
+				<NcActionSeparator />
 				<!-- A radio rather than a plain entry: which step the image is on
 				     is state, and `aria-current` would land on the presentational
 				     list item where nothing reads it. -->
@@ -144,6 +189,9 @@ async function onRevert() {
 					:value="String(step.index)"
 					:data-test="`history-step-${step.index}`"
 					@click="context.jumpTo(step.index)">
+					<template #icon>
+						<component :is="step.icon" :size="20" />
+					</template>
 					{{ step.label }}
 				</NcActionButton>
 			</NcActions>
@@ -196,24 +244,6 @@ async function onRevert() {
 
 		<div class="editor-topbar__actions">
 			<NcButton
-				data-test="cancel"
-				class="editor-topbar__cancel-text"
-				variant="tertiary"
-				@click="emit('cancel')">
-				{{ labels.discard }}
-			</NcButton>
-			<NcButton
-				data-test="cancel-icon"
-				class="editor-topbar__cancel-icon"
-				:aria-label="labels.discard"
-				:title="labels.discard"
-				variant="tertiary"
-				@click="emit('cancel')">
-				<template #icon>
-					<Close :size="20" />
-				</template>
-			</NcButton>
-			<NcButton
 				data-test="save"
 				variant="primary"
 				:disabled="!loaded || saving"
@@ -226,11 +256,59 @@ async function onRevert() {
 				</template>
 				{{ labels.save }}
 			</NcButton>
+			<NcButton
+				data-test="cancel"
+				:aria-label="labels.close"
+				:title="labels.close"
+				variant="tertiary"
+				@click="onClose">
+				<template #icon>
+					<Close :size="20" />
+				</template>
+			</NcButton>
 		</div>
+
+		<!-- Every way out of the editor is a button of the dialog, so it
+		     has no close of its own -->
+		<NcDialog
+			v-if="closing"
+			:name="labels.unsaved"
+			noClose
+			data-test="closing-dialog"
+			@update:open="onCloseAnswer('stay')">
+			<NcNoteCard type="warning" :text="labels.unsavedText" />
+			<template #actions>
+				<NcButton
+					class="editor-topbar__stay"
+					data-test="closing-cancel"
+					variant="tertiary"
+					@click="onCloseAnswer('stay')">
+					{{ labels.cancel }}
+				</NcButton>
+				<NcButton
+					data-test="closing-discard"
+					variant="error"
+					@click="onCloseAnswer('discard')">
+					{{ labels.discard }}
+				</NcButton>
+				<NcButton
+					data-test="closing-save"
+					variant="primary"
+					@click="onCloseAnswer('save')">
+					{{ labels.save }}
+				</NcButton>
+			</template>
+		</NcDialog>
 	</div>
 </template>
 
 <style scoped lang="scss">
+// The dialog renders in the body, away from the bar: staying sits apart
+// from the two answers that leave
+.editor-topbar__stay {
+	margin-inline-end: auto;
+}
+
 .editor-topbar {
 	display: flex;
 	align-items: center;
@@ -293,21 +371,8 @@ async function onRevert() {
 		justify-content: flex-end;
 	}
 
-	// Text cancel on wide layouts, icon-only on narrow ones
-	&__cancel-icon {
-		display: none !important;
-	}
-
 	@container editor (max-width: 600px) {
 		padding-inline: calc(var(--default-grid-baseline) * 2);
-
-		&__cancel-text {
-			display: none !important;
-		}
-
-		&__cancel-icon {
-			display: inline-flex !important;
-		}
 
 		&__zoom {
 			min-width: 40px;
