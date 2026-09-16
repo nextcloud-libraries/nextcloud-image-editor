@@ -7,13 +7,20 @@ import type { Rect, Size } from './state.ts'
 /** Stage margin kept free so handles at the image edge stay grabbable */
 export const VIEW_MARGIN = 16
 
-/** The fitted view: the image is never displayed smaller than that */
-export const MIN_ZOOM = 1
+/** The whole visible area at the size the container allows */
+export const FIT_ZOOM = 1
+
+/**
+ * How far the view may be zoomed out past the fitted one. The chrome
+ * floats over the picture, so the fitted view hides a band of it behind
+ * the control card: zooming out is how the user looks under it.
+ */
+export const MIN_ZOOM = 0.5
 
 /** Past this the view shows mostly interpolation */
 export const MAX_ZOOM = 4
 
-/** Requested zooms below this snap back to the fitted view */
+/** Requested zooms this close to the fitted one snap onto it */
 export const ZOOM_SNAP = 1.05
 
 /** Relative pinch change treated as a zoom rather than a two-finger pan */
@@ -79,13 +86,17 @@ export function clampPan(pan: Point, bounds: Point): Point {
 }
 
 /**
- * Hold a zoom factor between the fitted view and the maximum, snapping
- * near-fitted values back to exactly fitted.
+ * Hold a zoom factor inside the range, snapping near-fitted values onto
+ * the fitted view so that passing through it on the way out or back in
+ * lands there exactly.
  *
  * @param zoom the requested factor
  */
 export function clampZoom(zoom: number): number {
-	return zoom < ZOOM_SNAP ? MIN_ZOOM : Math.min(MAX_ZOOM, zoom)
+	if (zoom > FIT_ZOOM / ZOOM_SNAP && zoom < FIT_ZOOM * ZOOM_SNAP) {
+		return FIT_ZOOM
+	}
+	return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
 }
 
 /**

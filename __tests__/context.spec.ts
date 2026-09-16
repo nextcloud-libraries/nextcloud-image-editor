@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
 import { createEditorContext, useEditorContext } from '../lib/editor/context.ts'
 import { createInitialState } from '../lib/editor/state.ts'
-import { MAX_ZOOM, MIN_ZOOM, panBounds, VIEW_MARGIN } from '../lib/editor/view.ts'
+import { FIT_ZOOM, MAX_ZOOM, MIN_ZOOM, panBounds, VIEW_MARGIN } from '../lib/editor/view.ts'
 
 function setupContext(): { context: EditorContext, injected: EditorContext } {
 	let context!: EditorContext
@@ -201,8 +201,23 @@ describe('view zoom and pan', () => {
 		expect(context.viewPan.value).not.toEqual({ x: 0, y: 0 })
 
 		context.setViewZoom(1.02)
-		expect(context.viewZoom.value).toBe(MIN_ZOOM)
+		expect(context.viewZoom.value).toBe(FIT_ZOOM)
 		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
+	})
+
+	it('zooms out past the fitted view and keeps it centered', () => {
+		const { context } = setupContext()
+		publishFit(context)
+
+		context.setViewZoom(0.75)
+		expect(context.viewZoom.value).toBe(0.75)
+		// Nothing to pan to: the whole picture is on screen and smaller
+		// than the container
+		context.setViewPan({ x: 120, y: 120 })
+		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
+
+		context.setViewZoom(0.1)
+		expect(context.viewZoom.value).toBe(MIN_ZOOM)
 	})
 
 	it('refuses to pan the fitted view', () => {
@@ -255,7 +270,7 @@ describe('view zoom and pan', () => {
 		context.panning.value = true
 
 		context.reset()
-		expect(context.viewZoom.value).toBe(MIN_ZOOM)
+		expect(context.viewZoom.value).toBe(FIT_ZOOM)
 		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
 		expect(context.panning.value).toBe(false)
 	})

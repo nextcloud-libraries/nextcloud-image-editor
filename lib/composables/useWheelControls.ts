@@ -7,7 +7,7 @@ import type { EditorContext } from '../editor/context.ts'
 import type { Point } from '../editor/view.ts'
 
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue'
-import { MIN_ZOOM, PINCH_TOLERANCE, wheelZoomFactor } from '../editor/view.ts'
+import { FIT_ZOOM, PINCH_TOLERANCE, wheelZoomFactor } from '../editor/view.ts'
 import { ownsSpaceKey } from '../utils/dom.ts'
 
 export interface WheelControls {
@@ -45,9 +45,9 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 
 	/** Modes without a canvas tool: a plain drag is free to pan */
 	const toolFreeDrag = () => context.activeTool.value === 'adjust'
-	const zoomed = () => context.viewZoom.value > MIN_ZOOM
+	const zoomed = () => context.viewZoom.value > FIT_ZOOM
 
-	const panArmed = computed(() => context.viewZoom.value > MIN_ZOOM
+	const panArmed = computed(() => context.viewZoom.value > FIT_ZOOM
 		&& (spaceHeld.value || context.activeTool.value === 'adjust'))
 
 	/**

@@ -17,7 +17,7 @@ import { DEFAULT_FONT } from './fonts.ts'
 import { DEFAULT_REDACT_SHAPE } from './redact-shape.ts'
 import { createInitialState, normaliseState } from './state.ts'
 import { DEFAULT_ALIGN } from './text-align.ts'
-import { anchoredPan, clampPan, clampZoom, MIN_ZOOM, panBounds } from './view.ts'
+import { anchoredPan, clampPan, clampZoom, FIT_ZOOM, panBounds } from './view.ts'
 
 export type Tool
 	= | 'select'
@@ -154,7 +154,7 @@ const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('nextcloud:image-edit
 export function createEditorContext(): EditorContext {
 	const history = useHistory<EditorState>()
 	const state = shallowRef(createInitialState())
-	const viewZoom = shallowRef(MIN_ZOOM)
+	const viewZoom = shallowRef(FIT_ZOOM)
 	const viewPan = shallowRef<Point>({ x: 0, y: 0 })
 	const viewFit = shallowRef<ViewFit | null>(null)
 	/**
@@ -211,8 +211,8 @@ export function createEditorContext(): EditorContext {
 			const previous = viewZoom.value
 			const next = clampZoom(zoom)
 			viewZoom.value = next
-			if (next === MIN_ZOOM) {
-				// The fitted view is centered by definition
+			if (next <= FIT_ZOOM) {
+				// The fitted view, and anything smaller, is centered
 				viewPan.value = { x: 0, y: 0 }
 				return
 			}
@@ -265,7 +265,7 @@ export function createEditorContext(): EditorContext {
 			activeMode.value = 'crop'
 			activeTool.value = MODE_DEFAULT_TOOL.crop
 			context.selectedId.value = null
-			viewZoom.value = MIN_ZOOM
+			viewZoom.value = FIT_ZOOM
 			viewPan.value = { x: 0, y: 0 }
 			context.panning.value = false
 			// A seeded state is where this session starts, but it is not
