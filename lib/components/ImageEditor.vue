@@ -832,6 +832,9 @@ defineExpose({
 	--color-border-maxcontrast: color-mix(in srgb, var(--color-main-text) 50%, transparent);
 	--editor-active: color-mix(in srgb, var(--color-primary-element) 25%, transparent);
 	--editor-glass: color-mix(in srgb, var(--color-main-background) 60%, transparent);
+	// What the modal header keeps around its close button: half of what
+	// is left beside it once the pointer target is taken out
+	--editor-header-margin: calc((var(--header-height, 50px) - var(--default-clickable-area)) / 2);
 	// The chrome is small text throughout. @nextcloud/vue components size
 	// themselves from --default-font-size rather than inheriting, so the
 	// buttons would sit two points above the tabs beside them without this.
@@ -931,13 +934,13 @@ defineExpose({
 		inset: 0;
 		// The stage runs under the floating glass chrome; the fit margin
 		// keeps interactive handles visible
-		padding: 56px 16px 16px;
+		padding: calc(var(--header-height, 50px) + var(--default-grid-baseline)) 16px 16px;
 	}
 
 	@container editor (max-width: 600px) {
 
 		&__viewport {
-			padding: 56px 8px 8px;
+			padding: calc(var(--header-height, 50px) + var(--default-grid-baseline)) 8px 8px;
 		}
 
 		// Doubled class specificity so these beat the card's own sizing
@@ -968,7 +971,7 @@ defineExpose({
 		// further down the sheet.
 		& .image-editor__rail {
 			inset-inline-start: var(--default-grid-baseline);
-			inset-block-start: 64px;
+			inset-block-start: calc(var(--header-height, 50px) + var(--default-grid-baseline) * 3);
 			transform: none;
 			max-height: calc(100% - 240px);
 			overflow-y: auto;

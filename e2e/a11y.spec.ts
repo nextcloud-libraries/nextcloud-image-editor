@@ -146,3 +146,28 @@ test('the chrome is one text size throughout', async ({ page }) => {
 	await page.getByRole('button', { name: 'Adjust' }).click()
 	expect(await font(page.locator('[data-test="tab-exposure"]'))).toBe(tab)
 })
+
+test('the top bar matches the modal header the editor opens in', async ({ page }) => {
+	await waitLoaded(page)
+
+	// The viewer opens the editor inside its modal, whose header is
+	// --header-height tall and whose close button keeps half of what is
+	// left beside it as a margin. Ours has to land in the same place, or
+	// the close button jumps when the editor opens.
+	const geometry = await page.evaluate(() => {
+		const editor = document.querySelector('.image-editor')!
+		const style = getComputedStyle(editor)
+		return {
+			header: parseFloat(style.getPropertyValue('--header-height')),
+			clickable: parseFloat(style.getPropertyValue('--default-clickable-area')),
+		}
+	})
+
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
+	const margin = (geometry.header - geometry.clickable) / 2
+
+	expect(bar.height).toBeCloseTo(geometry.header, 1)
+	expect(bar.x + bar.width - (close.x + close.width)).toBeCloseTo(margin, 1)
+	expect(close.y + close.height / 2).toBeCloseTo(bar.y + bar.height / 2, 1)
+})

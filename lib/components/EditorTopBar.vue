@@ -313,7 +313,13 @@ async function onRevert() {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: calc(var(--default-grid-baseline) * 2) calc(var(--default-grid-baseline) * 6);
+	// The editor usually opens inside the viewer's modal, whose header is
+	// this tall and whose close button sits centred in a margin of half
+	// the space left beside it. Same geometry here, so the close button
+	// does not jump when the editor opens over the viewer.
+	block-size: var(--header-height, 50px);
+	padding-block: 0;
+	padding-inline: calc(var(--default-grid-baseline) * 6) var(--editor-header-margin);
 
 	&__history {
 		display: flex;
@@ -372,7 +378,7 @@ async function onRevert() {
 	}
 
 	@container editor (max-width: 600px) {
-		padding-inline: calc(var(--default-grid-baseline) * 2);
+		padding-inline: calc(var(--default-grid-baseline) * 2) var(--editor-header-margin);
 
 		&__zoom {
 			min-width: 40px;
