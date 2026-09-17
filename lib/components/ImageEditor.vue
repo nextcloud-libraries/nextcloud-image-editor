@@ -1043,6 +1043,14 @@ defineExpose({
 		margin: auto;
 	}
 
+	// NcLoadingIcon spins on a `rotate` keyframe it does not ship: it
+	// comes from the server stylesheet, so the icon stands still
+	// wherever the editor is embedded without one. Scoped, so the name
+	// is rewritten per component and no host keyframe is redefined.
+	:deep(.loading-icon svg) {
+		animation: editor-spin var(--animation-duration, 0.8s) linear infinite;
+	}
+
 	// Failing silently leaves an empty frame with no way forward
 	&__error {
 		position: absolute;
@@ -1060,6 +1068,15 @@ defineExpose({
 			opacity: 0.85;
 		}
 	}
+}
 
+@keyframes editor-spin {
+	from {
+		transform: rotate(0deg);
+	}
+
+	to {
+		transform: rotate(360deg);
+	}
 }
 </style>

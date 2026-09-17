@@ -315,3 +315,19 @@ test('the save button reports progress until the host is done', async ({ page })
 	await expect(spinner).toBeHidden({ timeout: 5000 })
 	await expect(button).toBeEnabled()
 })
+
+test('the progress spinner turns', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Save' }).click()
+
+	// NcLoadingIcon animates on a keyframe the server stylesheet owns,
+	// so embedded anywhere else the icon was drawn and then held still.
+	// Reading the transform twice is what tells a running animation from
+	// a name that resolves to nothing.
+	const svg = page.locator('[data-test="saving"] svg')
+	await expect(svg).toBeVisible()
+	const first = await svg.evaluate((element) => getComputedStyle(element).transform)
+	await expect
+		.poll(async () => svg.evaluate((element) => getComputedStyle(element).transform))
+		.not.toBe(first)
+})

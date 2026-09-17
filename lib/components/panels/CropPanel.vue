@@ -15,7 +15,7 @@ import { useEditorCommands } from '../../editor/commands.ts'
 import { useEditorContext } from '../../editor/context.ts'
 import { t } from '../../utils/l10n.ts'
 
-defineProps<{
+const props = defineProps<{
 	/** Whether an image is loaded and the tools are usable */
 	loaded: boolean
 }>()
@@ -52,6 +52,11 @@ const activeCropControl = shallowRef<CropControl>('rotation')
 const display = computed(() => activeCropControl.value === 'rotation'
 	? `${context.state.value.fineRotation}°`
 	: `×${context.state.value.zoom.toFixed(2)}`)
+
+// Both crop buttons come and go with the selection, so the divider
+// before them would otherwise end the row on its own
+const hasCropActions = computed(() => props.loaded
+	&& (context.state.value.crop !== null || context.cropChanged.value))
 
 /**
  * Live-preview fine rotation or zoom while the slider is dragged.
@@ -126,7 +131,7 @@ function onSliderCommit() {
 				</template>
 			</NcButton>
 
-			<span class="crop-panel__divider" />
+			<span class="crop-panel__divider" data-test="crop-divider" />
 
 			<IconTab
 				v-for="control in cropControls"
@@ -137,7 +142,10 @@ function onSliderCommit() {
 				:disabled="!loaded"
 				@click="activeCropControl = control.id" />
 
-			<span class="crop-panel__divider" />
+			<span
+				v-if="hasCropActions"
+				class="crop-panel__divider"
+				data-test="crop-divider" />
 
 			<!-- Both only exist while they would do something: applying an
 			     unchanged selection looked broken, since nothing happened

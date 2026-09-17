@@ -84,6 +84,25 @@ test('resizing the container keeps the crop rectangle being drawn', async ({ pag
 	expect(crop.width).toBeCloseTo(before, -1)
 })
 
+test('the crop row drops its trailing separator with the buttons', async ({ page }) => {
+	await waitLoaded(page, 'large')
+
+	// Nothing to apply and nothing to reset yet, so the separator that
+	// introduces those two buttons has nothing to introduce
+	const dividers = page.locator('[data-test="crop-divider"]')
+	await expect(dividers).toHaveCount(1)
+
+	await shrinkCrop(page)
+	await expect(dividers).toHaveCount(2)
+
+	await page.locator('[data-test="apply-crop"]').click()
+	// A crop is in place, so reset is offered and the separator stays
+	await expect(dividers).toHaveCount(2)
+
+	await page.locator('[data-test="reset-crop"]').click()
+	await expect(dividers).toHaveCount(1)
+})
+
 test('resetting the crop returns the overlay to the whole image', async ({ page }) => {
 	await waitLoaded(page, 'large')
 
