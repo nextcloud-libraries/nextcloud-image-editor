@@ -169,8 +169,7 @@ describe('view zoom and pan', () => {
 	const VISIBLE = { x: 0, y: 0, width: 1000, height: 1000 }
 	const CONTAINER = { width: 500, height: 500 }
 	// The scale the editor publishes: the visible area fitted into the
-	// container minus the stage margin, so at zoom 1 there is by
-	// definition nothing to pan
+	// container minus the stage margin
 	const FIT_SCALE = (CONTAINER.width - VIEW_MARGIN * 2) / VISIBLE.width
 
 	/**
@@ -193,38 +192,43 @@ describe('view zoom and pan', () => {
 		expect(context.viewZoom.value).toBe(MAX_ZOOM)
 	})
 
-	it('snaps a near-fitted zoom back to fit and recenters', () => {
+	it('lands on the fitted view when a zoom crosses it', () => {
 		const { context } = setupContext()
 		publishFit(context)
-		context.setViewZoom(2)
-		context.setViewPan({ x: 100, y: 100 })
-		expect(context.viewPan.value).not.toEqual({ x: 0, y: 0 })
-
 		context.setViewZoom(1.02)
+
+		// Coming from above, the step that passes the fit lands on it
+		context.setViewZoom(0.99)
 		expect(context.viewZoom.value).toBe(FIT_ZOOM)
-		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
+
+		// And the next step is free to leave it again
+		context.setViewZoom(0.98)
+		expect(context.viewZoom.value).toBe(0.98)
 	})
 
-	it('zooms out past the fitted view and keeps it centered', () => {
+	it('zooms out past the fitted view, down to the floor', () => {
 		const { context } = setupContext()
 		publishFit(context)
 
 		context.setViewZoom(0.75)
 		expect(context.viewZoom.value).toBe(0.75)
-		// Nothing to pan to: the whole picture is on screen and smaller
-		// than the container
-		context.setViewPan({ x: 120, y: 120 })
-		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
 
 		context.setViewZoom(0.1)
 		expect(context.viewZoom.value).toBe(MIN_ZOOM)
 	})
 
-	it('refuses to pan the fitted view', () => {
+	it('pans the fitted view as far as its edges', () => {
 		const { context } = setupContext()
 		publishFit(context)
-		context.setViewPan({ x: 300, y: 300 })
-		expect(context.viewPan.value).toEqual({ x: 0, y: 0 })
+		const bounds = panBounds(VISIBLE, FIT_SCALE, CONTAINER)
+
+		// The chrome floats over the stage: what it covers is reached by
+		// sliding the picture, not only by zooming into it
+		context.setViewPan({ x: 20, y: 20 })
+		expect(context.viewPan.value).toEqual({ x: 20, y: 20 })
+
+		context.setViewPan({ x: 5000, y: 5000 })
+		expect(context.viewPan.value).toEqual(bounds)
 	})
 
 	it('stores a clamped offset so an overshoot cannot pile up', () => {

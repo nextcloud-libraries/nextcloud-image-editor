@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test'
 import type Konva from 'konva'
 
 import { expect, test } from '@playwright/test'
-import { imageTopLeft, imageView, readState, save, waitLoaded } from './utils.ts'
+import { drag, imageTopLeft, imageView, readState, save, waitLoaded } from './utils.ts'
 
 /**
  * The zoom percentage shown in the top bar.
@@ -55,7 +55,7 @@ test('the wheel zooms out past the fitted view and stops at the floor', async ({
 	await expect.poll(() => zoom(page)).toBeLessThan(100)
 
 	await page.mouse.wheel(0, 2400)
-	expect(await zoom(page)).toBe(50)
+	await expect.poll(() => zoom(page)).toBe(50)
 	// Smaller than the container, so it stays centered
 	expect((await imageView(page)).x).toBeCloseTo((await imageView(page)).x, 5)
 })
@@ -268,4 +268,50 @@ test('zooming out stops at the floor', async ({ page }) => {
 	}
 	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('50%')
 	await expect(zoomOut).toBeDisabled()
+})
+
+test('the fitted view can be slid out from under the controls', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	const card = (await page.locator('.editor-card').boundingBox())!
+
+	// The editor settles into its container over a couple of frames
+	let covered = 0
+	await expect.poll(async () => {
+		const previous = covered
+		covered = (await pictureBox(page)).bottom
+		return covered === previous
+	}).toBe(true)
+	expect(covered).toBeGreaterThan(card.y)
+
+	// Space held, the drag pans instead of reaching the tool
+	const canvas = (await page.locator('.image-editor__canvas').boundingBox())!
+	await page.keyboard.down('Space')
+	const middle = { x: canvas.x + canvas.width / 2, y: canvas.y + canvas.height / 2 }
+	await drag(page, middle, { x: middle.x, y: middle.y - 120 })
+	await page.keyboard.up('Space')
+
+	// The band that was behind the card is above it now
+	expect((await pictureBox(page)).bottom).toBeLessThan(covered - 100)
+
+	// The readout puts the picture back where it started
+	await page.locator('[data-test="zoom-reset"]').click()
+	await expect.poll(async () => (await pictureBox(page)).bottom).toBeCloseTo(covered, 0)
+})
+
+test('a pinch does not stick at the fitted view', async ({ page }) => {
+	await waitLoaded(page)
+	await centerPointer(page)
+
+	// Small steps through the fit: one lands on it exactly, the next
+	// leaves it, rather than every step being swallowed until the
+	// gesture is released
+	await page.mouse.wheel(0, 30)
+	const first = await zoom(page)
+	expect(first).toBeLessThanOrEqual(100)
+
+	await page.mouse.wheel(0, 30)
+	await expect.poll(() => zoom(page)).toBeLessThan(100)
+
+	await page.mouse.wheel(0, 30)
+	await expect.poll(() => zoom(page)).toBeLessThan(95)
 })

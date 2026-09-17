@@ -209,13 +209,8 @@ export function createEditorContext(): EditorContext {
 		panning: shallowRef(false),
 		setViewZoom(zoom, anchor) {
 			const previous = viewZoom.value
-			const next = clampZoom(zoom)
+			const next = clampZoom(zoom, previous)
 			viewZoom.value = next
-			if (next <= FIT_ZOOM) {
-				// The fitted view, and anything smaller, is centered
-				viewPan.value = { x: 0, y: 0 }
-				return
-			}
 			const panned = anchor === undefined
 				? viewPan.value
 				: anchoredPan(viewPan.value, anchor, next / previous)
