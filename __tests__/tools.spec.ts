@@ -7,7 +7,7 @@ import type { PointerToolDeps } from '../lib/editor/tools.ts'
 
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createInitialState } from '../lib/editor/state.ts'
-import { attachPointerTools } from '../lib/editor/tools.ts'
+import { attachPointerTools, movedEnough } from '../lib/editor/tools.ts'
 
 beforeAll(() => {
 	// Konva probes a 2D context when constructing shapes (hit-color
@@ -84,6 +84,7 @@ function harness(): Harness {
 		contentGroup: () => null,
 		oriented: () => null,
 		getState: () => lastCommit ?? createInitialState(),
+		selectedId: () => null,
 		commit: (state) => {
 			lastCommit = state
 		},
@@ -363,5 +364,22 @@ describe('attachPointerTools', () => {
 		expect(line.type).toBe('line')
 		expect(line.points).toEqual([10, 20, 90, 70])
 		expect(line).toMatchObject({ color: '#123456', strokeWidth: 7 })
+	})
+})
+
+describe('movedEnough', () => {
+	it('calls a pointer that barely moved a click', () => {
+		// Selecting what is under the cursor, not drawing over it
+		expect(movedEnough({ x: 10, y: 10 }, { x: 11, y: 12 })).toBe(false)
+	})
+
+	it('calls a pointer that travelled a drag', () => {
+		expect(movedEnough({ x: 10, y: 10 }, { x: 20, y: 10 })).toBe(true)
+	})
+
+	it('measures the distance rather than one axis', () => {
+		// Three each way is more than four away from where it started
+		expect(movedEnough({ x: 0, y: 0 }, { x: 3, y: 3 })).toBe(true)
+		expect(movedEnough({ x: 0, y: 0 }, { x: 2, y: 2 })).toBe(false)
 	})
 })

@@ -257,3 +257,27 @@ export async function undo(page: Page): Promise<void> {
 export async function redo(page: Page): Promise<void> {
 	await page.keyboard.press('ControlOrMeta+Shift+z')
 }
+
+/**
+ * Wait until a point of the stage hits a drawn node.
+ *
+ * The scene is reconciled by hand and the draw that follows is
+ * scheduled for the next frame, so a freshly committed annotation is
+ * visible one frame before it is clickable. A synthetic click is faster
+ * than that; a person is not.
+ *
+ * @param page the test page
+ * @param point the position in page coordinates
+ * @param point.x horizontal position
+ * @param point.y vertical position
+ */
+export async function waitForHit(page: Page, point: { x: number, y: number }): Promise<void> {
+	await page.waitForFunction(({ x, y }) => {
+		const stage = window.Konva.stages[0]
+		if (stage === undefined) {
+			return false
+		}
+		const rect = stage.container().getBoundingClientRect()
+		return stage.getIntersection({ x: x - rect.x, y: y - rect.y }) !== null
+	}, point)
+}

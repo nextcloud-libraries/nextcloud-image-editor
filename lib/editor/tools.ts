@@ -7,6 +7,7 @@ import type { Tool } from './context.ts'
 import type { RedactShape } from './redact-shape.ts'
 import type { AnnotationNode } from './render.ts'
 import type { Annotation, EditorState, TextAnnotation } from './state.ts'
+import type { Point } from './view.ts'
 
 import { snapAngle } from '../utils/geometry.ts'
 import { newId } from '../utils/id.ts'
@@ -29,6 +30,8 @@ export interface PointerToolDeps {
 	contentGroup(): Konva.Group | null
 	getState(): EditorState
 	commit(state: EditorState, label?: string): void
+	/** Id of the selected annotation, which a drag moves rather than draws over */
+	selectedId(): string | null
 	/** Convert a stage pointer position to oriented image coordinates */
 	toScene(pointer: { x: number, y: number }): { x: number, y: number }
 	/** The orientation-baked source canvas, needed by redact previews */
@@ -51,6 +54,22 @@ const TOOL_LABELS: Partial<Record<Tool, string>> = {
 	redact: t('Blur'),
 }
 
+/** How far a pointer travels before a gesture stops being a click, in stage pixels */
+const DRAG_THRESHOLD = 4
+
+/**
+ * Whether a gesture travelled far enough to be a drag rather than a
+ * click. Konva draws no such line for the stage itself, and the two
+ * mean opposite things to a tool: a click on an annotation selects it,
+ * a drag over one draws.
+ *
+ * @param from where the pointer went down, in stage pixels
+ * @param to where the pointer is now, in stage pixels
+ */
+export function movedEnough(from: Point, to: Point): boolean {
+	return Math.hypot(to.x - from.x, to.y - from.y) >= DRAG_THRESHOLD
+}
+
 /**
  * Attach the pointer handlers for the drawing-style tools to the stage.
  * Returns a cleanup function removing the handlers again.
@@ -67,6 +86,11 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	let previewNode: AnnotationNode | null = null
 	let start = { x: 0, y: 0 }
 	let pendingText: { x: number, y: number } | null = null
+	/**
+	 * Set when a gesture started on top of an existing annotation, which
+	 * is a selection until it travels far enough to be a drawing gesture.
+	 */
+	let deferred: { scene: Point, stage: Point } | null = null
 	/** Where the pointer last was, so a modifier can re-place the end */
 	let last = { x: 0, y: 0 }
 	/** Whether a line is held to 45° steps: Shift as in other editors, or Ctrl */
@@ -116,19 +140,20 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	const discard = () => {
 		active = null
 		pendingText = null
+		deferred = null
 		previewNode?.destroy()
 		previewNode = null
 	}
 
-	const onPointerDown = (event?: Konva.KonvaEventObject<PointerEvent>) => {
-		const point = scenePointer()
-		if (point === null || deps.panning()) {
-			return
-		}
+	/**
+	 * Start the annotation this tool draws at the given point.
+	 *
+	 * @param point where the gesture started, in scene coordinates
+	 */
+	const beginAnnotation = (point: Point) => {
 		const options = deps.options()
 		start = point
 		last = point
-		constrained = event !== undefined && (event.evt.shiftKey || event.evt.ctrlKey)
 
 		switch (tool) {
 			case 'draw':
@@ -175,6 +200,38 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		refreshPreview()
 	}
 
+	const onPointerDown = (event?: Konva.KonvaEventObject<PointerEvent>) => {
+		const point = scenePointer()
+		if (point === null || deps.panning()) {
+			return
+		}
+		constrained = event !== undefined && (event.evt.shiftKey || event.evt.ctrlKey)
+
+		// A gesture starting on an annotation is a selection until it
+		// moves: clicking what is already there picks it up, whatever
+		// tool is held, and only a drag draws over it
+		// The transformer's own handles: resizing the selection is not
+		// the start of a new annotation
+		const target = event?.target
+		if (target?.getLayer()?.name() === 'selection') {
+			return
+		}
+
+		if (target?.hasName('annotation')) {
+			// The selected one belongs to the transformer: a drag on it
+			// moves it, the way it does under the select tool
+			if (target.id() === deps.selectedId()) {
+				return
+			}
+			const pointer = deps.stage.getPointerPosition()
+			deferred = pointer === null ? null : { scene: point, stage: pointer }
+			if (deferred !== null) {
+				return
+			}
+		}
+		beginAnnotation(point)
+	}
+
 	/**
 	 * Point the line or arrow in progress at the last pointer position,
 	 * snapped to 45° when a modifier asks for it.
@@ -188,6 +245,21 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	}
 
 	const onPointerMove = (event?: Konva.KonvaEventObject<PointerEvent>) => {
+		// The gesture started on an annotation: it draws from where it
+		// started, but only once it has travelled far enough to say that
+		// it is not the click that selects
+		if (deferred !== null) {
+			const pointer = deps.stage.getPointerPosition()
+			if (pointer === null || deps.panning()) {
+				return
+			}
+			if (!movedEnough(deferred.stage, pointer)) {
+				return
+			}
+			const from = deferred.scene
+			deferred = null
+			beginAnnotation(from)
+		}
 		if (active === null) {
 			return
 		}
@@ -234,6 +306,12 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	}
 
 	const onPointerUp = () => {
+		// Never moved off the annotation it started on, so the click
+		// belongs to the selection rather than to this tool
+		if (deferred !== null) {
+			deferred = null
+			return
+		}
 		if (pendingText !== null) {
 			deps.startTextEdit(pendingText)
 			pendingText = null
