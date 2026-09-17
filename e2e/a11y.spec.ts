@@ -139,7 +139,6 @@ test('the chrome is one text size throughout', async ({ page }) => {
 	})
 
 	const tab = await font(page.locator('[data-test="aspect-free"]'))
-	expect(await font(page.locator('[data-test="apply-crop"]'))).toBe(tab)
 	expect(await font(page.getByRole('button', { name: 'Save' }))).toBe(tab)
 	expect(await font(page.locator('[data-test="zoom-reset"]'))).toBe(tab)
 

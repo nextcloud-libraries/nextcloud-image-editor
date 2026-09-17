@@ -139,17 +139,20 @@ function onSliderCommit() {
 
 			<span class="crop-panel__divider" />
 
+			<!-- Both only exist while they would do something: applying an
+			     unchanged selection looked broken, since nothing happened
+			     and nothing said so -->
 			<NcButton
+				v-if="loaded && context.state.value.crop !== null"
 				data-test="reset-crop"
 				variant="tertiary"
-				:disabled="!loaded || context.state.value.crop === null"
 				@click="commands.resetCrop()">
 				{{ labels.resetCrop }}
 			</NcButton>
 			<NcButton
+				v-if="loaded && context.cropChanged.value"
 				data-test="apply-crop"
 				variant="tertiary"
-				:disabled="!loaded"
 				@click="commands.applyCrop()">
 				{{ labels.applyCrop }}
 			</NcButton>
