@@ -9,6 +9,7 @@ import type { ExportOptions, ExportResult } from '../types/export.ts'
 import { ref } from 'vue'
 import { renderToCanvas, visibleRect } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
+import { convertsToSrgb } from '../utils/color-space.ts'
 import { canvasToBlob } from '../utils/image.ts'
 import { estimateJpegQuality, readMetadataSegments, withMetadata } from '../utils/jpeg.ts'
 import { t } from '../utils/l10n.ts'
@@ -152,7 +153,15 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		if (source === null || blob.type !== 'image/jpeg') {
 			return blob
 		}
-		const segments = readMetadataSegments(source)
+		// The colour profile goes only where it is still true. A browser
+		// that decodes a wide-gamut photo into sRGB leaves the canvas
+		// holding sRGB numbers, and the source's profile over those says
+		// they are something they are not: measured on a Display P3
+		// photo, Chromium exported it a visible step more saturated. A
+		// browser that hands the samples over untouched leaves them in
+		// the source's space, where the profile is the only thing that
+		// makes the file readable.
+		const segments = readMetadataSegments(source, { icc: !convertsToSrgb() })
 		if (segments.length === 0) {
 			return blob
 		}

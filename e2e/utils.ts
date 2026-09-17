@@ -18,6 +18,8 @@ export interface SavedProbe {
 	size: number
 	/** The setting the exported JPEG was written at, 1 to 100 */
 	quality?: number
+	/** The centre pixel of the source, decoded the way this browser does */
+	sourceCenter: number[]
 	width: number
 	height: number
 	mimeType: string
@@ -43,7 +45,7 @@ export interface SavedProbe {
  * fitted view is downscaled. The default page shows a real photo for
  * humans instead.
  */
-export async function waitLoaded(page: Page, src: 'test' | 'large' | 'noise' | 'quality' = 'test'): Promise<void> {
+export async function waitLoaded(page: Page, src: 'test' | 'large' | 'noise' | 'quality' | 'wide-gamut' = 'test'): Promise<void> {
 	await page.goto(`/?src=${src}`)
 	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
 }
