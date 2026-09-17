@@ -974,21 +974,15 @@ defineExpose({
 		}
 
 		// Anchored under the top bar with its height capped so it can
-		// never collide with the bottom control card, and given its own
-		// glass backing since it floats over the image on phones.
-		// Doubled class specificity so this beats the base rail rules
-		// further down the sheet.
+		// never collide with the bottom control card. Doubled class
+		// specificity so this beats the base rail rules further down the
+		// sheet.
 		& .image-editor__rail {
 			inset-inline-start: var(--default-grid-baseline);
 			inset-block-start: calc(var(--header-height, 50px) + var(--default-grid-baseline) * 3);
 			transform: none;
 			max-height: calc(100% - 240px);
 			overflow-y: auto;
-			padding: var(--default-grid-baseline);
-			background: var(--editor-glass);
-			backdrop-filter: blur(24px) saturate(1.4);
-			border: 1px solid var(--color-border);
-			border-radius: var(--border-radius-large, 12px);
 		}
 	}
 
