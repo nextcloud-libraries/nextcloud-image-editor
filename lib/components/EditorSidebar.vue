@@ -12,6 +12,7 @@ import PaletteOutline from 'vue-material-design-icons/PaletteOutline.vue'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import StickerEmoji from 'vue-material-design-icons/StickerEmoji.vue'
 import Tune from 'vue-material-design-icons/Tune.vue'
+import GlassSurface from './base/GlassSurface.vue'
 import IconTab from './base/IconTab.vue'
 import { useEditorContext } from '../editor/context.ts'
 import { t } from '../utils/l10n.ts'
@@ -35,27 +36,34 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 </script>
 
 <template>
-	<nav class="editor-sidebar">
-		<IconTab
-			v-for="mode in modes"
-			:key="mode.id"
-			:label="mode.label"
-			:active="context.activeMode.value === mode.id"
-			:disabled="!loaded"
-			@click="context.setMode(mode.id)">
-			<component :is="mode.icon" :size="20" />
-		</IconTab>
-	</nav>
+	<GlassSurface variant="card" class="editor-sidebar">
+		<nav class="editor-sidebar__nav">
+			<IconTab
+				v-for="mode in modes"
+				:key="mode.id"
+				:label="mode.label"
+				:active="context.activeMode.value === mode.id"
+				:disabled="!loaded"
+				@click="context.setMode(mode.id)">
+				<component :is="mode.icon" :size="20" />
+			</IconTab>
+		</nav>
+	</GlassSurface>
 </template>
 
 <style scoped lang="scss">
-// Vertical labeled tool rail: icon above label (see IconTab)
+// Vertical labeled tool rail: icon above label (see IconTab). It floats
+// over the picture, so it carries the same glass as the control card:
+// unbacked labels are unreadable over a bright or busy image.
 .editor-sidebar {
-	display: flex;
-	flex-direction: column;
-	// Every tab as wide as the longest label
-	align-items: stretch;
-	gap: calc(var(--default-grid-baseline) * 2);
 	padding: var(--default-grid-baseline);
+
+	&__nav {
+		display: flex;
+		flex-direction: column;
+		// Every tab as wide as the longest label
+		align-items: stretch;
+		gap: calc(var(--default-grid-baseline) * 2);
+	}
 }
 </style>

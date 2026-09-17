@@ -216,3 +216,22 @@ test('the top bar fits a phone, with the pill clear of the save button', async (
 	}
 	await expect(page.locator('[data-test="zoom-reset"]')).toBeVisible()
 })
+
+test('the mode rail carries the same backing as the control card', async ({ page }) => {
+	await waitLoaded(page)
+
+	// The rail floats over the picture, which can be anything: bare
+	// labels over a bright frame are unreadable
+	const backing = (selector: string) => page.locator(selector).evaluate((element) => {
+		const style = getComputedStyle(element)
+		return { background: style.backgroundColor, blur: style.backdropFilter, border: style.borderTopWidth }
+	})
+
+	const rail = await backing('.image-editor__rail')
+	const card = await backing('.editor-card')
+
+	expect(rail.background).toBe(card.background)
+	expect(rail.blur).toBe(card.blur)
+	expect(rail.border).toBe(card.border)
+	expect(rail.background).not.toBe('rgba(0, 0, 0, 0)')
+})
