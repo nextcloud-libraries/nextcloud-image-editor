@@ -10,7 +10,7 @@ import { ref } from 'vue'
 import { renderToCanvas, visibleRect } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { canvasToBlob } from '../utils/image.ts'
-import { readMetadataSegments, withMetadata } from '../utils/jpeg.ts'
+import { estimateJpegQuality, readMetadataSegments, withMetadata } from '../utils/jpeg.ts'
 import { t } from '../utils/l10n.ts'
 
 export interface ExportDeps {
@@ -45,6 +45,23 @@ export interface ExportImage {
 	/** Export and hand the result to the save callback */
 	save(): Promise<void>
 }
+
+/**
+ * What a JPEG is written at when the source says nothing: the setting
+ * Chromium picks for itself, so nothing changes for a host that was
+ * happy with what it got.
+ */
+const DEFAULT_QUALITY = 0.92
+
+/**
+ * Bounds on a setting taken from the source. The floor keeps a heavily
+ * compressed source from having its own damage re-applied to pixels
+ * that have since been filtered and resampled; the ceiling keeps a
+ * file written at 100 from doubling in size for a difference of a
+ * fraction of a decibel.
+ */
+const MIN_QUALITY = 0.75
+const MAX_QUALITY = 0.97
 
 /**
  * Wait for the browser to paint.
@@ -84,22 +101,58 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	}
 
 	/**
+	 * The source bytes, where they are a JPEG and a JPEG is what is
+	 * being written. Both the metadata and the quality come from here,
+	 * and the editor only has them when it was handed a Blob rather
+	 * than a URL.
+	 *
+	 * @param mimeType the format being encoded
+	 */
+	async function jpegSource(mimeType: string): Promise<Uint8Array | null> {
+		const source = deps.source()
+		if (source === null || mimeType !== 'image/jpeg' || source.type !== 'image/jpeg') {
+			return null
+		}
+		return new Uint8Array(await source.arrayBuffer())
+	}
+
+	/**
+	 * How hard to compress, when the host has not said.
+	 *
+	 * Left to itself the browser picks, and the two do not pick the
+	 * same thing, so the same edit came out as two different files.
+	 * Matching what the source was written at is the answer that keeps
+	 * an edited photo looking like the one that was opened: the setting
+	 * is not stored anywhere, but the quantization table it produced
+	 * is, and {@link estimateJpegQuality} reads it back.
+	 *
+	 * @param source the source JPEG bytes, or null where there are none
+	 */
+	function qualityFor(source: Uint8Array | null): number {
+		const estimated = source === null ? undefined : estimateJpegQuality(source)
+		if (estimated === undefined) {
+			return DEFAULT_QUALITY
+		}
+		return Math.min(MAX_QUALITY, Math.max(MIN_QUALITY, estimated / 100))
+	}
+
+	/**
 	 * Carry what the camera recorded into the exported JPEG.
 	 *
 	 * A canvas holds pixels and nothing else, so an encoded blob starts
 	 * with no capture date, no camera, no location and no colour profile.
-	 * Those live in the source bytes, which the editor only has when it
-	 * was handed a Blob rather than a URL.
 	 *
 	 * @param blob the freshly encoded image
 	 * @param canvas the canvas it was encoded from
+	 * @param source the source JPEG bytes, or null where there are none
 	 */
-	async function carryMetadata(blob: Blob, canvas: HTMLCanvasElement): Promise<Blob> {
-		const source = deps.source()
-		if (source === null || blob.type !== 'image/jpeg' || source.type !== 'image/jpeg') {
+	async function carryMetadata(blob: Blob, canvas: HTMLCanvasElement, source: Uint8Array | null): Promise<Blob> {
+		// An encoder handed a type it cannot write falls back to PNG, and
+		// a JPEG's blocks have no business in one
+		if (source === null || blob.type !== 'image/jpeg') {
 			return blob
 		}
-		const segments = readMetadataSegments(new Uint8Array(await source.arrayBuffer()))
+		const segments = readMetadataSegments(source)
 		if (segments.length === 0) {
 			return blob
 		}
@@ -157,8 +210,10 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		const canvas = renderToCanvas(oriented, deps.getState(), options.maxSize)
 		const mimeType = options.format ?? sourceFormat() ?? 'image/png'
 		try {
-			let blob = await canvasToBlob(canvas, mimeType, options.quality)
-			blob = await carryMetadata(blob, canvas)
+			const source = await jpegSource(mimeType)
+			const quality = options.quality ?? (mimeType === 'image/jpeg' ? qualityFor(source) : undefined)
+			let blob = await canvasToBlob(canvas, mimeType, quality)
+			blob = await carryMetadata(blob, canvas, source)
 			const visible = visibleRect(deps.getState(), { width: oriented.width, height: oriented.height })
 			const wanted = options.maxSize === undefined
 				? Math.max(visible.width, visible.height)

@@ -8,6 +8,9 @@ const SOI = 0xD8
 const SOS = 0xDA
 const EOI = 0xD9
 
+/** The segment carrying a quantization table */
+const DQT = 0xDB
+
 /** The application segments worth carrying from one JPEG to the next */
 const APP1 = 0xE1
 const APP2 = 0xE2
@@ -30,6 +33,79 @@ const TAG_STRIP_OFFSETS = 0x0111
 const TAG_STRIP_LENGTHS = 0x0117
 const TAG_THUMBNAIL_OFFSET = 0x0201
 const TAG_THUMBNAIL_LENGTH = 0x0202
+
+/**
+ * The luminance quantization table of the JPEG standard, Annex K, in
+ * the zigzag order a DQT segment stores. An encoder scales this table
+ * to reach a quality setting, so a file's own table is what says which
+ * setting it was written at.
+ */
+const STANDARD_LUMINANCE = [
+	16,
+	11,
+	12,
+	14,
+	12,
+	10,
+	16,
+	14,
+	13,
+	14,
+	18,
+	17,
+	16,
+	19,
+	24,
+	40,
+	26,
+	24,
+	22,
+	22,
+	24,
+	49,
+	35,
+	37,
+	29,
+	40,
+	58,
+	51,
+	61,
+	60,
+	57,
+	51,
+	56,
+	55,
+	64,
+	72,
+	92,
+	78,
+	64,
+	68,
+	87,
+	69,
+	55,
+	56,
+	80,
+	109,
+	81,
+	87,
+	95,
+	98,
+	103,
+	104,
+	103,
+	62,
+	77,
+	113,
+	121,
+	112,
+	100,
+	120,
+	92,
+	101,
+	103,
+	99,
+]
 
 /**
  * Read the leading bytes of a segment as ASCII, to recognise it.
@@ -94,6 +170,95 @@ export function readMetadataSegments(bytes: Uint8Array): Uint8Array[] {
 		at += 2 + length
 	}
 	return segments
+}
+
+/**
+ * The luminance quantization table of a JPEG, in the order it is
+ * stored, or undefined where the file carries none.
+ *
+ * @param bytes the source JPEG
+ */
+function readLuminanceTable(bytes: Uint8Array): number[] | undefined {
+	if (bytes[0] !== 0xFF || bytes[1] !== SOI) {
+		return undefined
+	}
+	let at = 2
+	while (at + 3 < bytes.length && bytes[at] === 0xFF) {
+		const marker = bytes[at + 1]!
+		if (marker === SOS || marker === EOI) {
+			break
+		}
+		const length = (bytes[at + 2]! << 8) | bytes[at + 3]!
+		if (marker === DQT) {
+			// One segment can hold several tables, each introduced by a
+			// byte giving its precision and its id: 0 is the luminance
+			// table, which is the one a quality setting is read from
+			const end = at + 2 + length
+			let entry = at + 4
+			while (entry < end) {
+				const width = (bytes[entry]! >> 4) === 0 ? 1 : 2
+				if (entry + 1 + 64 * width > end) {
+					break
+				}
+				if ((bytes[entry]! & 0x0F) === 0) {
+					const values = entry + 1
+					return Array.from({ length: 64 }, (_, index) => {
+						const value = values + index * width
+						return width === 1 ? bytes[value]! : (bytes[value]! << 8) | bytes[value + 1]!
+					})
+				}
+				entry += 1 + 64 * width
+			}
+		}
+		at += 2 + length
+	}
+	return undefined
+}
+
+/**
+ * The table libjpeg writes for a quality setting, which is what the
+ * browser encoders are built on.
+ *
+ * @param quality the setting, 1 to 100
+ */
+function scaledTable(quality: number): number[] {
+	const scale = quality < 50 ? Math.floor(5000 / quality) : 200 - quality * 2
+	return STANDARD_LUMINANCE.map((value) => (
+		Math.min(255, Math.max(1, Math.floor((value * scale + 50) / 100)))
+	))
+}
+
+/**
+ * The quality setting a JPEG was written at, 1 to 100, or undefined
+ * where it carries no quantization table to judge by.
+ *
+ * The setting is not recorded anywhere; what the file keeps is the
+ * table the setting produced. So every candidate table is generated
+ * and the closest one wins: exact for anything an IJG-derived encoder
+ * wrote, the browsers included, and the nearest fit for a camera that
+ * tuned a table of its own.
+ *
+ * @param bytes the source JPEG
+ */
+export function estimateJpegQuality(bytes: Uint8Array): number | undefined {
+	const table = readLuminanceTable(bytes)
+	if (table === undefined) {
+		return undefined
+	}
+	let best = 1
+	let smallest = Infinity
+	for (let quality = 1; quality <= 100; quality++) {
+		const candidate = scaledTable(quality)
+		let distance = 0
+		for (let index = 0; index < 64; index++) {
+			distance += Math.abs(candidate[index]! - table[index]!)
+		}
+		if (distance < smallest) {
+			smallest = distance
+			best = quality
+		}
+	}
+	return best
 }
 
 /**

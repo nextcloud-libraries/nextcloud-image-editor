@@ -113,7 +113,7 @@ async function onSave({ blob, mimeType }: ExportResult) {
 |------|------|-------------|
 | `src` | `Blob \| string` | Image to edit (Blob, File or URL). Required. |
 | `label` | `string` | Accessible label of the canvas area. |
-| `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to the source's format, PNG when it is unknown, at natural resolution. |
+| `exportOptions` | `ExportOptions` | `format`, `quality` and `maxSize` for the save button. Defaults to the source's format, PNG when it is unknown, at natural resolution. A JPEG is written at the quality its source was written at, held between 0.75 and 0.97, and at 0.92 when that cannot be read. |
 | `initialState` | `EditorState` | State to open with, as emitted by `change`, for resuming an unfinished edit. Read when the source loads. |
 | `saving` | `boolean` | Raise while your app stores the saved image. The editor shows the same progress it shows for its own export, so one indicator covers the whole wait. |
 
