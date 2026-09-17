@@ -7,15 +7,40 @@ import type { EditorState, ExportResult } from '../lib/index.ts'
 
 import { ref, shallowRef } from 'vue'
 import { createInitialState, ImageEditor } from '../lib/index.ts'
-import demoPhoto from './demo.jpg'
+import demoBuilding from './demo-building.jpg'
+import demoDoorway from './demo-doorway.jpg'
+import demoFox from './demo-fox.jpg'
+import demoFish from './demo.jpg'
 
 const BROKEN_SRC = 'data:image/png;base64,not-an-image'
 
-// Clown fish in a sea anemone by Bro Takes Photos (Unsplash License,
-// free to use), bundled with the playground so the demo needs no
-// network and still exercises a real multi-megapixel image
-// https://unsplash.com/photos/a-clown-fish-peeking-out-of-a-pink-sea-anemone-jUvUDx_cb4s
-const DEMO_SRC = demoPhoto
+// Bundled with the playground so the demo needs no network, and each
+// one a real multi-megapixel photo. They differ on purpose: the fish is
+// saturated and busy, the building is flat and bright, the fox is dark
+// and grainy, the doorway has a blown-out centre. Every one of them
+// says something different about a filter or an adjustment.
+const DEMO_PHOTOS = [
+	{
+		src: demoFish,
+		credit: 'Bro Takes Photos',
+		link: 'https://unsplash.com/photos/a-clown-fish-peeking-out-of-a-pink-sea-anemone-jUvUDx_cb4s',
+	},
+	{
+		src: demoBuilding,
+		credit: 'Abbie Bernet',
+		link: 'https://unsplash.com/photos/beige-concrete-building-iVmUXothgGY',
+	},
+	{
+		src: demoFox,
+		credit: 'Daniil Silantev',
+		link: 'https://unsplash.com/photos/a-fox-rests-in-tall-grass-at-dawn-Rl7SZ19fgRQ',
+	},
+	{
+		src: demoDoorway,
+		credit: 'Jack Dong',
+		link: 'https://unsplash.com/photos/open-doorway-framing-a-lush-garden-rWFrdp8nWWI',
+	},
+]
 
 /**
  * 200x100 test image: left half red rgb(200,0,0), right half blue
@@ -114,6 +139,8 @@ const restored: EditorState | undefined
 // large grainy one, ?src=broken an undecodable image; default is a real
 // demo photo
 const src = shallowRef<Blob | string | null>(null)
+/** Which of the demo photos is on screen, for the shuffle button */
+const photo = shallowRef(0)
 const requested = new URLSearchParams(window.location.search).get('src')
 if (requested === 'broken') {
 	src.value = BROKEN_SRC
@@ -141,7 +168,19 @@ if (requested === 'broken') {
 		src.value = blob
 	})
 } else {
-	src.value = DEMO_SRC
+	// A different photo each visit, so the demo page is not one picture
+	// forever, and a button to move on when the one that loaded does not
+	// show what is being looked at
+	photo.value = Math.floor(Math.random() * DEMO_PHOTOS.length)
+	src.value = DEMO_PHOTOS[photo.value]!.src
+}
+
+/**
+ * Show the next demo photo, wrapping around at the end.
+ */
+function nextPhoto() {
+	photo.value = (photo.value + 1) % DEMO_PHOTOS.length
+	src.value = DEMO_PHOTOS[photo.value]!.src
 }
 
 const saved = ref('')
@@ -213,7 +252,7 @@ async function onSave(result: ExportResult) {
  */
 async function onError(error: Error) {
 	errors.value.push(error.message)
-	if (src.value === DEMO_SRC) {
+	if (DEMO_PHOTOS.some((entry) => entry.src === src.value)) {
 		src.value = await makeFixture()
 	}
 }
@@ -241,6 +280,18 @@ function onChange(state: EditorState) {
 			@cancel="cancelled++"
 			@error="onError"
 			@change="onChange" />
+		<!-- Demo page only: the test pages ask for a fixture by name, and
+			a control floating over the editor would sit in their way -->
+		<footer v-if="requested === null" class="playground__credit">
+			<button type="button" @click="nextPhoto()">
+				Next photo
+			</button>
+			<span>
+				Photo by
+				<a :href="DEMO_PHOTOS[photo]!.link" target="_blank" rel="noopener noreferrer">{{ DEMO_PHOTOS[photo]!.credit }}</a>
+				on Unsplash
+			</span>
+		</footer>
 		<!-- Observable outcomes for the Playwright tests, hidden on the
 			default demo page -->
 		<template v-if="requested !== null">
@@ -270,6 +321,37 @@ output {
 	opacity: 0.4;
 	pointer-events: none;
 	z-index: 10;
+}
+
+/* Sits in the corner the editor leaves empty, and never over its
+   chrome: the demo is the editor, not the page around it */
+.playground__credit {
+	position: fixed;
+	inset-block-end: 8px;
+	inset-inline-start: 8px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.45);
+	color: #f2f2f7;
+	font-size: 11px;
+	z-index: 10;
+}
+
+.playground__credit a {
+	color: inherit;
+}
+
+.playground__credit button {
+	padding: 2px 8px;
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
 }
 
 output[data-test='saved'] { inset-block-end: 72px; }

@@ -24,6 +24,24 @@ SPDX-FileCopyrightText = "Bro Takes Photos"
 SPDX-License-Identifier = "LicenseRef-Unsplash"
 
 [[annotations]]
+path = ["playground/demo-building.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Abbie Bernet"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = ["playground/demo-fox.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Daniil Silantev"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = ["playground/demo-doorway.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Jack Dong"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
 path = ["playground/with-metadata.jpg"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Nextcloud GmbH and Nextcloud contributors"
