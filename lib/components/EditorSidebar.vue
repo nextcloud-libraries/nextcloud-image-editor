@@ -36,7 +36,7 @@ const modes: { id: EditorMode, label: string, icon: unknown }[] = [
 </script>
 
 <template>
-	<GlassSurface variant="card" class="editor-sidebar">
+	<GlassSurface variant="card" opaque class="editor-sidebar">
 		<nav class="editor-sidebar__nav">
 			<IconTab
 				v-for="mode in modes"

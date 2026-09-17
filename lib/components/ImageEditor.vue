@@ -849,6 +849,11 @@ defineExpose({
 	--color-border-maxcontrast: color-mix(in srgb, var(--color-main-text) 50%, transparent);
 	--editor-active: color-mix(in srgb, var(--color-primary-element) 25%, transparent);
 	--editor-glass: color-mix(in srgb, var(--color-main-background) 60%, transparent);
+	// The rail's labels are small text over whatever photo is behind
+	// them. At the glass above, a white picture leaves them at 4.31:1,
+	// under the 4.5:1 that normal text needs; at 85% the same picture
+	// leaves them at 9.4:1, and a dark one changes nothing visible.
+	--editor-glass-opaque: color-mix(in srgb, var(--color-main-background) 85%, transparent);
 	// What the modal header keeps around its close button: half of what
 	// is left beside it once the pointer target is taken out
 	--editor-header-margin: calc((var(--header-height, 50px) - var(--default-clickable-area)) / 2);
