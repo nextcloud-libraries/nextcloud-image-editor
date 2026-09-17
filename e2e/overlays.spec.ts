@@ -94,10 +94,10 @@ test('resetting the crop returns the overlay to the whole image', async ({ page 
 	// Back to crop, drop the crop: the overlay has to follow the state
 	await page.getByRole('button', { name: 'Crop', exact: true }).click()
 	await page.locator('[data-test="reset-crop"]').click()
-	// The overlay now covers the whole image again, which is the
-	// uncropped state: applying it records nothing
-	await page.locator('[data-test="apply-crop"]').click()
 
+	// The overlay covers the whole image again, which is the uncropped
+	// state: there is nothing left to apply, and no button offering it
+	await expect(page.locator('[data-test="apply-crop"]')).toBeHidden()
 	expect((await readState(page)).crop).toBeNull()
 	const result = await save(page)
 	expect(result.width).toBe(2000)

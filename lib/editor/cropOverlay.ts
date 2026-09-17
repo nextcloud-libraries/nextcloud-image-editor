@@ -16,6 +16,13 @@ export interface CropOverlayDeps {
 	offset: { x: number, y: number }
 	/** Crop rect to start from, defaults to the full image */
 	initial: Rect | null
+	/**
+	 * Report the selection whenever it changes, in scene coordinates, so
+	 * the panel can tell whether there is anything to apply.
+	 *
+	 * @param rect the current selection
+	 */
+	onChange?(rect: Rect): void
 }
 
 export interface CropBox {
@@ -183,6 +190,20 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		return { ...rect, x, y }
 	}
 
+	/**
+	 * The selection in scene coordinates, rounded to whole image pixels
+	 * and held inside the image.
+	 */
+	const sceneRect = (): Rect => {
+		const scene = toScene(stageRect())
+		return clampRect({
+			x: Math.round(scene.x),
+			y: Math.round(scene.y),
+			width: Math.round(scene.width),
+			height: Math.round(scene.height),
+		}, view.oriented)
+	}
+
 	const updateOverlay = () => {
 		const rect = stageRect()
 		const { x, y, width, height } = imageBounds
@@ -196,6 +217,8 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 		gridLines[1]!.points([rect.x + (rect.width * 2) / 3, rect.y, rect.x + (rect.width * 2) / 3, rect.y + rect.height])
 		gridLines[2]!.points([rect.x, rect.y + rect.height / 3, rect.x + rect.width, rect.y + rect.height / 3])
 		gridLines[3]!.points([rect.x, rect.y + (rect.height * 2) / 3, rect.x + rect.width, rect.y + (rect.height * 2) / 3])
+
+		deps.onChange?.(sceneRect())
 	}
 
 	// Mirrors the transformer's keepRatio: reading it back inside its
@@ -278,15 +301,7 @@ export function attachCropOverlay(deps: CropOverlayDeps): CropOverlay {
 			transformer.forceUpdate()
 			updateOverlay()
 		},
-		getRect() {
-			const scene = toScene(stageRect())
-			return clampRect({
-				x: Math.round(scene.x),
-				y: Math.round(scene.y),
-				width: Math.round(scene.width),
-				height: Math.round(scene.height),
-			}, view.oriented)
-		},
+		getRect: sceneRect,
 		destroy() {
 			transformer.destroy()
 			layer.destroy()

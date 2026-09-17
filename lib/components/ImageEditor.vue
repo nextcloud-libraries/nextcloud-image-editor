@@ -389,6 +389,9 @@ function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
 			scale: options.scale,
 			offset: options.offset,
 			initial: crop,
+			onChange: (rect) => {
+				context.cropChanged.value = !sameRect(rect, visibleRect(context.state.value, currentOriented()))
+			},
 		})
 		applyCropAspect()
 	} else if (tool !== 'adjust' && tool !== 'select') {
@@ -555,8 +558,8 @@ function onApplyCrop(): void {
 	}
 	const crop = cropOverlay.getRect()
 	// An untouched selection is not an edit: it would record a step that
-	// changes nothing and replay the zoom over the same view. A selection
-	// covering the whole image is the uncropped state, however it got there.
+	// changes nothing and replay the zoom over the same view. The button
+	// hides itself in that case, and a keyboard or a host can still ask.
 	if (sameRect(crop, visibleRect(context.state.value, currentOriented()))) {
 		return
 	}

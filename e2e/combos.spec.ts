@@ -197,9 +197,9 @@ test('view zoom does not disturb crop application', async ({ page }) => {
 
 test('escape leaves the crop mode without applying', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).toBeVisible()
 
 	await page.keyboard.press('Escape')
-	await expect(page.locator('[data-test="apply-crop"]')).not.toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).not.toBeVisible()
 	expect((await readState(page)).crop).toBeNull()
 })

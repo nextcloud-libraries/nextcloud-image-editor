@@ -94,6 +94,13 @@ export interface EditorContext {
 	 */
 	viewFit: ShallowRef<ViewFit | null>
 	/**
+	 * Whether the crop overlay covers something other than the applied
+	 * crop, published by the editor component. Applying anything else is
+	 * a step that changes nothing, so the button that does it is not
+	 * offered.
+	 */
+	cropChanged: ShallowRef<boolean>
+	/**
 	 * True while a pan gesture owns the pointer, so canvas tools stay
 	 * out of the way
 	 */
@@ -155,6 +162,7 @@ export function createEditorContext(): EditorContext {
 	const history = useHistory<EditorState>()
 	const state = shallowRef(createInitialState())
 	const viewZoom = shallowRef(FIT_ZOOM)
+	const cropChanged = shallowRef(false)
 	const viewPan = shallowRef<Point>({ x: 0, y: 0 })
 	const viewFit = shallowRef<ViewFit | null>(null)
 	/**
@@ -206,6 +214,7 @@ export function createEditorContext(): EditorContext {
 		viewZoom,
 		viewPan,
 		viewFit,
+		cropChanged,
 		panning: shallowRef(false),
 		setViewZoom(zoom, anchor) {
 			const previous = viewZoom.value

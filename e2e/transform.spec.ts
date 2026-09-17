@@ -53,7 +53,7 @@ test('flip horizontal mirrors the image', async ({ page }) => {
 test('cropping reduces the export to the selected area', async ({ page }) => {
 	await waitLoaded(page)
 	await page.getByRole('button', { name: 'Crop', exact: true }).click()
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).toBeVisible()
 	// Give the canvas overlay a moment to attach its pointer handlers
 	await page.waitForTimeout(100)
 
@@ -155,7 +155,7 @@ test('revert clears every edit as one undoable step', async ({ page }) => {
 
 test('applying a crop stays in the crop mode', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).toBeVisible()
 	await page.waitForTimeout(100)
 
 	const view = await imageView(page)
@@ -167,26 +167,41 @@ test('applying a crop stays in the crop mode', async ({ page }) => {
 	// The crop tools are where someone who just cropped wants to be, and
 	// the editor used to drop them in the annotate mode instead
 	await expect(page.getByRole('button', { name: 'Crop', exact: true })).toHaveAttribute('aria-pressed', 'true')
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).toBeVisible()
 })
 
-test('applying an untouched selection records nothing', async ({ page }) => {
+test('the crop buttons only exist while they would do something', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-free"]')).toBeVisible()
 	await page.waitForTimeout(100)
 
-	await page.locator('[data-test="apply-crop"]').click()
-	await page.waitForTimeout(300)
+	// Nothing selected yet, so there is nothing to apply and nothing to
+	// reset: applying an untouched selection looked broken, since it
+	// recorded no step and said nothing
+	await expect(page.locator('[data-test="apply-crop"]')).toBeHidden()
+	await expect(page.locator('[data-test="reset-crop"]')).toBeHidden()
 
+	const view = await imageView(page)
+	const anchor = await cropAnchor(page, 'top-left')
+	await slowDrag(page, anchor, { x: anchor.x + 50 * view.scale, y: anchor.y + 25 * view.scale })
+	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+
+	// Applying takes the button away with it, which is how the editor
+	// says the crop landed
+	await page.locator('[data-test="apply-crop"]').click()
+	await expect(page.locator('[data-test="apply-crop"]')).toBeHidden()
+	await expect(page.locator('[data-test="reset-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="history"] button')).toBeEnabled()
+
+	// And resetting takes its own button away
+	await page.locator('[data-test="reset-crop"]').click()
+	await expect(page.locator('[data-test="reset-crop"]')).toBeHidden()
 	expect((await readState(page)).crop).toBeNull()
-	// Nothing to undo: the history trigger only enables once a step was
-	// recorded, and applying the untouched selection recorded none
-	await expect(page.locator('[data-test="history"] button')).toBeDisabled()
 })
 
 test('aspect presets lock the crop ratio', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.locator('[data-test="apply-crop"]')).toBeVisible()
+	await expect(page.locator('[data-test="aspect-1:1"]')).toBeVisible()
 
 	await page.locator('[data-test="aspect-1:1"]').click()
 	await page.locator('[data-test="apply-crop"]').click()
