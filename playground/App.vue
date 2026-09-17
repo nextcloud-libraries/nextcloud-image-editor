@@ -5,7 +5,8 @@
 <script setup lang="ts">
 import type { EditorState, ExportResult } from '../lib/index.ts'
 
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+import ImageMultipleOutline from 'vue-material-design-icons/ImageMultipleOutline.vue'
 import { createInitialState, ImageEditor } from '../lib/index.ts'
 import demoBuilding from './demo-building.jpg'
 import demoDoorway from './demo-doorway.jpg'
@@ -22,21 +23,25 @@ const BROKEN_SRC = 'data:image/png;base64,not-an-image'
 const DEMO_PHOTOS = [
 	{
 		src: demoFish,
+		title: 'A clown fish peeking out of a pink sea anemone',
 		credit: 'Bro Takes Photos',
 		link: 'https://unsplash.com/photos/a-clown-fish-peeking-out-of-a-pink-sea-anemone-jUvUDx_cb4s',
 	},
 	{
 		src: demoBuilding,
+		title: 'Beige concrete building',
 		credit: 'Abbie Bernet',
 		link: 'https://unsplash.com/photos/beige-concrete-building-iVmUXothgGY',
 	},
 	{
 		src: demoFox,
+		title: 'A fox rests in tall grass at dawn',
 		credit: 'Daniil Silantev',
 		link: 'https://unsplash.com/photos/a-fox-rests-in-tall-grass-at-dawn-Rl7SZ19fgRQ',
 	},
 	{
 		src: demoDoorway,
+		title: 'Open doorway framing a lush garden',
 		credit: 'Jack Dong',
 		link: 'https://unsplash.com/photos/open-doorway-framing-a-lush-garden-rWFrdp8nWWI',
 	},
@@ -141,6 +146,14 @@ const restored: EditorState | undefined
 const src = shallowRef<Blob | string | null>(null)
 /** Which of the demo photos is on screen, for the shuffle button */
 const photo = shallowRef(0)
+
+// The button says what it does and what is on screen, in the tooltip
+// the browser draws for a title: the credit belongs with the photo, and
+// the demo page belongs to the editor
+const photoHint = computed(() => {
+	const current = DEMO_PHOTOS[photo.value]!
+	return `Change to the next photo. Current photo "${current.title}" by ${current.credit} on Unsplash`
+})
 const requested = new URLSearchParams(window.location.search).get('src')
 if (requested === 'broken') {
 	src.value = BROKEN_SRC
@@ -281,17 +294,18 @@ function onChange(state: EditorState) {
 			@error="onError"
 			@change="onChange" />
 		<!-- Demo page only: the test pages ask for a fixture by name, and
-			a control floating over the editor would sit in their way -->
-		<footer v-if="requested === null" class="playground__credit">
-			<button type="button" @click="nextPhoto()">
-				Next photo
-			</button>
-			<span>
-				Photo by
-				<a :href="DEMO_PHOTOS[photo]!.link" target="_blank" rel="noopener noreferrer">{{ DEMO_PHOTOS[photo]!.credit }}</a>
-				on Unsplash
-			</span>
-		</footer>
+			a control floating over the editor would sit in their way.
+			The credit rides along in the tooltip rather than taking a
+			corner of the editor for itself -->
+		<button
+			v-if="requested === null"
+			type="button"
+			class="playground__shuffle"
+			:title="photoHint"
+			:aria-label="photoHint"
+			@click="nextPhoto()">
+			<ImageMultipleOutline :size="24" />
+		</button>
 		<!-- Observable outcomes for the Playwright tests, hidden on the
 			default demo page -->
 		<template v-if="requested !== null">
@@ -325,33 +339,26 @@ output {
 
 /* Sits in the corner the editor leaves empty, and never over its
    chrome: the demo is the editor, not the page around it */
-.playground__credit {
+.playground__shuffle {
 	position: fixed;
-	inset-block-end: 8px;
-	inset-inline-start: 8px;
+	inset-block-end: 12px;
+	inset-inline-start: 12px;
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 4px 8px;
-	border-radius: 8px;
+	justify-content: center;
+	inline-size: 44px;
+	block-size: 44px;
+	padding: 0;
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	border-radius: 12px;
 	background: rgba(0, 0, 0, 0.45);
 	color: #f2f2f7;
-	font-size: 11px;
+	cursor: pointer;
 	z-index: 10;
 }
 
-.playground__credit a {
-	color: inherit;
-}
-
-.playground__credit button {
-	padding: 2px 8px;
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	border-radius: 6px;
-	background: transparent;
-	color: inherit;
-	font: inherit;
-	cursor: pointer;
+.playground__shuffle:hover {
+	background: rgba(0, 0, 0, 0.65);
 }
 
 output[data-test='saved'] { inset-block-end: 72px; }
