@@ -217,21 +217,29 @@ test('the top bar fits a phone, with the pill clear of the save button', async (
 	await expect(page.locator('[data-test="zoom-reset"]')).toBeVisible()
 })
 
-test('the mode rail carries the same backing as the control card', async ({ page }) => {
+test('the mode rail is backed heavily enough to read over any picture', async ({ page }) => {
 	await waitLoaded(page)
 
 	// The rail floats over the picture, which can be anything: bare
-	// labels over a bright frame are unreadable
+	// labels over a bright frame are unreadable. At the glass the
+	// control card wears, a white picture leaves the rail's labels at
+	// 4.31:1, under the 4.5:1 normal text needs; the heavier backing
+	// takes the same picture to 8.99:1.
 	const backing = (selector: string) => page.locator(selector).evaluate((element) => {
 		const style = getComputedStyle(element)
 		return { background: style.backgroundColor, blur: style.backdropFilter, border: style.borderTopWidth }
 	})
+	const alpha = (color: string) => Number(color.match(/[\d.]+/g)?.[3] ?? 1)
 
 	const rail = await backing('.image-editor__rail')
 	const card = await backing('.editor-card')
 
-	expect(rail.background).toBe(card.background)
+	expect(alpha(rail.background)).toBeGreaterThanOrEqual(0.85)
+	expect(alpha(rail.background)).toBeGreaterThanOrEqual(alpha(card.background))
+	expect(rail.background).not.toBe('rgba(0, 0, 0, 0)')
+
+	// Everything else about the surface still matches the card: this is
+	// one token heavier, not a different kind of chrome
 	expect(rail.blur).toBe(card.blur)
 	expect(rail.border).toBe(card.border)
-	expect(rail.background).not.toBe('rgba(0, 0, 0, 0)')
 })

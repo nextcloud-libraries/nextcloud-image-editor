@@ -63,8 +63,12 @@ interface Harness {
 
 /**
  * A stage stub driving the pointer handlers without a canvas.
+ *
+ * @param oriented the size of the picture the tools draw on, or null
+ * where the test does not care: a null source leaves every point where
+ * it was, which is what most of these tests want.
  */
-function harness(): Harness {
+function harness(oriented: { width: number, height: number } | null = null): Harness {
 	const handlers = new Map<string, (event: { evt: Modifiers }) => void>()
 	let pointer: { x: number, y: number } | null = null
 	let lastCommit: EditorState | null = null
@@ -82,7 +86,7 @@ function harness(): Harness {
 			getPointerPosition: () => pointer,
 		} as never,
 		contentGroup: () => null,
-		oriented: () => null,
+		oriented: () => oriented as HTMLCanvasElement | null,
 		getState: () => lastCommit ?? createInitialState(),
 		selectedId: () => null,
 		commit: (state) => {
@@ -124,6 +128,70 @@ describe('attachPointerTools', () => {
 		expect(annotation.points).toEqual([10, 10, 20, 15, 30, 20])
 		expect(annotation.color).toBe('#123456')
 		expect(annotation.strokeWidth).toBe(7)
+	})
+
+	it('drops a gesture that never reaches the picture', () => {
+		const h = harness({ width: 200, height: 100 })
+		attach('draw', h.deps)
+		// The stage is larger than the picture it shows; the export keeps
+		// the picture alone, so a stroke in the margin would vanish on save
+		h.fire('pointerdown', { x: 260, y: 40 })
+		h.fire('pointermove', { x: 270, y: 45 })
+		h.fire('pointerup')
+
+		expect(h.committed()).toBeNull()
+	})
+
+	it('keeps a drag that starts outside and reaches the picture', () => {
+		const h = harness({ width: 200, height: 100 })
+		attach('redact', h.deps)
+		// Starting just off the corner is how a redaction covers the edge
+		h.fire('pointerdown', { x: -10, y: 80 })
+		h.fire('pointermove', { x: 45, y: 110 })
+		h.fire('pointerup')
+
+		const annotation = h.committed()!.annotations[0] as RedactAnnotation
+		// Held to the picture at both ends, and still covering its corner
+		expect(annotation.rect).toEqual({ x: 0, y: 80, width: 45, height: 20 })
+	})
+
+	it('holds a stroke that runs off the edge at the edge', () => {
+		const h = harness({ width: 200, height: 100 })
+		attach('draw', h.deps)
+		h.fire('pointerdown', { x: 10, y: 10 })
+		h.fire('pointermove', { x: 300, y: 400 })
+		h.fire('pointerup')
+
+		const annotation = h.committed()!.annotations[0] as DrawAnnotation
+		expect(annotation.points).toEqual([10, 10, 200, 100])
+	})
+
+	it('refuses a sticker dropped in the margin', () => {
+		const h = harness({ width: 200, height: 100 })
+		attach('sticker', h.deps)
+		h.fire('pointerdown', { x: -20, y: 50 })
+		h.fire('pointerup')
+
+		expect(h.committed()).toBeNull()
+	})
+
+	it('measures against the crop rather than the whole picture', () => {
+		const h = harness({ width: 200, height: 100 })
+		h.deps.commit({ ...createInitialState(), crop: { x: 20, y: 20, width: 60, height: 40 } })
+		attach('rectangle', h.deps)
+
+		// Inside the picture but outside what is left of it after the crop
+		h.fire('pointerdown', { x: 150, y: 80 })
+		h.fire('pointermove', { x: 160, y: 90 })
+		h.fire('pointerup')
+		expect(h.committed()!.annotations).toHaveLength(0)
+
+		// And a drag that starts inside the crop stops at its edge
+		h.fire('pointerdown', { x: 30, y: 30 })
+		h.fire('pointermove', { x: 300, y: 300 })
+		h.fire('pointerup')
+		const annotation = h.committed()!.annotations[0] as BoxAnnotation
+		expect(annotation.rect).toEqual({ x: 30, y: 30, width: 50, height: 30 })
 	})
 
 	it('normalizes a reverse rectangle drag', () => {

@@ -981,3 +981,49 @@ test('the selected annotation is moved by a drag, not drawn over', async ({ page
 	expect(after.annotations).toHaveLength(1)
 	expect(after.annotations[0].rect.x).not.toBe(before.x)
 })
+
+test('a gesture in the margin beside the picture draws nothing', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw' }).click()
+
+	// The fixture is 200x100 in the middle of a much larger stage, so
+	// well left of its corner is stage but not picture. Anything drawn
+	// there is dropped by the export, which renders the picture alone.
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x - 120, y: corner.y + 50 }, { x: corner.x - 40, y: corner.y + 50 })
+
+	expect((await readState(page)).annotations).toHaveLength(0)
+})
+
+test('a stroke leaving the picture stops at its edge', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Draw' }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 150, y: corner.y + 50 }, { x: corner.x + 400, y: corner.y + 90 })
+
+	const [annotation] = (await readState(page)).annotations
+	expect(annotation.type).toBe('draw')
+	// Every point is on the 200x100 fixture, the ones that were dragged
+	// past its right edge included
+	const xs = annotation.points.filter((_: number, index: number) => index % 2 === 0)
+	const ys = annotation.points.filter((_: number, index: number) => index % 2 === 1)
+	expect(Math.max(...xs)).toBeLessThanOrEqual(200)
+	expect(Math.max(...ys)).toBeLessThanOrEqual(100)
+})
+
+test('a sticker cannot be dropped off the picture', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Sticker' }).click()
+	await page.getByRole('button', { name: '😀' }).click()
+
+	const corner = await imageTopLeft(page)
+	await page.mouse.click(corner.x - 100, corner.y + 50)
+	expect((await readState(page)).annotations).toHaveLength(0)
+
+	// And still lands where the picture is
+	await page.mouse.click(corner.x + 100, corner.y + 50)
+	expect((await readState(page)).annotations).toHaveLength(1)
+})

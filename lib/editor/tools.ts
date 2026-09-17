@@ -12,7 +12,7 @@ import type { Point } from './view.ts'
 import { snapAngle } from '../utils/geometry.ts'
 import { newId } from '../utils/id.ts'
 import { t } from '../utils/l10n.ts'
-import { buildAnnotationNode } from './render.ts'
+import { buildAnnotationNode, visibleRect } from './render.ts'
 
 export interface ToolOptions {
 	color: string
@@ -95,6 +95,72 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 	let last = { x: 0, y: 0 }
 	/** Whether a line is held to 45° steps: Shift as in other editors, or Ctrl */
 	let constrained = false
+	/**
+	 * The box the gesture has covered, in scene coordinates and before
+	 * anything was held to the picture. A gesture whose box misses the
+	 * picture drew in the margin, where nothing can be kept, so it is
+	 * dropped rather than committed against the edge it was held to.
+	 * The box rather than the points it passed through: a drag from
+	 * beside the picture to below it covers a corner without either end
+	 * landing on it.
+	 */
+	let gestureBox: { x1: number, y1: number, x2: number, y2: number } | null = null
+
+	/**
+	 * Where an annotation is allowed to be: the crop when there is one,
+	 * the whole picture otherwise. The stage is larger than the picture
+	 * it shows, and anything drawn in the margin around it is dropped by
+	 * the export, which renders the visible area alone.
+	 */
+	const imageBounds = () => {
+		const canvas = deps.oriented()
+		if (canvas === null) {
+			return null
+		}
+		return visibleRect(deps.getState(), { width: canvas.width, height: canvas.height })
+	}
+
+	/**
+	 * Hold a scene point inside the picture, so a stroke that runs off
+	 * the edge stops at it rather than leaving the frame.
+	 *
+	 * @param point the point to hold, in scene coordinates
+	 */
+	const clampToImage = (point: Point): Point => {
+		const bounds = imageBounds()
+		if (bounds === null) {
+			return point
+		}
+		return {
+			x: Math.min(bounds.x + bounds.width, Math.max(bounds.x, point.x)),
+			y: Math.min(bounds.y + bounds.height, Math.max(bounds.y, point.y)),
+		}
+	}
+
+	/**
+	 * Whether a scene point is on the picture at all.
+	 *
+	 * @param point the point to test, in scene coordinates
+	 */
+	const onImage = (point: Point): boolean => {
+		const bounds = imageBounds()
+		return bounds === null || (
+			point.x >= bounds.x && point.x <= bounds.x + bounds.width
+			&& point.y >= bounds.y && point.y <= bounds.y + bounds.height
+		)
+	}
+
+	/**
+	 * Whether the gesture covered any part of the picture.
+	 */
+	const reachedImage = (): boolean => {
+		const bounds = imageBounds()
+		if (bounds === null || gestureBox === null) {
+			return true
+		}
+		return gestureBox.x2 >= bounds.x && gestureBox.x1 <= bounds.x + bounds.width
+			&& gestureBox.y2 >= bounds.y && gestureBox.y1 <= bounds.y + bounds.height
+	}
 
 	const scenePointer = () => {
 		const pointer = deps.stage.getPointerPosition()
@@ -205,6 +271,15 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 		if (point === null || deps.panning()) {
 			return
 		}
+		// A click places its annotation where it lands, so in the margin
+		// it would place something the export cannot keep. A drag is
+		// different: starting just outside to cover an edge is how a
+		// redaction reaches the corner, and it is held to the picture as
+		// it goes.
+		if (!onImage(point) && (tool === 'sticker' || tool === 'text')) {
+			return
+		}
+		gestureBox = { x1: point.x, y1: point.y, x2: point.x, y2: point.y }
 		constrained = event !== undefined && (event.evt.shiftKey || event.evt.ctrlKey)
 
 		// A gesture starting on an annotation is a selection until it
@@ -229,7 +304,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 				return
 			}
 		}
-		beginAnnotation(point)
+		beginAnnotation(clampToImage(point))
 	}
 
 	/**
@@ -258,7 +333,7 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			}
 			const from = deferred.scene
 			deferred = null
-			beginAnnotation(from)
+			beginAnnotation(clampToImage(from))
 		}
 		if (active === null) {
 			return
@@ -269,10 +344,19 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			discard()
 			return
 		}
-		const point = scenePointer()
-		if (point === null) {
+		const raw = scenePointer()
+		if (raw === null) {
 			return
 		}
+		gestureBox = gestureBox === null
+			? { x1: raw.x, y1: raw.y, x2: raw.x, y2: raw.y }
+			: {
+					x1: Math.min(gestureBox.x1, raw.x),
+					y1: Math.min(gestureBox.y1, raw.y),
+					x2: Math.max(gestureBox.x2, raw.x),
+					y2: Math.max(gestureBox.y2, raw.y),
+				}
+		const point = clampToImage(raw)
 		last = point
 		if (event !== undefined) {
 			constrained = event.evt.shiftKey || event.evt.ctrlKey
@@ -318,6 +402,12 @@ export function attachPointerTools(tool: Tool, deps: PointerToolDeps): () => voi
 			return
 		}
 		if (active === null) {
+			return
+		}
+		// Drawn entirely in the margin: every point was held to the edge,
+		// so committing it would leave a mark nobody asked for there
+		if (!reachedImage()) {
+			discard()
 			return
 		}
 		const state = deps.getState()
