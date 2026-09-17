@@ -4,6 +4,77 @@
 -->
 # Changelog
 
+## 1.0.0-beta.4 – 2026-09-17
+
+### Added
+
+- Zooming out below the fitted view, down to a quarter of it, and
+  panning the picture once it no longer fills the frame. A pinch runs
+  straight through to the view rather than being read as a drag (#51)
+- A top bar built around the edit rather than around the canvas: an
+  undo button of its own, a history menu that leads with revert and
+  names every step it can land on, and a close button that asks what to
+  do with unsaved changes (#47)
+- Clicking an existing annotation picks it up whichever tool is held,
+  so moving something no longer means switching to select first (#53)
+
+### Changed
+
+- A JPEG is written at the quality its source was written at, rather
+  than whatever the browser picks. The setting is not recorded in a
+  file, but the quantization table it produced is, so the table is
+  matched against the hundred an encoder can produce. Held between 0.75
+  and 0.97, and 0.92 where there is no source to read. On a 12 Mpx
+  photo saved at quality 97, an edit used to come back at 38.1 dB PSNR
+  and 5.41 MB; it now comes back at 46.0 dB and 7.42 MB (#60)
+- The decode and the half-size copies the scene draws from happen in a
+  worker, and the canvas cap is probed at the size the image needs
+  instead of climbing to 16384². Opening a 12 Mpx photo on a
+  phone-class CPU went from 6.1 s to 0.9 s, and the longest frame the
+  main thread was held from 5.1 s to 0.4 s. Browsers without
+  `OffscreenCanvas`, and pages whose policy refuses the worker, keep
+  the old path (#64, #65)
+- One set of design tokens for the editor chrome, one text size and one
+  typeface across it, and the mode rail carries the same glass as the
+  control card so its labels stay readable over a bright photo (#43,
+  #45, #56)
+- The top bar keeps the close button where the viewer keeps it, fits a
+  phone without dropping the zoom controls, and puts undo and redo side
+  by side again (#52, #57)
+
+### Fixed
+
+- The loading spinner did not turn. `NcLoadingIcon` animates on a
+  `rotate` keyframe that the server stylesheet owns and
+  `@nextcloud/vue` does not ship, so embedded anywhere else the icon
+  was drawn and then held still (#61)
+- A thin stroke can be selected without hitting the one pixel it is
+  drawn on: every stroked annotation carries a 24px grab band, measured
+  in screen pixels so it holds at any zoom (#50)
+- Applying an unchanged crop did nothing and said nothing, and the
+  buttons for applying and resetting one now come and go with the
+  selection, separator included (#44, #55, #61)
+- The crop corner handles were invisible against a light image, the
+  adjust tabs wrapped onto a second row, and the slider gave no sign of
+  where its neutral value was (#40, #46)
+
+### Still missing
+
+- No translations yet: the Transifex resource behind `l10n/` is not set
+  up, so every string falls back to English
+- Annotations cannot be created from the keyboard alone, and the
+  editor's shortcuts are bound to the window rather than to itself
+  (#17)
+- A wide-gamut source keeps its ICC profile but not its pixels: the
+  export re-tags sRGB numbers as Display P3, which shifts the colour of
+  every iPhone photo that is edited (#59)
+- Export and preset thumbnails still downscale in one pass, so a saved
+  copy bound by `maxSize` is coarser than the same picture on screen
+- A quarter turn still re-encodes rather than rewriting the
+  orientation, so a rotation costs a generation of quality (#19)
+- The eraser, multi-select, per-annotation opacity, freehand redaction
+  and exact-pixel crop are not here yet (#2)
+
 ## 1.0.0-beta.3 – 2026-09-11
 
 ### Added
