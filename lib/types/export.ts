@@ -6,7 +6,13 @@
 export interface ExportOptions {
 	/** Target MIME type, defaults to 'image/png' */
 	format?: 'image/png' | 'image/jpeg' | 'image/webp'
-	/** Encoder quality between 0 and 1, only for lossy formats */
+	/**
+	 * Encoder quality between 0 and 1, only for lossy formats. A JPEG
+	 * left to itself is written at the setting its source was written
+	 * at, read back from the source's quantization table and held
+	 * between 0.75 and 0.97, or at 0.92 where there is no source to
+	 * read.
+	 */
 	quality?: number
 	/** Bound the longest output edge, never upscaling */
 	maxSize?: number

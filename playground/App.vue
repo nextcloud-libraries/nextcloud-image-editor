@@ -8,6 +8,7 @@ import type { EditorState, ExportResult } from '../lib/index.ts'
 import { computed, ref, shallowRef } from 'vue'
 import ImageMultipleOutline from 'vue-material-design-icons/ImageMultipleOutline.vue'
 import { createInitialState, ImageEditor } from '../lib/index.ts'
+import { estimateJpegQuality } from '../lib/utils/jpeg.ts'
 import demoBuilding from './demo-building.jpg'
 import demoDoorway from './demo-doorway.jpg'
 import demoFox from './demo-fox.jpg'
@@ -61,6 +62,23 @@ function makeFixture(): Promise<Blob> {
 	context.fillStyle = 'rgb(0, 0, 200)'
 	context.fillRect(100, 0, 100, 100)
 	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!)))
+}
+
+/**
+ * The same 200x100 image as a JPEG written at a deliberately unusual
+ * quality, so a test can tell an export that matched its source from
+ * one that took the encoder's own default of 0.92.
+ */
+function makeQualityFixture(): Promise<Blob> {
+	const canvas = document.createElement('canvas')
+	canvas.width = 200
+	canvas.height = 100
+	const context = canvas.getContext('2d')!
+	context.fillStyle = 'rgb(200, 0, 0)'
+	context.fillRect(0, 0, 100, 100)
+	context.fillStyle = 'rgb(0, 0, 200)'
+	context.fillRect(100, 0, 100, 100)
+	return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.8))
 }
 
 /**
@@ -140,9 +158,9 @@ const restored: EditorState | undefined
 			}
 
 // ?src=test loads the deterministic fixture the Playwright suite probes,
-// ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=noise a
-// large grainy one, ?src=broken an undecodable image; default is a real
-// demo photo
+// ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=quality
+// a JPEG written at a known setting, ?src=noise a large grainy one,
+// ?src=broken an undecodable image; default is a real demo photo
 const src = shallowRef<Blob | string | null>(null)
 /** Which of the demo photos is on screen, for the shuffle button */
 const photo = shallowRef(0)
@@ -170,6 +188,11 @@ if (requested === 'broken') {
 			// The editor only has metadata to carry when it is handed bytes
 			src.value = new Blob([blob], { type: 'image/jpeg' })
 		})
+} else if (requested === 'quality') {
+	makeQualityFixture().then((blob) => {
+		sourceSize.value = blob.size
+		src.value = blob
+	})
 } else if (requested === 'large') {
 	makeLargeFixture().then((blob) => {
 		sourceSize.value = blob.size
@@ -242,6 +265,9 @@ async function onSave(result: ExportResult) {
 	}
 	saved.value = JSON.stringify({
 		size: result.blob.size,
+		// What the export was written at, read back out of its own
+		// quantization table
+		quality: estimateJpegQuality(bytes),
 		exif: text.includes('Exif\0\0'),
 		xmp: text.includes('http://ns.adobe.com/xap'),
 		camera: text.includes('Test Camera 1'),

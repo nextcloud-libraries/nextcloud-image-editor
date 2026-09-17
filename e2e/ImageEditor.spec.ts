@@ -265,6 +265,18 @@ test('saving an edited image re-encodes it', async ({ page }) => {
 	expect(result.height).toBe(200)
 })
 
+test('an edited photo is written at the quality it arrived at', async ({ page }) => {
+	// The fixture is encoded at 0.8, which is neither browser's own
+	// default: left to itself Chromium would write 92 here and Firefox
+	// the same number with fuller chroma
+	await waitLoaded(page, 'quality')
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	const result = await save(page)
+	expect(result.mimeType).toBe('image/jpeg')
+	expect(result.quality).toBe(80)
+})
+
 test('renders a state stored before the newer adjustments existed', async ({ page }) => {
 	// The playground seeds only brightness, contrast and saturation, the
 	// way a host that stored a state and then upgraded would. A missing

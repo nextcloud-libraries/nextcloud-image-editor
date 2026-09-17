@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExportImage } from '../lib/composables/useExportImage.ts'
 import * as render from '../lib/editor/render.ts'
 import { createInitialState } from '../lib/editor/state.ts'
+import { jpegBlobAtQuality } from './jpeg-fixture.ts'
 
 /**
  * An export composable over a stubbed image. The pass-through path
@@ -30,6 +31,25 @@ function setup(source: Blob | null, state: EditorState = createInitialState(), s
 		onError: (error) => errors.push(error),
 	})
 	return { ...api, saved, errors }
+}
+
+/**
+ * Stand in for the export canvas and record what the encoder was asked
+ * for, which is the only place the chosen quality is observable.
+ */
+function recordingCanvas(): { asked: { type?: string, quality?: number } } {
+	const asked: { type?: string, quality?: number } = {}
+	const canvas = {
+		width: 200,
+		height: 100,
+		toBlob: (callback: (blob: Blob | null) => void, type?: string, quality?: number) => {
+			asked.type = type
+			asked.quality = quality
+			callback(new Blob([Uint8Array.from([0xFF, 0xD8, 0xFF, 0xD9])], { type }))
+		},
+	} as unknown as HTMLCanvasElement
+	vi.spyOn(render, 'renderToCanvas').mockReturnValue(canvas)
+	return { asked }
 }
 
 describe('useExportImage', () => {
@@ -143,5 +163,49 @@ describe('useExportImage', () => {
 		expect(api.exporting.value).toBe(false)
 		await running
 		expect(api.exporting.value).toBe(false)
+	})
+	describe('the quality a JPEG is written at', () => {
+		const edited = { ...createInitialState(), rotation: 90 as const }
+
+		it('matches what the source was written at', async () => {
+			const { asked } = recordingCanvas()
+			await setup(jpegBlobAtQuality(85), edited).exportImage()
+
+			// The setting itself is nowhere in the file; it is read back
+			// from the quantization table it produced
+			expect(asked.type).toBe('image/jpeg')
+			expect(asked.quality).toBeCloseTo(0.85)
+		})
+
+		it('is capped, so a source written at 100 does not double the file', async () => {
+			const { asked } = recordingCanvas()
+			await setup(jpegBlobAtQuality(100), edited).exportImage()
+			expect(asked.quality).toBeCloseTo(0.97)
+		})
+
+		it('has a floor, so a battered source is not battered again', async () => {
+			const { asked } = recordingCanvas()
+			await setup(jpegBlobAtQuality(40), edited).exportImage()
+			expect(asked.quality).toBeCloseTo(0.75)
+		})
+
+		it('falls back where there is no source to read', async () => {
+			const { asked } = recordingCanvas()
+			await setup(null, edited).exportImage({ format: 'image/jpeg' })
+			expect(asked.quality).toBeCloseTo(0.92)
+		})
+
+		it('gives way to the host', async () => {
+			const { asked } = recordingCanvas()
+			await setup(jpegBlobAtQuality(85), edited).exportImage({ quality: 0.5 })
+			expect(asked.quality).toBeCloseTo(0.5)
+		})
+
+		it('is not invented for a format that has no use for it', async () => {
+			const { asked } = recordingCanvas()
+			await setup(jpegBlobAtQuality(85), edited).exportImage({ format: 'image/png' })
+			expect(asked.type).toBe('image/png')
+			expect(asked.quality).toBeUndefined()
+		})
 	})
 })

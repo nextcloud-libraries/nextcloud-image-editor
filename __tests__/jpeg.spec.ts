@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { readMetadataSegments, withMetadata } from '../lib/utils/jpeg.ts'
+import { estimateJpegQuality, readMetadataSegments, withMetadata } from '../lib/utils/jpeg.ts'
+import { jpegAtQuality } from './jpeg-fixture.ts'
 
 /** The playground's 64x48 JPEG carrying EXIF, GPS and XMP, made with exiftool */
 const fixture = new Uint8Array(readFileSync(resolve(process.cwd(), 'playground/with-metadata.jpg')))
@@ -46,6 +47,40 @@ describe('readMetadataSegments', () => {
 
 	it('returns nothing for something that is not a JPEG', () => {
 		expect(readMetadataSegments(new Uint8Array([1, 2, 3, 4]))).toEqual([])
+	})
+})
+
+describe('estimateJpegQuality', () => {
+	it('reads back the setting an encoder was given', () => {
+		// Exact for anything scaled off the standard table, which is
+		// every browser encoder and most of what cameras write
+		for (const quality of [30, 50, 75, 85, 92, 95, 97, 100]) {
+			expect(estimateJpegQuality(jpegAtQuality(quality))).toBe(quality)
+		}
+	})
+
+	it('reads the luminance table, not whichever comes first', () => {
+		const chrominance = jpegAtQuality(60, 1)
+		const luminance = jpegAtQuality(90)
+		// One file carrying both tables, the chrominance one first
+		const both = Uint8Array.from([
+			...chrominance.subarray(0, chrominance.length - 2),
+			...luminance.subarray(2),
+		])
+		expect(estimateJpegQuality(both)).toBe(90)
+	})
+
+	it('answers for a photo a camera wrote', () => {
+		// The fixture went through ImageMagick at its default setting
+		expect(estimateJpegQuality(fixture)).toBe(92)
+	})
+
+	it('has nothing to say about a file with no table', () => {
+		expect(estimateJpegQuality(encoded())).toBeUndefined()
+	})
+
+	it('has nothing to say about something that is not a JPEG', () => {
+		expect(estimateJpegQuality(Uint8Array.from([1, 2, 3, 4]))).toBeUndefined()
 	})
 })
 
