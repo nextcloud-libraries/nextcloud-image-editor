@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import type { Ref, ShallowRef } from 'vue'
+import type { SourceImage } from '../utils/image.ts'
 
 import { ref, watch } from 'vue'
 import { ambientBackdrop } from '../utils/theme.ts'
@@ -19,7 +20,7 @@ export interface Ambient {
  *
  * @param source the decoded source image
  */
-export function useAmbient(source: ShallowRef<HTMLImageElement | null>): Ambient {
+export function useAmbient(source: ShallowRef<SourceImage | null>): Ambient {
 	const backdrop = ref('')
 
 	watch(source, (image) => {
