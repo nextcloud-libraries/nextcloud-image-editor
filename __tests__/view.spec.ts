@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { describe, expect, it } from 'vitest'
-import { anchoredPan, clampPan, clampZoom, MAX_ZOOM, MIN_ZOOM, panBounds, VIEW_MARGIN, wheelZoomFactor } from '../lib/editor/view.ts'
+import { anchoredPan, clampPan, clampZoom, FIT_ZOOM, MAX_ZOOM, MIN_ZOOM, panBounds, VIEW_MARGIN, wheelZoomFactor } from '../lib/editor/view.ts'
 
 describe('panBounds', () => {
-	it('pins the view while the content fits the container', () => {
+	it('lets content smaller than the container reach its edges', () => {
+		// Half the free space each way, so the picture can be slid out
+		// from under the chrome floating over the stage
 		const bounds = panBounds({ width: 200, height: 100 }, 1, { width: 800, height: 600 })
-		expect(bounds).toEqual({ x: 0, y: 0 })
+		expect(bounds).toEqual({ x: 300 + VIEW_MARGIN, y: 250 + VIEW_MARGIN })
 	})
 
 	it('allows half the overflow plus the stage margin', () => {
@@ -38,14 +40,32 @@ describe('clampPan', () => {
 })
 
 describe('clampZoom', () => {
-	it('snaps a near-fitted zoom back to the fitted view', () => {
-		expect(clampZoom(1.04)).toBe(MIN_ZOOM)
-		expect(clampZoom(0.2)).toBe(MIN_ZOOM)
+	it('snaps onto the fitted view when a gesture crosses it', () => {
+		expect(clampZoom(1.04, 0.9)).toBe(FIT_ZOOM)
+		expect(clampZoom(0.97, 1.2)).toBe(FIT_ZOOM)
+	})
+
+	it('lets a gesture leave the fitted view it started on', () => {
+		// Snapping here would swallow every step of a pinch until the
+		// fingers are lifted and the gesture started again
+		expect(clampZoom(1.02, FIT_ZOOM)).toBe(1.02)
+		expect(clampZoom(0.98, FIT_ZOOM)).toBe(0.98)
+	})
+
+	it('does not snap a crossing that lands far from the fit', () => {
+		expect(clampZoom(0.7, 1.4)).toBe(0.7)
 	})
 
 	it('keeps a zoom inside the range', () => {
 		expect(clampZoom(2)).toBe(2)
 		expect(clampZoom(99)).toBe(MAX_ZOOM)
+	})
+
+	it('allows zooming out past the fitted view, down to the floor', () => {
+		// The chrome floats over the picture: zooming out is how the parts
+		// under it are looked at
+		expect(clampZoom(0.8)).toBe(0.8)
+		expect(clampZoom(0.2)).toBe(MIN_ZOOM)
 	})
 })
 

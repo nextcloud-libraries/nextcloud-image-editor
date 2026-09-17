@@ -90,7 +90,8 @@ test('a successful load leaves no failure behind', async ({ page }) => {
 
 test('view zoom magnifies without touching the edit state', async ({ page }) => {
 	await waitLoaded(page)
-	await expect(page.locator('[data-test="zoom-out"]')).toBeDisabled()
+	// Zooming out starts available: the view goes below the fitted one
+	await expect(page.locator('[data-test="zoom-out"]')).toBeEnabled()
 
 	await page.locator('[data-test="zoom-in"]').click()
 	await expect(page.locator('[data-test="zoom-out"]')).toBeEnabled()
@@ -139,7 +140,9 @@ test('the zoom readout resets the view to 100%', async ({ page }) => {
 
 	await page.locator('[data-test="zoom-reset"]').click()
 	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('100%')
-	await expect(page.locator('[data-test="zoom-out"]')).toBeDisabled()
+	// Only the floor disables zooming out, and the fitted view is not it
+	await expect(page.locator('[data-test="zoom-in"]')).toBeEnabled()
+	await expect(page.locator('[data-test="zoom-out"]')).toBeEnabled()
 })
 
 test('phone layout keeps the rail and controls apart', async ({ page }) => {

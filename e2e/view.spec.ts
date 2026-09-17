@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test'
 import type Konva from 'konva'
 
 import { expect, test } from '@playwright/test'
-import { imageTopLeft, imageView, readState, save, waitLoaded } from './utils.ts'
+import { drag, imageTopLeft, imageView, readState, save, waitLoaded } from './utils.ts'
 
 /**
  * The zoom percentage shown in the top bar.
@@ -45,13 +45,18 @@ test('the wheel zooms instead of scrolling the image away', async ({ page }) => 
 	await expect.poll(() => zoom(page)).toBeLessThan(zoomedIn)
 })
 
-test('the wheel holds the fitted view at its floor', async ({ page }) => {
+test('the wheel zooms out past the fitted view and stops at the floor', async ({ page }) => {
 	await waitLoaded(page)
 	await centerPointer(page)
 
+	// Zooming out below the fitted view is how the band of picture under
+	// the floating controls is looked at
 	await page.mouse.wheel(0, 240)
-	expect(await zoom(page)).toBe(100)
-	// The fitted view is centered, so nothing may have shifted either
+	await expect.poll(() => zoom(page)).toBeLessThan(100)
+
+	await page.mouse.wheel(0, 2400)
+	await expect.poll(() => zoom(page)).toBe(50)
+	// Smaller than the container, so it stays centered
 	expect((await imageView(page)).x).toBeCloseTo((await imageView(page)).x, 5)
 })
 
@@ -211,4 +216,102 @@ test('the saved picture is exported from the source, not the copy shown', async 
 	// The fixture's grain is about 23; drawn from the halved copy the
 	// export would carry half of that
 	expect(result.grain).toBeGreaterThan(18)
+})
+
+/**
+ * On-screen box of the drawn picture, which is what the control card
+ * covers a band of at the fitted view.
+ *
+ * @param page the test page
+ */
+async function pictureBox(page: Page) {
+	return page.evaluate(() => {
+		const stage = window.Konva.stages[0]!
+		const rect = stage.container().getBoundingClientRect()
+		const box = stage.findOne<Konva.Image>('Image')!.getClientRect()
+		return { top: rect.y + box.y, bottom: rect.y + box.y + box.height }
+	})
+}
+
+test('zooming out past the fit shows what the controls cover', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	const fitted = await imageView(page)
+	const card = (await page.locator('.editor-card').boundingBox())!
+
+	// At the fitted view the picture runs under the floating card
+	const fittedBottom = (await pictureBox(page)).bottom
+	expect(fittedBottom).toBeGreaterThan(card.y)
+
+	// One step frees a band of it, the floor clears the card entirely
+	await page.locator('[data-test="zoom-out"]').click()
+	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('67%')
+	expect((await pictureBox(page)).bottom).toBeLessThan(fittedBottom)
+
+	await page.locator('[data-test="zoom-out"]').click()
+	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('50%')
+	expect((await pictureBox(page)).bottom).toBeLessThanOrEqual(card.y)
+
+	// The readout takes the view back to the fitted one
+	await page.locator('[data-test="zoom-reset"]').click()
+	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('100%')
+	expect(await imageView(page)).toEqual(fitted)
+})
+
+test('zooming out stops at the floor', async ({ page }) => {
+	await waitLoaded(page)
+	const zoomOut = page.locator('[data-test="zoom-out"]')
+
+	for (let step = 0; step < 4; step++) {
+		if (await zoomOut.isEnabled()) {
+			await zoomOut.click()
+		}
+	}
+	await expect(page.locator('[data-test="zoom-reset"]')).toHaveText('50%')
+	await expect(zoomOut).toBeDisabled()
+})
+
+test('the fitted view can be slid out from under the controls', async ({ page }) => {
+	await waitLoaded(page, 'large')
+	const card = (await page.locator('.editor-card').boundingBox())!
+
+	// The editor settles into its container over a couple of frames
+	let covered = 0
+	await expect.poll(async () => {
+		const previous = covered
+		covered = (await pictureBox(page)).bottom
+		return covered === previous
+	}).toBe(true)
+	expect(covered).toBeGreaterThan(card.y)
+
+	// Space held, the drag pans instead of reaching the tool
+	const canvas = (await page.locator('.image-editor__canvas').boundingBox())!
+	await page.keyboard.down('Space')
+	const middle = { x: canvas.x + canvas.width / 2, y: canvas.y + canvas.height / 2 }
+	await drag(page, middle, { x: middle.x, y: middle.y - 120 })
+	await page.keyboard.up('Space')
+
+	// The band that was behind the card is above it now
+	expect((await pictureBox(page)).bottom).toBeLessThan(covered - 100)
+
+	// The readout puts the picture back where it started
+	await page.locator('[data-test="zoom-reset"]').click()
+	await expect.poll(async () => (await pictureBox(page)).bottom).toBeCloseTo(covered, 0)
+})
+
+test('a pinch does not stick at the fitted view', async ({ page }) => {
+	await waitLoaded(page)
+	await centerPointer(page)
+
+	// Small steps through the fit: one lands on it exactly, the next
+	// leaves it, rather than every step being swallowed until the
+	// gesture is released
+	await page.mouse.wheel(0, 30)
+	const first = await zoom(page)
+	expect(first).toBeLessThanOrEqual(100)
+
+	await page.mouse.wheel(0, 30)
+	await expect.poll(() => zoom(page)).toBeLessThan(100)
+
+	await page.mouse.wheel(0, 30)
+	await expect.poll(() => zoom(page)).toBeLessThan(95)
 })

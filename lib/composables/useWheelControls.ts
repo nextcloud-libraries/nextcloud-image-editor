@@ -7,7 +7,7 @@ import type { EditorContext } from '../editor/context.ts'
 import type { Point } from '../editor/view.ts'
 
 import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue'
-import { MIN_ZOOM, PINCH_TOLERANCE, wheelZoomFactor } from '../editor/view.ts'
+import { PINCH_TOLERANCE, wheelZoomFactor } from '../editor/view.ts'
 import { ownsSpaceKey } from '../utils/dom.ts'
 
 export interface WheelControls {
@@ -45,10 +45,11 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 
 	/** Modes without a canvas tool: a plain drag is free to pan */
 	const toolFreeDrag = () => context.activeTool.value === 'adjust'
-	const zoomed = () => context.viewZoom.value > MIN_ZOOM
 
-	const panArmed = computed(() => context.viewZoom.value > MIN_ZOOM
-		&& (spaceHeld.value || context.activeTool.value === 'adjust'))
+	// Panning is armed at every zoom, the fitted view included: the
+	// chrome floats over the picture, and sliding it out from under the
+	// control card is the point
+	const panArmed = computed(() => spaceHeld.value || context.activeTool.value === 'adjust')
 
 	/**
 	 * Turn a client position into an offset from the container center,
@@ -115,7 +116,7 @@ export function useWheelControls(element: Ref<HTMLElement | null>, context: Edit
 		// The middle button pans anywhere; the left button only where no
 		// tool owns the drag, or while the space bar is held
 		const wantsPan = event.button === 1 || (event.button === 0 && (spaceHeld.value || toolFreeDrag()))
-		if (!wantsPan || !zoomed()) {
+		if (!wantsPan) {
 			return
 		}
 		// Claim the gesture before the stage sees it

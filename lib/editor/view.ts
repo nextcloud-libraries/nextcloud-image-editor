@@ -7,13 +7,28 @@ import type { Rect, Size } from './state.ts'
 /** Stage margin kept free so handles at the image edge stay grabbable */
 export const VIEW_MARGIN = 16
 
-/** The fitted view: the image is never displayed smaller than that */
-export const MIN_ZOOM = 1
+/**
+ * How far past its own edges the picture may be pushed, as a share of
+ * the container. The chrome floats over the stage and covers about a
+ * quarter of it at the bottom, so a third leaves every part of a fitted
+ * picture reachable.
+ */
+export const PAN_SLACK = 1 / 3
+
+/** The whole visible area at the size the container allows */
+export const FIT_ZOOM = 1
+
+/**
+ * How far the view may be zoomed out past the fitted one. The chrome
+ * floats over the picture, so the fitted view hides a band of it behind
+ * the control card: zooming out is how the user looks under it.
+ */
+export const MIN_ZOOM = 0.5
 
 /** Past this the view shows mostly interpolation */
 export const MAX_ZOOM = 4
 
-/** Requested zooms below this snap back to the fitted view */
+/** Requested zooms this close to the fitted one snap onto it */
 export const ZOOM_SNAP = 1.05
 
 /** Relative pinch change treated as a zoom rather than a two-finger pan */
@@ -50,9 +65,15 @@ export interface ViewFit {
 }
 
 /**
- * How far the view may be panned away from center before the content
- * edge would leave the container. Zero while the content fits, which
- * pins the fitted view in place.
+ * How far the view may be panned away from center, per axis: half of
+ * whatever does not fit, or the slack, whichever is the larger, plus
+ * the stage margin.
+ *
+ * The overflow half is what it takes to reach the far side of a picture
+ * larger than the container. The slack is for the fitted view, which
+ * has next to no overflow and still hides a band of the picture behind
+ * the chrome floating over the stage: it is what makes that band
+ * reachable by sliding the picture rather than only by zooming into it.
  *
  * @param visible the scene-space area on display
  * @param scale the applied view scale, zoom included
@@ -60,8 +81,8 @@ export interface ViewFit {
  */
 export function panBounds(visible: Size, scale: number, container: Size): Point {
 	return {
-		x: Math.max(0, (visible.width * scale - container.width) / 2 + VIEW_MARGIN),
-		y: Math.max(0, (visible.height * scale - container.height) / 2 + VIEW_MARGIN),
+		x: Math.max(Math.abs(visible.width * scale - container.width) / 2, container.width * PAN_SLACK) + VIEW_MARGIN,
+		y: Math.max(Math.abs(visible.height * scale - container.height) / 2, container.height * PAN_SLACK) + VIEW_MARGIN,
 	}
 }
 
@@ -79,13 +100,22 @@ export function clampPan(pan: Point, bounds: Point): Point {
 }
 
 /**
- * Hold a zoom factor between the fitted view and the maximum, snapping
- * near-fitted values back to exactly fitted.
+ * Hold a zoom factor inside the range, landing exactly on the fitted
+ * view when a gesture crosses it.
+ *
+ * The snap is deliberately only applied on the way through: a pinch
+ * that starts at the fitted view has to be able to leave it, and a
+ * band that also caught the view it is already on would swallow every
+ * small step until the gesture is released and started again.
  *
  * @param zoom the requested factor
+ * @param previous the factor the view is on, unset where there is none
  */
-export function clampZoom(zoom: number): number {
-	return zoom < ZOOM_SNAP ? MIN_ZOOM : Math.min(MAX_ZOOM, zoom)
+export function clampZoom(zoom: number, previous = FIT_ZOOM): number {
+	const bounded = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
+	const crossed = (previous - FIT_ZOOM) * (bounded - FIT_ZOOM) < 0
+	const near = bounded > FIT_ZOOM / ZOOM_SNAP && bounded < FIT_ZOOM * ZOOM_SNAP
+	return crossed && near ? FIT_ZOOM : bounded
 }
 
 /**

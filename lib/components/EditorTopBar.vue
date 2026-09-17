@@ -23,7 +23,7 @@ import { useEditorCommands } from '../editor/commands.ts'
 import { useEditorContext } from '../editor/context.ts'
 import { historyIcon } from '../editor/history-icons.ts'
 import { isPristine } from '../editor/state.ts'
-import { MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
+import { FIT_ZOOM, MAX_ZOOM, MIN_ZOOM } from '../editor/view.ts'
 import { t } from '../utils/l10n.ts'
 
 defineProps<{
@@ -85,10 +85,12 @@ function stepZoom(direction: 1 | -1) {
 }
 
 /**
- * Reset the view to the fitted state.
+ * Reset the view: the fitted zoom, centred. The picture can be slid
+ * around at any zoom, so putting it back is part of the same button.
  */
 function resetZoom() {
-	context.setViewZoom(MIN_ZOOM)
+	context.setViewZoom(FIT_ZOOM)
+	context.setViewPan({ x: 0, y: 0 })
 }
 
 /** Whether the editor is asking what to do with unsaved edits */
