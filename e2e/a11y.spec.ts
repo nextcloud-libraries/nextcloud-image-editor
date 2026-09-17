@@ -146,3 +146,74 @@ test('the chrome is one text size throughout', async ({ page }) => {
 	await page.getByRole('button', { name: 'Adjust' }).click()
 	expect(await font(page.locator('[data-test="tab-exposure"]'))).toBe(tab)
 })
+
+test('the top bar matches the modal header the editor opens in', async ({ page }) => {
+	await waitLoaded(page)
+
+	// The viewer opens the editor inside its modal, whose header is
+	// --header-height tall and whose close button keeps half of what is
+	// left beside it as a margin. Ours has to land in the same place, or
+	// the close button jumps when the editor opens.
+	const geometry = await page.evaluate(() => {
+		const editor = document.querySelector('.image-editor')!
+		const style = getComputedStyle(editor)
+		return {
+			header: parseFloat(style.getPropertyValue('--header-height')),
+			clickable: parseFloat(style.getPropertyValue('--default-clickable-area')),
+		}
+	})
+
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
+	const margin = (geometry.header - geometry.clickable) / 2
+
+	expect(bar.x + bar.width - (close.x + close.width)).toBeCloseTo(margin, 1)
+	expect(close.y + close.height / 2).toBeCloseTo(bar.y + bar.height / 2, 1)
+
+	// As tall as that header, unless the pointer target leaves the
+	// buttons touching the top edge, which is what a phone does
+	expect(bar.height).toBeGreaterThanOrEqual(geometry.header - 0.5)
+	expect(bar.height - close.height).toBeGreaterThanOrEqual(2)
+})
+
+test('the top bar keeps a phone-sized pointer target off the top edge', async ({ page }) => {
+	await waitLoaded(page)
+	await page.setViewportSize({ width: 390, height: 640 })
+	// The style tag has to come after the navigation, which would drop it
+	await page.addStyleTag({ content: ':root { --default-clickable-area: 44px; --header-height: 44px; }' })
+
+	// A phone gives the pointer target the height of the whole header,
+	// which left the save button against the top edge of the editor
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	expect(save.y - bar.y).toBeGreaterThanOrEqual(2)
+	expect(bar.y + bar.height - (save.y + save.height)).toBeGreaterThanOrEqual(2)
+})
+
+test('the top bar fits a phone, with the pill clear of the save button', async ({ page }) => {
+	await waitLoaded(page)
+	await page.setViewportSize({ width: 390, height: 640 })
+	await page.addStyleTag({ content: ':root { --default-clickable-area: 44px; --header-height: 44px; }' })
+
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const pill = (await page.locator('.editor-topbar__history').boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
+
+	// Everything inside the bar: the close button used to be cut off by
+	// the edge of the editor, and the pill starts at the leading edge
+	// rather than centred, which is where the width comes from
+	expect(pill.x).toBeGreaterThanOrEqual(bar.x)
+	expect(pill.x - bar.x).toBeLessThanOrEqual(16)
+	expect(close.x + close.width).toBeLessThanOrEqual(bar.x + bar.width + 0.5)
+
+	// And the pill does not touch the save button
+	expect(save.x - (pill.x + pill.width)).toBeGreaterThanOrEqual(6)
+
+	// Nothing is dropped to make the room: the pill gives up the space
+	// around its controls, and scrolls sideways on narrower screens
+	for (const control of ['Undo', 'Edit history', 'Redo', 'Zoom out', 'Zoom in']) {
+		await expect(page.getByRole('button', { name: control, exact: true })).toBeVisible()
+	}
+	await expect(page.locator('[data-test="zoom-reset"]')).toBeVisible()
+})

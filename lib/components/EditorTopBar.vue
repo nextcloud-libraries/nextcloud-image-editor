@@ -315,7 +315,22 @@ async function onRevert() {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: calc(var(--default-grid-baseline) * 2) calc(var(--default-grid-baseline) * 6);
+	// The editor usually opens inside the viewer's modal, whose header is
+	// this tall and whose close button sits centred in a margin of half
+	// the space left beside it. Same geometry here, so the close button
+	// does not jump when the editor opens over the viewer. Where the
+	// pointer target is as tall as that header, which is what a phone
+	// asks for, the bar grows rather than letting the buttons touch the
+	// top edge.
+	block-size: max(
+		var(--header-height, 50px),
+		calc(var(--default-clickable-area) + var(--default-grid-baseline) * 2)
+	);
+	// Between the history pill and the save button, which sit against
+	// each other once the bar runs out of free space
+	gap: calc(var(--default-grid-baseline) * 2);
+	padding-block: 0;
+	padding-inline: calc(var(--default-grid-baseline) * 6) var(--editor-header-margin);
 
 	&__history {
 		display: flex;
@@ -374,10 +389,36 @@ async function onRevert() {
 	}
 
 	@container editor (max-width: 600px) {
-		padding-inline: calc(var(--default-grid-baseline) * 2);
+		padding-inline: calc(var(--default-grid-baseline) * 2) var(--editor-header-margin);
 
 		&__zoom {
-			min-width: 40px;
+			min-width: 34px;
+		}
+
+		// Centring the pill wastes the width a phone does not have: it
+		// starts at the leading edge here, and the actions keep the other
+		&__spacer {
+			display: none;
+		}
+
+		&__actions {
+			flex: none;
+		}
+
+		// Seven controls, a save button and a close button are more than
+		// a phone is wide. The pill gives up the space between and around
+		// them first, and scrolls sideways on the narrowest screens
+		// rather than dropping a control or letting one fall off the edge.
+		&__history {
+			min-width: 0;
+			gap: 0;
+			padding: 0;
+			overflow-x: auto;
+			scrollbar-width: none;
+
+			&::-webkit-scrollbar {
+				display: none;
+			}
 		}
 	}
 }
