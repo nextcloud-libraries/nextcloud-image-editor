@@ -210,6 +210,7 @@ async function onRevert() {
 
 			<NcButton
 				data-test="zoom-out"
+				class="editor-topbar__zoom-step"
 				:aria-label="labels.zoomOut"
 				:title="labels.zoomOut"
 				:disabled="!loaded || context.viewZoom.value <= MIN_ZOOM"
@@ -231,6 +232,7 @@ async function onRevert() {
 			</button>
 			<NcButton
 				data-test="zoom-in"
+				class="editor-topbar__zoom-step"
 				:aria-label="labels.zoomIn"
 				:title="labels.zoomIn"
 				:disabled="!loaded || context.viewZoom.value >= MAX_ZOOM"
@@ -324,6 +326,9 @@ async function onRevert() {
 		var(--header-height, 50px),
 		calc(var(--default-clickable-area) + var(--default-grid-baseline) * 2)
 	);
+	// Between the history pill and the save button, which sit against
+	// each other once the bar runs out of free space
+	gap: calc(var(--default-grid-baseline) * 2);
 	padding-block: 0;
 	padding-inline: calc(var(--default-grid-baseline) * 6) var(--editor-header-margin);
 
@@ -388,6 +393,13 @@ async function onRevert() {
 
 		&__zoom {
 			min-width: 40px;
+		}
+
+		// Seven controls, a save button and a close button do not fit a
+		// phone: the pinch is the zoom there, and the readout stays as the
+		// way back to the fitted view
+		&__zoom-step {
+			display: none !important;
 		}
 	}
 }

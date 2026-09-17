@@ -189,3 +189,27 @@ test('the top bar keeps a phone-sized pointer target off the top edge', async ({
 	expect(save.y - bar.y).toBeGreaterThanOrEqual(2)
 	expect(bar.y + bar.height - (save.y + save.height)).toBeGreaterThanOrEqual(2)
 })
+
+test('the top bar fits a phone, with the pill clear of the save button', async ({ page }) => {
+	await waitLoaded(page)
+	await page.setViewportSize({ width: 390, height: 640 })
+	await page.addStyleTag({ content: ':root { --default-clickable-area: 44px; --header-height: 44px; }' })
+
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const pill = (await page.locator('.editor-topbar__history').boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
+
+	// Everything inside the bar: the close button used to be cut off by
+	// the edge of the editor
+	expect(pill.x).toBeGreaterThanOrEqual(bar.x)
+	expect(close.x + close.width).toBeLessThanOrEqual(bar.x + bar.width + 0.5)
+
+	// And the pill does not touch the save button
+	expect(save.x - (pill.x + pill.width)).toBeGreaterThanOrEqual(6)
+
+	// The zoom steps are what makes room: a pinch zooms on a phone, and
+	// the readout stays as the way back to the fitted view
+	await expect(page.locator('[data-test="zoom-in"]')).toBeHidden()
+	await expect(page.locator('[data-test="zoom-reset"]')).toBeVisible()
+})
