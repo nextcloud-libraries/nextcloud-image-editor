@@ -338,27 +338,37 @@ output {
 }
 
 /* Sits in the corner the editor leaves empty, and never over its
-   chrome: the demo is the editor, not the page around it */
+   chrome: the demo is the editor, not the page around it. It stands on
+   the same left edge as the tool rail, 4 baselines in, and wears the
+   same glass: the editor's tokens are scoped to its own root, so the
+   values are repeated here rather than inherited. */
 .playground__shuffle {
 	position: fixed;
-	inset-block-end: 12px;
-	inset-inline-start: 12px;
+	inset-block-end: 16px;
+	inset-inline-start: 16px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	inline-size: 44px;
 	block-size: 44px;
 	padding: 0;
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	border-radius: 12px;
-	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(242, 242, 247, 0.1);
+	border-radius: 20px;
+	background: rgba(20, 20, 22, 0.6);
+	backdrop-filter: blur(24px) saturate(1.4);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 	color: #f2f2f7;
 	cursor: pointer;
 	z-index: 10;
 }
 
 .playground__shuffle:hover {
-	background: rgba(0, 0, 0, 0.65);
+	background: rgba(36, 36, 40, 0.72);
+}
+
+.playground__shuffle:focus-visible {
+	outline: 2px solid #f2f2f7;
+	outline-offset: 2px;
 }
 
 output[data-test='saved'] { inset-block-end: 72px; }
