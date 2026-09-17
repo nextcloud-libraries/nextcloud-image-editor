@@ -145,17 +145,6 @@ async function onRevert() {
 		<span class="editor-topbar__spacer" />
 
 		<div class="editor-topbar__history">
-			<NcButton
-				data-test="undo"
-				:aria-label="labels.undo"
-				:title="labels.undo"
-				:disabled="!loaded || !context.canUndo.value"
-				variant="tertiary"
-				@click="context.undo()">
-				<template #icon>
-					<Undo :size="20" />
-				</template>
-			</NcButton>
 			<!-- `forceMenu` keeps the trigger a trigger even when the original
 			     is the only entry. -->
 			<NcActions
@@ -197,6 +186,19 @@ async function onRevert() {
 					{{ step.label }}
 				</NcActionButton>
 			</NcActions>
+			<!-- Undo and redo side by side, the pair they are, with the
+			     list of steps beside them rather than between them -->
+			<NcButton
+				data-test="undo"
+				:aria-label="labels.undo"
+				:title="labels.undo"
+				:disabled="!loaded || !context.canUndo.value"
+				variant="tertiary"
+				@click="context.undo()">
+				<template #icon>
+					<Undo :size="20" />
+				</template>
+			</NcButton>
 			<NcButton
 				:aria-label="labels.redo"
 				:title="labels.redo"

@@ -2,6 +2,8 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { Locator } from '@playwright/test'
+
 import { expect, test } from '@playwright/test'
 import { cropAnchor, expectColor, imageView, readState, redo, save, setInputValue, slowDrag, undo, waitLoaded } from './utils.ts'
 
@@ -369,4 +371,20 @@ test('the history menu leads with revert and shows what each step was', async ({
 	for (const index of [0, 1, 2]) {
 		await expect(page.locator(`[data-test="history-step-${index}"] .material-design-icon`).first()).toBeVisible()
 	}
+})
+
+test('the history sits beside the undo and redo pair, not between them', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+	await expect.poll(async () => (await readState(page)).rotation).toBe(90)
+
+	const left = async (locator: Locator) => (await locator.boundingBox())!.x
+	const history = await left(page.locator('[data-test="history"] button'))
+	const undo = await left(page.locator('[data-test="undo"]'))
+	const redo = await left(page.getByRole('button', { name: 'Redo', exact: true }))
+
+	// Splitting the pair with the list of steps put two buttons that
+	// belong together at either end of it
+	expect(history).toBeLessThan(undo)
+	expect(undo).toBeLessThan(redo)
 })
