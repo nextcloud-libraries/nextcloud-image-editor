@@ -363,7 +363,9 @@ function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
 	cropOverlay = null
 	attached = { tool, oriented, crop }
 
-	if (tool === 'select') {
+	// Every tool that draws on the picture selects on it too: a click
+	// picks up what is already there, and only a drag draws over it
+	if (tool !== 'crop' && tool !== 'adjust') {
 		selection = attachSelection({
 			stage,
 			getState: () => context.state.value,
@@ -376,8 +378,11 @@ function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
 			onSelectionRect: (rect) => {
 				selectionBox.value = rect
 			},
+			dragMode: tool === 'select' ? 'any' : 'selected',
 		})
-	} else if (tool === 'crop') {
+	}
+
+	if (tool === 'crop') {
 		cropOverlay = attachCropOverlay({
 			stage,
 			oriented: { width: oriented.width, height: oriented.height },
@@ -386,13 +391,14 @@ function syncTools(oriented: HTMLCanvasElement, options: SceneOptions): void {
 			initial: crop,
 		})
 		applyCropAspect()
-	} else if (tool !== 'adjust') {
+	} else if (tool !== 'adjust' && tool !== 'select') {
 		detachTool = attachPointerTools(tool, {
 			stage,
 			contentGroup: () => scene?.contentGroup ?? null,
 			oriented: () => orientedCanvas.value,
 			getState: () => context.state.value,
 			commit: context.commit,
+			selectedId: () => context.selectedId.value,
 			// Read the live view: the tool outlives the transform it was
 			// attached under
 			toScene: (pointer) => toImageCoords(

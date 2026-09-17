@@ -5,7 +5,7 @@
 import type Konva from 'konva'
 
 import { expect, test } from '@playwright/test'
-import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
+import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitForHit, waitLoaded } from './utils.ts'
 
 test('freehand drawing paints a stroke', async ({ page }) => {
 	await waitLoaded(page)
@@ -917,4 +917,67 @@ test('a thin line can be selected without hitting it exactly', async ({ page }) 
 	// Far from the line is still empty space
 	await page.mouse.click(corner.x + 100, corner.y + 95)
 	await expect(page.locator('[data-test="floating-toolbar"]')).toBeHidden()
+})
+
+test('clicking an annotation selects it instead of adding another', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Text', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await page.mouse.click(corner.x + 40, corner.y + 40)
+	const overlay = page.locator('[data-test="text-overlay"]')
+	await expect(overlay).toBeVisible()
+	await overlay.fill('caption')
+	await overlay.press('Enter')
+	await expect.poll(async () => (await readState(page)).annotations.length).toBe(1)
+
+	// Going back to a caption to nudge it used to place a second one
+	await page.mouse.click(corner.x + 44, corner.y + 42)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
+	expect((await readState(page)).annotations).toHaveLength(1)
+
+	// Empty space still places one
+	await page.mouse.click(corner.x + 150, corner.y + 75)
+	await expect(overlay).toBeVisible()
+	await overlay.fill('second')
+	await overlay.press('Enter')
+	await expect.poll(async () => (await readState(page)).annotations.length).toBe(2)
+})
+
+test('a drag draws over an annotation instead of picking it up', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 90, y: corner.y + 60 })
+	expect((await readState(page)).annotations).toHaveLength(1)
+
+	// Starting on top of it still draws: only a click is a selection
+	await drag(page, { x: corner.x + 40, y: corner.y + 35 }, { x: corner.x + 160, y: corner.y + 85 })
+	expect((await readState(page)).annotations).toHaveLength(2)
+})
+
+test('the selected annotation is moved by a drag, not drawn over', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Annotate' }).click()
+	await page.getByRole('button', { name: 'Rectangle', exact: true }).click()
+
+	const corner = await imageTopLeft(page)
+	await drag(page, { x: corner.x + 20, y: corner.y + 20 }, { x: corner.x + 120, y: corner.y + 70 })
+	await expect.poll(async () => (await readState(page)).annotations.length).toBe(1)
+	// The drawing is committed one frame before Konva's hit canvas
+	// catches up with it, and a click lands on that canvas
+	await waitForHit(page, { x: corner.x + 70, y: corner.y + 20 })
+
+	await page.mouse.click(corner.x + 70, corner.y + 20)
+	await expect(page.locator('[data-test="floating-toolbar"]')).toBeVisible()
+
+	const before = (await readState(page)).annotations[0].rect
+	await drag(page, { x: corner.x + 70, y: corner.y + 20 }, { x: corner.x + 100, y: corner.y + 35 })
+
+	const after = await readState(page)
+	expect(after.annotations).toHaveLength(1)
+	expect(after.annotations[0].rect.x).not.toBe(before.x)
 })

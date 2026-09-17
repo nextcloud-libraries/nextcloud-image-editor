@@ -26,6 +26,12 @@ export interface SelectionDeps {
 	 * @param rect.height bound height
 	 */
 	onSelectionRect(rect: { x: number, y: number, width: number, height: number } | null): void
+	/**
+	 * Which annotations a drag may pick up. The select tool hands them
+	 * all over; under a drawing tool only the selected one moves, so a
+	 * drag across the others still draws.
+	 */
+	dragMode?: 'any' | 'selected'
 }
 
 /**
@@ -182,7 +188,9 @@ export function attachSelection(deps: SelectionDeps): Selection {
 	}
 
 	const sync = () => {
-		deps.stage.find('.annotation').forEach((node) => node.draggable(true))
+		const selected = deps.getSelectedId()
+		const dragAny = (deps.dragMode ?? 'any') === 'any'
+		deps.stage.find('.annotation').forEach((node) => node.draggable(dragAny || node.id() === selected))
 		syncTransformer()
 	}
 	sync()
@@ -206,7 +214,10 @@ export function attachSelection(deps: SelectionDeps): Selection {
 		} else if (event.target === deps.stage || event.target instanceof Konva.Image) {
 			deps.select(null)
 		}
-		syncTransformer()
+		// Which node a drag may move follows the selection under a
+		// drawing tool, so the whole binding is refreshed, not only the
+		// transformer
+		sync()
 	}
 
 	const onDblClick = (event: Konva.KonvaEventObject<MouseEvent>) => {

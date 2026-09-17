@@ -675,6 +675,12 @@ export function createScene(stage: Konva.Stage): Scene {
 		// Stacking order: image at the bottom, annotations in state order
 		imageNode.zIndex(0)
 		state.annotations.forEach((annotation, index) => built.get(annotation.id)!.node.zIndex(index + 1))
+
+		// The scene is reconciled by hand, so the draw is asked for by
+		// hand: Konva's automatic one does not always reach the hit
+		// canvas here, which leaves a freshly drawn annotation visible
+		// but unclickable until something else redraws the layer
+		layer.batchDraw()
 	}
 
 	return {
