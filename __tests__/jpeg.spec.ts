@@ -257,6 +257,114 @@ function withThumbnail(marker: string): Uint8Array {
 	])
 }
 
+/**
+ * A JPEG carrying a colour profile and an Exif block whose ColorSpace
+ * tag says the pixels are something other than sRGB, which is what a
+ * wide-gamut camera writes.
+ *
+ * @param colorSpace the value of the Exif ColorSpace tag: 1 is sRGB,
+ * 0xFFFF is what a file with its own profile says instead
+ */
+function wideGamut(colorSpace = 0xFFFF): Uint8Array {
+	const tiff: number[] = []
+	const u16 = (value: number) => tiff.push(value & 0xFF, (value >> 8) & 0xFF)
+	const u32 = (value: number) => tiff.push(
+		value & 0xFF,
+		(value >> 8) & 0xFF,
+		(value >> 16) & 0xFF,
+		(value >> 24) & 0xFF,
+	)
+
+	tiff.push(0x49, 0x49)
+	u16(42)
+	u32(8)
+	// IFD0 points at the Exif directory, which is where ColorSpace lives
+	u16(1)
+	pushEntry(tiff, 0x8769, 4, 1, 26)
+	u32(0)
+	// The Exif directory: the colour space and the recorded pixel size
+	u16(1)
+	pushEntry(tiff, 0xA001, 3, 1, colorSpace)
+	u32(0)
+
+	const exif = [...[...'Exif\0\0'].map((c) => c.charCodeAt(0)), ...tiff]
+	const exifLength = exif.length + 2
+	const profile = [...[...'ICC_PROFILE\0'].map((c) => c.charCodeAt(0)), 1, 1, 0, 0, 0, 0]
+	const profileLength = profile.length + 2
+
+	return new Uint8Array([
+		0xFF,
+		0xD8,
+		0xFF,
+		0xE1,
+		(exifLength >> 8) & 0xFF,
+		exifLength & 0xFF,
+		...exif,
+		0xFF,
+		0xE2,
+		(profileLength >> 8) & 0xFF,
+		profileLength & 0xFF,
+		...profile,
+		0xFF,
+		0xDA,
+		0x00,
+		0x08,
+		1,
+		1,
+		0,
+		0,
+		0x3F,
+		0x00,
+		0xAA,
+		0xBB,
+		0xFF,
+		0xD9,
+	])
+}
+
+/**
+ * The Exif ColorSpace tag of a JPEG, or undefined where it has none.
+ *
+ * @param bytes the file to read
+ */
+function colorSpaceTag(bytes: Uint8Array): number | undefined {
+	for (let at = 0; at + 1 < bytes.length; at++) {
+		// The tag, its SHORT type and its count, little endian
+		if (bytes[at] === 0x01 && bytes[at + 1] === 0xA0 && bytes[at + 2] === 3 && bytes[at + 3] === 0) {
+			return bytes[at + 8]! | (bytes[at + 9]! << 8)
+		}
+	}
+	return undefined
+}
+
+describe('the colour profile', () => {
+	it('is carried when the pixels are still in the space it describes', () => {
+		const segments = readMetadataSegments(wideGamut())
+		expect(segments.some((segment) => head(segment).startsWith('ICC_PROFILE'))).toBe(true)
+	})
+
+	it('is left behind when asked, because the pixels are no longer in it', () => {
+		const segments = readMetadataSegments(wideGamut(), { icc: false })
+		// The rest of what the camera recorded still comes across
+		expect(segments.some((segment) => head(segment).startsWith('ICC_PROFILE'))).toBe(false)
+		expect(segments.some((segment) => head(segment).startsWith('Exif'))).toBe(true)
+	})
+
+	it('leaves the Exif colour space alone while the profile rides along', () => {
+		const source = wideGamut()
+		const out = withMetadata(encoded(), readMetadataSegments(source), { width: 4, height: 2 })
+		expect(colorSpaceTag(out)).toBe(0xFFFF)
+	})
+
+	it('says sRGB once the profile is gone, which is what the pixels are', () => {
+		const source = wideGamut()
+		const out = withMetadata(encoded(), readMetadataSegments(source, { icc: false }), { width: 4, height: 2 })
+		// Untagged bytes are read as sRGB; the tag would otherwise keep
+		// claiming a space the file no longer carries a profile for
+		expect(colorSpaceTag(out)).toBe(1)
+	})
+})
+
 describe('the thumbnail the camera embedded', () => {
 	const exported = () => withMetadata(
 		encoded(),

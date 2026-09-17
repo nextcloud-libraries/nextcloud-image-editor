@@ -24,6 +24,7 @@ const IPTC_HEADER = 'Photoshop 3.0\0'
 
 /** TIFF tags this module rewrites rather than copies */
 const TAG_ORIENTATION = 0x0112
+const TAG_COLOR_SPACE = 0xA001
 const TAG_EXIF_IFD = 0x8769
 const TAG_PIXEL_WIDTH = 0xA002
 const TAG_PIXEL_HEIGHT = 0xA003
@@ -149,8 +150,13 @@ function isMetadata(marker: number, head: string): boolean {
  * are the editor's, not the source's.
  *
  * @param bytes the source JPEG
+ * @param options what to carry
+ * @param options.icc whether to carry the colour profile, which belongs
+ * to the export only while its pixels are still in the space that
+ * profile describes
  */
-export function readMetadataSegments(bytes: Uint8Array): Uint8Array[] {
+export function readMetadataSegments(bytes: Uint8Array, options: { icc?: boolean } = {}): Uint8Array[] {
+	const { icc = true } = options
 	if (bytes[0] !== 0xFF || bytes[1] !== SOI) {
 		return []
 	}
@@ -164,7 +170,8 @@ export function readMetadataSegments(bytes: Uint8Array): Uint8Array[] {
 			break
 		}
 		const length = (bytes[at + 2]! << 8) | bytes[at + 3]!
-		if (isMetadata(marker, ascii(bytes, at + 4, 30))) {
+		const head = ascii(bytes, at + 4, 30)
+		if (isMetadata(marker, head) && (icc || !head.startsWith(ICC_HEADER))) {
 			segments.push(bytes.subarray(at, at + 2 + length))
 		}
 		at += 2 + length
@@ -319,8 +326,10 @@ function eraseThumbnail(
  * @param size the size of the exported image
  * @param size.width the exported width in pixels
  * @param size.height the exported height in pixels
+ * @param srgb whether the pixels are sRGB, which is what they are
+ * whenever no profile came with them
  */
-function rewriteExif(segment: Uint8Array, size: { width: number, height: number }): Uint8Array {
+function rewriteExif(segment: Uint8Array, size: { width: number, height: number }, srgb: boolean): Uint8Array {
 	const out = new Uint8Array(segment)
 	// marker (2) + length (2) + "Exif\0\0" (6)
 	const tiff = 10
@@ -410,6 +419,13 @@ function rewriteExif(segment: Uint8Array, size: { width: number, height: number 
 	if (exifIfd !== 0) {
 		eachEntry(exifIfd, (entry, tag) => {
 			const type = u16(entry + 2)
+			// A file that says nothing about its colours is read as sRGB,
+			// and with the profile gone that is what these are. Left alone
+			// it would still claim whatever the camera captured in.
+			if (tag === TAG_COLOR_SPACE && srgb && type === 3) {
+				setU16(entry + 8, 1)
+				return
+			}
 			const value = tag === TAG_PIXEL_WIDTH ? size.width : tag === TAG_PIXEL_HEIGHT ? size.height : null
 			if (value === null) {
 				return
@@ -468,8 +484,12 @@ export function withMetadata(
 		at += 2 + length
 	}
 
+	// No profile among them means the pixels are sRGB: either the source
+	// carried none, or it carried one the browser has already converted
+	// away from
+	const srgb = !segments.some((segment) => ascii(segment, 4, ICC_HEADER.length) === ICC_HEADER)
 	const carried = segments.map((segment) => (
-		ascii(segment, 4, 6) === EXIF_HEADER ? rewriteExif(segment, size) : segment
+		ascii(segment, 4, 6) === EXIF_HEADER ? rewriteExif(segment, size, srgb) : segment
 	))
 	const total = carried.reduce((sum, segment) => sum + segment.length, 0)
 

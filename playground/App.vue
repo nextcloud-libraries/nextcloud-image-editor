@@ -159,8 +159,9 @@ const restored: EditorState | undefined
 
 // ?src=test loads the deterministic fixture the Playwright suite probes,
 // ?src=metadata a small photo carrying EXIF, GPS and XMP, ?src=quality
-// a JPEG written at a known setting, ?src=noise a large grainy one,
-// ?src=broken an undecodable image; default is a real demo photo
+// a JPEG written at a known setting, ?src=wide-gamut one tagged Display
+// P3, ?src=noise a large grainy one, ?src=broken an undecodable image;
+// default is a real demo photo
 const src = shallowRef<Blob | string | null>(null)
 /** Which of the demo photos is on screen, for the shuffle button */
 const photo = shallowRef(0)
@@ -186,6 +187,15 @@ if (requested === 'broken') {
 		.then((blob) => {
 			sourceSize.value = blob.size
 			// The editor only has metadata to carry when it is handed bytes
+			src.value = new Blob([blob], { type: 'image/jpeg' })
+		})
+} else if (requested === 'wide-gamut') {
+	fetch('wide-gamut.jpg')
+		.then((response) => response.blob())
+		.then((blob) => {
+			sourceSize.value = blob.size
+			// Tagged Display P3: what the editor gives back has to look
+			// like what it was handed, whatever the browser does on decode
 			src.value = new Blob([blob], { type: 'image/jpeg' })
 		})
 } else if (requested === 'quality') {
@@ -263,8 +273,26 @@ async function onSave(result: ExportResult) {
 	for (const byte of bytes) {
 		text += String.fromCharCode(byte)
 	}
+	// The same pixel read from the source, decoded the way this browser
+	// decodes it. An edit that changed nothing about the colours leaves
+	// the two the same, whether or not the browser colour-manages.
+	const source = src.value
+	let sourceCenter: number[] = []
+	if (source instanceof Blob) {
+		const sourceBitmap = await createImageBitmap(source)
+		const sourceCanvas = document.createElement('canvas')
+		sourceCanvas.width = sourceBitmap.width
+		sourceCanvas.height = sourceBitmap.height
+		const sourceContext = sourceCanvas.getContext('2d')!
+		sourceContext.drawImage(sourceBitmap, 0, 0)
+		sourceCenter = Array.from(sourceContext
+			.getImageData(Math.floor(sourceBitmap.width / 2), Math.floor(sourceBitmap.height / 2), 1, 1)
+			.data)
+	}
+
 	saved.value = JSON.stringify({
 		size: result.blob.size,
+		sourceCenter,
 		// What the export was written at, read back out of its own
 		// quantization table
 		quality: estimateJpegQuality(bytes),

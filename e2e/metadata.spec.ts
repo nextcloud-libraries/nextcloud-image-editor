@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
-import { save, setInputValue } from './utils.ts'
+import { expectColor, save, setInputValue, waitLoaded } from './utils.ts'
 
 /**
  * Open the fixture that carries EXIF, GPS and XMP, handed to the editor
@@ -48,4 +48,20 @@ test('an untouched photo comes back exactly as it went in', async ({ page }) => 
 	// The pristine path hands the source back whole rather than re-encoding
 	expect(result.exif).toBe(true)
 	expect(result.taken).toBe(true)
+})
+
+test('editing a wide-gamut photo does not shift its colours', async ({ page }) => {
+	await waitLoaded(page, 'wide-gamut')
+	await page.getByRole('button', { name: 'Rotate right' }).click()
+
+	// The source is tagged Display P3. A browser that decodes it into sRGB
+	// leaves the canvas holding sRGB numbers, and carrying the profile over
+	// them used to export the photo a visible step more saturated: this
+	// centre pixel came back 235,51,37 where the source reads 217,69,51.
+	// A browser that hands the samples over untouched needs the profile
+	// kept for the same reason. Comparing against the source as this
+	// browser reads it covers both.
+	const result = await save(page)
+	expect(result.sourceCenter.length).toBe(4)
+	expectColor(result.center, result.sourceCenter.slice(0, 3) as [number, number, number], 6)
 })
