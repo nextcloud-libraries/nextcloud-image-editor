@@ -201,15 +201,19 @@ test('the top bar fits a phone, with the pill clear of the save button', async (
 	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
 
 	// Everything inside the bar: the close button used to be cut off by
-	// the edge of the editor
+	// the edge of the editor, and the pill starts at the leading edge
+	// rather than centred, which is where the width comes from
 	expect(pill.x).toBeGreaterThanOrEqual(bar.x)
+	expect(pill.x - bar.x).toBeLessThanOrEqual(16)
 	expect(close.x + close.width).toBeLessThanOrEqual(bar.x + bar.width + 0.5)
 
 	// And the pill does not touch the save button
 	expect(save.x - (pill.x + pill.width)).toBeGreaterThanOrEqual(6)
 
-	// The zoom steps are what makes room: a pinch zooms on a phone, and
-	// the readout stays as the way back to the fitted view
-	await expect(page.locator('[data-test="zoom-in"]')).toBeHidden()
+	// Nothing is dropped to make the room: the pill gives up the space
+	// around its controls, and scrolls sideways on narrower screens
+	for (const control of ['Undo', 'Edit history', 'Redo', 'Zoom out', 'Zoom in']) {
+		await expect(page.getByRole('button', { name: control, exact: true })).toBeVisible()
+	}
 	await expect(page.locator('[data-test="zoom-reset"]')).toBeVisible()
 })

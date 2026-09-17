@@ -210,7 +210,6 @@ async function onRevert() {
 
 			<NcButton
 				data-test="zoom-out"
-				class="editor-topbar__zoom-step"
 				:aria-label="labels.zoomOut"
 				:title="labels.zoomOut"
 				:disabled="!loaded || context.viewZoom.value <= MIN_ZOOM"
@@ -232,7 +231,6 @@ async function onRevert() {
 			</button>
 			<NcButton
 				data-test="zoom-in"
-				class="editor-topbar__zoom-step"
 				:aria-label="labels.zoomIn"
 				:title="labels.zoomIn"
 				:disabled="!loaded || context.viewZoom.value >= MAX_ZOOM"
@@ -392,14 +390,33 @@ async function onRevert() {
 		padding-inline: calc(var(--default-grid-baseline) * 2) var(--editor-header-margin);
 
 		&__zoom {
-			min-width: 40px;
+			min-width: 34px;
 		}
 
-		// Seven controls, a save button and a close button do not fit a
-		// phone: the pinch is the zoom there, and the readout stays as the
-		// way back to the fitted view
-		&__zoom-step {
-			display: none !important;
+		// Centring the pill wastes the width a phone does not have: it
+		// starts at the leading edge here, and the actions keep the other
+		&__spacer {
+			display: none;
+		}
+
+		&__actions {
+			flex: none;
+		}
+
+		// Seven controls, a save button and a close button are more than
+		// a phone is wide. The pill gives up the space between and around
+		// them first, and scrolls sideways on the narrowest screens
+		// rather than dropping a control or letting one fall off the edge.
+		&__history {
+			min-width: 0;
+			gap: 0;
+			padding: 0;
+			overflow-x: auto;
+			scrollbar-width: none;
+
+			&::-webkit-scrollbar {
+				display: none;
+			}
 		}
 	}
 }
