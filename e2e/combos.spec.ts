@@ -5,23 +5,40 @@
 import { expect, test } from '@playwright/test'
 import { drag, expectColor, imageTopLeft, readState, save, setInputValue, undo, waitLoaded } from './utils.ts'
 
-test('every filter preset changes the exported pixels', async ({ page }) => {
-	await waitLoaded(page)
-	await page.getByRole('button', { name: 'Filter', exact: true }).click()
+/**
+ * Every preset the strip offers, solarize aside: it only inverts luma
+ * above 128 and this fixture sits entirely below the threshold, so it
+ * is covered by a test of its own.
+ */
+const PRESETS = ['pop', 'golden', 'coast', 'cinema', 'berry', 'mist', 'warm', 'cool', 'fade', 'grayscale', 'noir', 'luna', 'sepia', 'invert', 'posterize']
 
-	const baseline = await save(page)
-	// Solarize is covered separately: it only inverts luma above 128 and
-	// this fixture sits entirely below the threshold
-	for (const preset of ['pop', 'golden', 'coast', 'cinema', 'berry', 'mist', 'warm', 'cool', 'fade', 'grayscale', 'noir', 'luna', 'sepia', 'invert', 'posterize']) {
+// One test per preset rather than a loop inside one: seventeen saves in a
+// single test ran to 11s here and timed out at 30s on a shared CI runner,
+// three attempts in a row. Each of these makes two.
+for (const preset of PRESETS) {
+	test(`the ${preset} preset changes the exported pixels`, async ({ page }) => {
+		await waitLoaded(page)
+		await page.getByRole('button', { name: 'Filter', exact: true }).click()
+		const baseline = await save(page)
+
 		await page.locator(`[data-test="preset-${preset}"]`).click()
 		expect((await readState(page)).preset).toBe(preset)
 
 		const result = await save(page)
-		const moved = ['topLeft', 'topRight', 'center'].some((probe) => (result as never as Record<string, number[]>)[probe]!.some((channel, i) => Math.abs(channel - (baseline as never as Record<string, number[]>)[probe]![i]!) > 4))
+		const probes = ['topLeft', 'topRight', 'center'] as const
+		const moved = probes.some((probe) => result[probe].some((channel, index) => Math.abs(channel - baseline[probe][index]!) > 4))
 		expect(moved, `${preset} left the pixels untouched`).toBe(true)
-	}
+	})
+}
 
+test('picking no preset puts the original pixels back', async ({ page }) => {
+	await waitLoaded(page)
+	await page.getByRole('button', { name: 'Filter', exact: true }).click()
+
+	await page.locator('[data-test="preset-sepia"]').click()
+	await save(page)
 	await page.locator('[data-test="preset-none"]').click()
+
 	const back = await save(page)
 	expectColor(back.topLeft, [200, 0, 0])
 })
