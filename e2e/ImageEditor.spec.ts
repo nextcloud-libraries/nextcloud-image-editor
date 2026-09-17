@@ -315,3 +315,36 @@ test('the save button reports progress until the host is done', async ({ page })
 	await expect(spinner).toBeHidden({ timeout: 5000 })
 	await expect(button).toBeEnabled()
 })
+
+test('the loading spinner turns', async ({ page }) => {
+	// Hold the photo back so the spinner stays on screen: the save
+	// spinner is gone in 400ms, which is a race on a slow machine. The
+	// demo page hands the editor a URL, so the wait is the editor's own
+	await page.route('**/*.jpg', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 3000))
+		await route.continue()
+	})
+	await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+	// NcLoadingIcon animates on a `rotate` keyframe that the server
+	// stylesheet owns and @nextcloud/vue does not ship, so the icon was
+	// drawn and then held still. An animation naming a keyframe nobody
+	// defined still reports that name, so the name is not the test: the
+	// keyframe has to be there, and the icon has to move.
+	const svg = page.locator('.image-editor__loading svg')
+	await expect(svg).toBeVisible()
+	const animation = await svg.evaluate((element) => {
+		const name = getComputedStyle(element).animationName
+		const defined = [...document.styleSheets].some((sheet) => (
+			[...sheet.cssRules].some((rule) => rule instanceof CSSKeyframesRule && rule.name === name)
+		))
+		return { name, defined }
+	})
+	expect(animation.name).not.toBe('none')
+	expect(animation.defined).toBe(true)
+
+	const first = await svg.evaluate((element) => getComputedStyle(element).transform)
+	await expect
+		.poll(async () => svg.evaluate((element) => getComputedStyle(element).transform))
+		.not.toBe(first)
+})
