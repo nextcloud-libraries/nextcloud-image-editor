@@ -2,6 +2,9 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { SourceImage } from './image.ts'
+
+import { imageSize } from './image.ts'
 
 /**
  * The Nextcloud primary color of the active theme, for canvas chrome
@@ -18,10 +21,9 @@ export function primaryColor(): string {
  *
  * @param canvas the image to sample
  */
-export function ambientBackdrop(canvas: HTMLCanvasElement | HTMLImageElement): string {
+export function ambientBackdrop(canvas: HTMLCanvasElement | SourceImage): string {
 	const sample = document.createElement('canvas')
-	const width = canvas instanceof HTMLImageElement ? canvas.naturalWidth : canvas.width
-	const height = canvas instanceof HTMLImageElement ? canvas.naturalHeight : canvas.height
+	const { width, height } = imageSize(canvas)
 	// An SVG without intrinsic size decodes with zero dimensions
 	if (width === 0 || height === 0) {
 		return ''

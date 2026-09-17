@@ -2,8 +2,18 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { ImageWorkerClient } from '../lib/utils/image-worker.ts'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { levelFor } from '../lib/editor/mipmap.ts'
+import { levelFor, prepareLevels } from '../lib/editor/mipmap.ts'
+import { imageWorker } from '../lib/utils/image-worker.ts'
+
+vi.mock('../lib/utils/image-worker.ts', () => ({ imageWorker: vi.fn(() => null) }))
+
+/** The worker the next prebuild will find, or null for a browser without one */
+function withWorker(client: Partial<ImageWorkerClient> | null): void {
+	vi.mocked(imageWorker).mockReturnValue(client as ImageWorkerClient | null)
+}
 
 /** Every drawImage call made, as (source, target) canvas pairs */
 const draws: { from: HTMLCanvasElement, to: HTMLCanvasElement }[] = []
@@ -82,5 +92,48 @@ describe('levelFor', () => {
 		levelFor(canvas(4000, 3000), 0.2)
 		levelFor(canvas(4000, 3000), 0.2)
 		expect(draws).toHaveLength(4)
+	})
+})
+
+describe('prepareLevels', () => {
+	it('builds the levels in the worker, so nothing is halved here', async () => {
+		const source = canvas(2000, 1500)
+		const levels = [
+			{ width: 1000, height: 750 } as ImageBitmap,
+			{ width: 500, height: 375 } as ImageBitmap,
+			{ width: 250, height: 188 } as ImageBitmap,
+			{ width: 125, height: 94 } as ImageBitmap,
+		]
+		const bitmap = { width: 2000, height: 1500 } as ImageBitmap
+		vi.stubGlobal('createImageBitmap', vi.fn(async () => bitmap))
+		withWorker({ levels: vi.fn(async () => levels) })
+
+		await prepareLevels(source)
+		expect(levelFor(source, 0.25)).toBe(levels[1])
+		// Halving on the main thread is what this is here to avoid
+		expect(draws).toHaveLength(0)
+		vi.unstubAllGlobals()
+	})
+
+	it('leaves the main thread path alone where there is no worker', async () => {
+		const source = canvas(2000, 1500)
+		withWorker(null)
+
+		await prepareLevels(source)
+		expect(levelFor(source, 0.25)).not.toBe(source)
+		expect(draws).toHaveLength(2)
+	})
+
+	it('says nothing and changes nothing when the worker fails', async () => {
+		const source = canvas(2000, 1500)
+		vi.stubGlobal('createImageBitmap', vi.fn(async () => {
+			throw new Error('out of memory')
+		}))
+		withWorker({ levels: vi.fn() })
+
+		await expect(prepareLevels(source)).resolves.toBeUndefined()
+		// And the levels are still there to be had, the slow way
+		expect(levelFor(source, 0.25)).not.toBe(source)
+		vi.unstubAllGlobals()
 	})
 })

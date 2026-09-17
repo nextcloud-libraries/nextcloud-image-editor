@@ -11,6 +11,7 @@ import type { Selection } from '../editor/selection.ts'
 import type { EditorState, Rect, Size } from '../editor/state.ts'
 import type { ViewFit } from '../editor/view.ts'
 import type { ExportOptions, ExportResult } from '../types/export.ts'
+import type { SourceImage } from '../utils/image.ts'
 
 import { showConfirmation } from '@nextcloud/dialogs'
 import Konva from 'konva'
@@ -34,6 +35,7 @@ import { canvasScaleFor } from '../editor/canvas-limits.ts'
 import { provideEditorCommands } from '../editor/commands.ts'
 import { createEditorContext } from '../editor/context.ts'
 import { attachCropOverlay } from '../editor/cropOverlay.ts'
+import { prepareLevels } from '../editor/mipmap.ts'
 import { orientImage } from '../editor/orient.ts'
 import { createScene, toImageCoords, visibleRect } from '../editor/render.ts'
 import { attachSelection } from '../editor/selection.ts'
@@ -41,7 +43,7 @@ import { clampRect, createInitialState, duplicateAnnotation, flipHorizontal, fli
 import { attachPointerTools } from '../editor/tools.ts'
 import { clampPan, panBounds, VIEW_MARGIN } from '../editor/view.ts'
 import { fitContain } from '../utils/geometry.ts'
-import { loadImage } from '../utils/image.ts'
+import { decodeImage, imageSize } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
 
 const props = defineProps<{
@@ -124,7 +126,7 @@ const loaded = ref(false)
 const errored = ref(false)
 const containerSize = shallowRef<Size>({ width: 0, height: 0 })
 const orientedCanvas = shallowRef<HTMLCanvasElement | null>(null)
-const sourceImage = shallowRef<HTMLImageElement | null>(null)
+const sourceImage = shallowRef<SourceImage | null>(null)
 const { backdrop } = useAmbient(sourceImage)
 const { panArmed } = useWheelControls(container, context)
 const announcement = useAnnouncements(context)
@@ -447,7 +449,13 @@ function refreshOrientedCanvas(): void {
 	if (sourceImage.value === null) {
 		return
 	}
-	orientedCanvas.value = orientImage(sourceImage.value, context.state.value)
+	const oriented = orientImage(sourceImage.value, context.state.value)
+	orientedCanvas.value = oriented
+	// The scene draws from a half-size copy whenever the picture is shown
+	// smaller than it is, and building those blocks the thread for about
+	// as long as the decode did. Nothing waits for it: until the worker
+	// answers, the scene halves what it needs the way it always has.
+	prepareLevels(oriented)
 }
 
 /**
@@ -457,11 +465,11 @@ function refreshOrientedCanvas(): void {
  * @param seed the state the host handed over
  * @param image the decoded source
  */
-function seedState(seed: EditorState, image: HTMLImageElement): EditorState {
+function seedState(seed: EditorState, image: SourceImage): EditorState {
 	if (seed.crop === null) {
 		return seed
 	}
-	const oriented = orientedSize({ width: image.naturalWidth, height: image.naturalHeight }, seed.rotation)
+	const oriented = orientedSize(imageSize(image), seed.rotation)
 	return { ...seed, crop: clampRect(seed.crop, oriented) }
 }
 
@@ -476,11 +484,11 @@ async function load(): Promise<void> {
 	loaded.value = false
 	errored.value = false
 	try {
-		const image = await loadImage(props.src)
+		const image = await decodeImage(props.src)
 		if (attempt !== loadAttempt) {
 			return
 		}
-		const full = { width: image.naturalWidth, height: image.naturalHeight }
+		const full = imageSize(image)
 		const fit = canvasScaleFor(full)
 		if (fit < 1 && !(await confirmDownscale(full, fit))) {
 			emit('cancel')
@@ -493,7 +501,7 @@ async function load(): Promise<void> {
 		sourceImage.value = image
 		context.reset(props.initialState === undefined ? undefined : seedState(props.initialState, image))
 		// Sensible text size relative to the image resolution
-		const minDimension = Math.min(image.naturalWidth, image.naturalHeight)
+		const minDimension = Math.min(full.width, full.height)
 		context.fontSize.value = Math.min(128, Math.max(12, Math.round(minDimension / 15)))
 		pendingTransition = { kind: 'load', context: captureView() }
 		refreshOrientedCanvas()

@@ -2,9 +2,11 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { SourceImage } from '../utils/image.ts'
 import type { EditorState } from './state.ts'
 
 import { coverScale } from '../utils/geometry.ts'
+import { imageSize } from '../utils/image.ts'
 import { canvasScaleFor } from './canvas-limits.ts'
 import { orientedSize } from './state.ts'
 
@@ -23,10 +25,10 @@ import { orientedSize } from './state.ts'
  * @param state the orientation-affecting parts of the edit state
  */
 export function orientImage(
-	image: HTMLImageElement,
+	image: SourceImage,
 	state: Pick<EditorState, 'rotation' | 'flipX' | 'flipY' | 'fineRotation' | 'zoom'>,
 ): HTMLCanvasElement {
-	const natural = { width: image.naturalWidth, height: image.naturalHeight }
+	const natural = imageSize(image)
 	const full = orientedSize(natural, state.rotation)
 	const fit = canvasScaleFor(full)
 	const oriented = {

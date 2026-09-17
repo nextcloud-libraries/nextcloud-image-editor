@@ -2,19 +2,30 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import { imageWorker } from '../utils/image-worker.ts'
+
+/** A copy the scene can draw: either kind carries its own size */
+export type ImageLevel = HTMLCanvasElement | ImageBitmap
 
 /**
- * Half-size copies of a source, built on demand and kept for as long
- * as the source is. Index 0 is half the source, 1 a quarter, and so on.
+ * Half-size copies of a source, kept for as long as the source is.
+ * Index 0 is half the source, 1 a quarter, and so on.
  */
-const halves = new WeakMap<HTMLCanvasElement, HTMLCanvasElement[]>()
+const halves = new WeakMap<HTMLCanvasElement, ImageLevel[]>()
 
 /**
- * Draw a canvas at half its size.
+ * How many levels are built ahead of the first frame. Four covers a
+ * photo shown down to a sixteenth of its size, which is past what any
+ * viewport asks of one.
+ */
+const PREBUILT_LEVELS = 4
+
+/**
+ * Draw a level at half its size.
  *
- * @param source the canvas to shrink
+ * @param source the level to shrink
  */
-function halve(source: HTMLCanvasElement): HTMLCanvasElement {
+function halve(source: ImageLevel): HTMLCanvasElement {
 	const canvas = document.createElement('canvas')
 	canvas.width = Math.max(1, Math.ceil(source.width / 2))
 	canvas.height = Math.max(1, Math.ceil(source.height / 2))
@@ -25,6 +36,37 @@ function halve(source: HTMLCanvasElement): HTMLCanvasElement {
 	context.imageSmoothingQuality = 'high'
 	context.drawImage(source, 0, 0, canvas.width, canvas.height)
 	return canvas
+}
+
+/**
+ * Build the levels for a source in a worker, before anything asks for
+ * them.
+ *
+ * Halving a 12 Mpx photo three times costs about 400ms of blocked main
+ * thread on a phone-class CPU, and it lands on the first frame after an
+ * image is opened, where the editor has nothing to show but a spinner
+ * that cannot turn while the thread is held. In a worker the same work
+ * costs the main thread nothing worth measuring.
+ *
+ * Resolves whether or not it worked: a browser with no worker to give
+ * still gets its levels, one at a time, from {@link levelFor}.
+ *
+ * @param source the oriented image
+ */
+export async function prepareLevels(source: HTMLCanvasElement): Promise<void> {
+	const worker = imageWorker()
+	if (worker === null || halves.has(source)) {
+		return
+	}
+	try {
+		const bitmap = await createImageBitmap(source)
+		const levels = await worker.levels(bitmap, PREBUILT_LEVELS)
+		// A rotation may have replaced the source while the worker ran,
+		// and the cache is keyed by the canvas it was built from
+		halves.set(source, levels)
+	} catch {
+		// Falling back costs time, not correctness
+	}
 }
 
 /**
@@ -43,8 +85,8 @@ function halve(source: HTMLCanvasElement): HTMLCanvasElement {
  * @param source the oriented image
  * @param scale device pixels per source pixel
  */
-export function levelFor(source: HTMLCanvasElement, scale: number): HTMLCanvasElement {
-	let level = source
+export function levelFor(source: HTMLCanvasElement, scale: number): ImageLevel {
+	let level: ImageLevel = source
 	let drawn = scale
 	let depth = 0
 	while (drawn <= 0.5 && (level.width > 1 || level.height > 1)) {

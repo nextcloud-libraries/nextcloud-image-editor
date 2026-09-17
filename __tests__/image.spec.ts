@@ -2,8 +2,18 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import type { ImageWorkerClient } from '../lib/utils/image-worker.ts'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { canvasToBlob, loadImage } from '../lib/utils/image.ts'
+import { imageWorker } from '../lib/utils/image-worker.ts'
+import { canvasToBlob, decodeImage, imageSize, loadImage } from '../lib/utils/image.ts'
+
+vi.mock('../lib/utils/image-worker.ts', () => ({ imageWorker: vi.fn(() => null) }))
+
+/** The worker the next decode will find, or null for a browser without one */
+function withWorker(client: Partial<ImageWorkerClient> | null): void {
+	vi.mocked(imageWorker).mockReturnValue(client as ImageWorkerClient | null)
+}
 
 /** Every fake image built during a test, newest last */
 let built: FakeImage[] = []
@@ -134,5 +144,78 @@ describe('canvasToBlob', () => {
 
 	it('rejects where the encoder produced nothing', async () => {
 		await expect(canvasToBlob(canvas(null))).rejects.toThrow('Canvas could not be encoded')
+	})
+})
+
+describe('imageSize', () => {
+	it('reads an element by its natural size and a bitmap by its own', () => {
+		expect(imageSize({ naturalWidth: 200, naturalHeight: 100 } as HTMLImageElement)).toEqual({ width: 200, height: 100 })
+		expect(imageSize({ width: 64, height: 48 } as ImageBitmap)).toEqual({ width: 64, height: 48 })
+	})
+})
+
+describe('decodeImage', () => {
+	it('decodes bytes in the worker, where there is one', async () => {
+		const bitmap = { width: 200, height: 100 } as ImageBitmap
+		const decode = vi.fn(async () => bitmap)
+		withWorker({ decode })
+		const blob = new Blob(['bytes'], { type: 'image/jpeg' })
+
+		await expect(decodeImage(blob)).resolves.toBe(bitmap)
+		expect(decode).toHaveBeenCalledWith(blob)
+		// Nothing was handed to an <img>, which is where the decode used
+		// to happen on the main thread
+		expect(built).toHaveLength(0)
+	})
+
+	it('fetches a URL before handing the bytes over', async () => {
+		const bitmap = { width: 10, height: 10 } as ImageBitmap
+		const blob = new Blob(['bytes'], { type: 'image/jpeg' })
+		const fetched = vi.fn(async () => ({ ok: true, blob: async () => blob }) as unknown as Response)
+		vi.stubGlobal('fetch', fetched)
+		withWorker({ decode: async () => bitmap })
+
+		await expect(decodeImage('/photo.jpg')).resolves.toBe(bitmap)
+		// Same origin keeps the session cookie, which a Nextcloud URL needs
+		expect(fetched).toHaveBeenCalledWith('/photo.jpg', { credentials: 'same-origin' })
+	})
+
+	it('asks for another origin the way the <img> did', async () => {
+		const blob = new Blob(['bytes'], { type: 'image/jpeg' })
+		const fetched = vi.fn(async () => ({ ok: true, blob: async () => blob }) as unknown as Response)
+		vi.stubGlobal('fetch', fetched)
+		withWorker({ decode: async () => ({ width: 1, height: 1 }) as ImageBitmap })
+
+		await decodeImage('https://elsewhere.example/photo.jpg')
+		expect(fetched).toHaveBeenCalledWith('https://elsewhere.example/photo.jpg', { mode: 'cors', credentials: 'omit' })
+	})
+
+	it('falls back to an element where there is no worker', async () => {
+		withWorker(null)
+		const image = await decodeImage(new Blob(['bytes'], { type: 'image/jpeg' }))
+
+		expect(built).toHaveLength(1)
+		expect(imageSize(image)).toEqual({ width: 200, height: 100 })
+	})
+
+	it('falls back to an element when the worker cannot decode', async () => {
+		withWorker({
+			decode: async () => {
+				throw new Error('unsupported format')
+			},
+		})
+		await decodeImage(new Blob(['bytes'], { type: 'image/heic' }))
+
+		// An <img> knows formats the worker does not, so a refusal there
+		// is not the end of the road
+		expect(built).toHaveLength(1)
+	})
+
+	it('falls back to an element when the bytes cannot be fetched', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false }) as Response))
+		withWorker({ decode: vi.fn() })
+
+		await decodeImage('/missing.jpg')
+		expect(built).toHaveLength(1)
 	})
 })
