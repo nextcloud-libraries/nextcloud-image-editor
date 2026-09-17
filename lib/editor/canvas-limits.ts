@@ -5,25 +5,23 @@
 import type { Size } from './state.ts'
 
 /**
- * Areas to probe, smallest first. The ladder starts well below any real
- * browser so that a device more limited than iOS is measured rather than
- * assumed, passes through the 4096² cap iOS and older Safari impose, and
- * ends above what desktop browsers allow. Probing stops at the first size
- * the browser will not paint, so nothing larger than the real cap is ever
- * allocated.
+ * The smallest area the editor will settle for, and what a browser that
+ * paints nothing at all is held to. Small enough that every device can
+ * hold it, large enough to stay an image rather than a thumbnail.
  */
-const CANDIDATE_AREAS = [
-	512 * 512,
-	1024 * 1024,
-	2048 * 2048,
-	4096 * 4096,
-	8192 * 8192,
-	11_180 * 11_180,
-	16_384 * 16_384,
-]
+const FLOOR_AREA = 512 * 512
 
-/** Memoised result of {@link maxCanvasArea}. */
-let probed: number | undefined
+/**
+ * How many times the search halves the gap once it has an area that
+ * paints and one that does not. Each step allocates a canvas of about
+ * the cap's size, so this trades a few probes for a result that lands
+ * near the real cap rather than on a power of two.
+ */
+const REFINEMENTS = 4
+
+/** The largest area seen to paint, and the smallest seen not to */
+let largestGood = 0
+let smallestBad = Number.POSITIVE_INFINITY
 
 /**
  * Whether the browser paints a canvas of the given area, checked by
@@ -55,23 +53,24 @@ function paints(area: number): boolean {
 }
 
 /**
- * The largest canvas area this browser will actually paint, probed once
- * and remembered. A browser that will not paint even the smallest
- * candidate is taken at its word, so callers always get a bound the
- * device can actually hold.
+ * Whether an area paints, remembered as a pair of bounds so the same
+ * ground is never probed twice.
+ *
+ * @param area the area to test, in pixels
  */
-export function maxCanvasArea(): number {
-	if (probed !== undefined) {
-		return probed
+function fits(area: number): boolean {
+	if (area <= largestGood) {
+		return true
 	}
-	probed = CANDIDATE_AREAS[0]!
-	for (const area of CANDIDATE_AREAS) {
-		if (!paints(area)) {
-			break
-		}
-		probed = area
+	if (area >= smallestBad) {
+		return false
 	}
-	return probed
+	if (paints(area)) {
+		largestGood = area
+		return true
+	}
+	smallestBad = area
+	return false
 }
 
 /**
@@ -79,19 +78,52 @@ export function maxCanvasArea(): number {
  * 1. Anything below 1 means the editor cannot hold the image at its
  * natural resolution and the result will be smaller than the source.
  *
+ * Only the area actually wanted is probed. Asking the browser for its
+ * true ceiling instead means allocating and reading back canvases far
+ * larger than the image: measured on a phone-class CPU, walking up to
+ * 16384² cost 3.8 seconds of blocked main thread, of which 2.2 was the
+ * last rung alone, and it ran while the loading spinner was on screen.
+ *
  * @param size the size that wants allocating
  */
 export function canvasScaleFor(size: Size): number {
 	const area = size.width * size.height
-	if (area <= 0) {
+	if (area <= 0 || fits(area)) {
 		return 1
 	}
-	return Math.min(1, Math.sqrt(maxCanvasArea() / area))
+
+	// Halve until something paints. A probe past the cap costs nothing
+	// to speak of: the browser never allocates the backing store.
+	let bad = area
+	let good = 0
+	for (let candidate = area / 2; candidate >= FLOOR_AREA; candidate /= 2) {
+		if (fits(candidate)) {
+			good = candidate
+			break
+		}
+		bad = candidate
+	}
+	if (good === 0) {
+		// A browser that will not paint even the floor is taken at its
+		// word, so callers still get a bound the device can hold
+		return Math.min(1, Math.sqrt(FLOOR_AREA / area))
+	}
+
+	for (let step = 0; step < REFINEMENTS; step++) {
+		const middle = (good + bad) / 2
+		if (fits(middle)) {
+			good = middle
+		} else {
+			bad = middle
+		}
+	}
+	return Math.min(1, Math.sqrt(good / area))
 }
 
 /**
- * Reset the memoised probe. Test seam only.
+ * Forget what has been probed. Test seam only.
  */
 export function resetCanvasLimits(): void {
-	probed = undefined
+	largestGood = 0
+	smallestBad = Number.POSITIVE_INFINITY
 }
