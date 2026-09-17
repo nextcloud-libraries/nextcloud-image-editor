@@ -167,7 +167,25 @@ test('the top bar matches the modal header the editor opens in', async ({ page }
 	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
 	const margin = (geometry.header - geometry.clickable) / 2
 
-	expect(bar.height).toBeCloseTo(geometry.header, 1)
 	expect(bar.x + bar.width - (close.x + close.width)).toBeCloseTo(margin, 1)
 	expect(close.y + close.height / 2).toBeCloseTo(bar.y + bar.height / 2, 1)
+
+	// As tall as that header, unless the pointer target leaves the
+	// buttons touching the top edge, which is what a phone does
+	expect(bar.height).toBeGreaterThanOrEqual(geometry.header - 0.5)
+	expect(bar.height - close.height).toBeGreaterThanOrEqual(2)
+})
+
+test('the top bar keeps a phone-sized pointer target off the top edge', async ({ page }) => {
+	await waitLoaded(page)
+	await page.setViewportSize({ width: 390, height: 640 })
+	// The style tag has to come after the navigation, which would drop it
+	await page.addStyleTag({ content: ':root { --default-clickable-area: 44px; --header-height: 44px; }' })
+
+	// A phone gives the pointer target the height of the whole header,
+	// which left the save button against the top edge of the editor
+	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	expect(save.y - bar.y).toBeGreaterThanOrEqual(2)
+	expect(bar.y + bar.height - (save.y + save.height)).toBeGreaterThanOrEqual(2)
 })

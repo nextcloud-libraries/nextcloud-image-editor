@@ -316,8 +316,14 @@ async function onRevert() {
 	// The editor usually opens inside the viewer's modal, whose header is
 	// this tall and whose close button sits centred in a margin of half
 	// the space left beside it. Same geometry here, so the close button
-	// does not jump when the editor opens over the viewer.
-	block-size: var(--header-height, 50px);
+	// does not jump when the editor opens over the viewer. Where the
+	// pointer target is as tall as that header, which is what a phone
+	// asks for, the bar grows rather than letting the buttons touch the
+	// top edge.
+	block-size: max(
+		var(--header-height, 50px),
+		calc(var(--default-clickable-area) + var(--default-grid-baseline) * 2)
+	);
 	padding-block: 0;
 	padding-inline: calc(var(--default-grid-baseline) * 6) var(--editor-header-margin);
 
