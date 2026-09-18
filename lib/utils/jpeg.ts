@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type { Orientation } from './orientation.ts'
+
+import { DEFAULT_ORIENTATION, isOrientation } from './orientation.ts'
+
 /** Start and end of a JPEG, and the marker that ends the header */
 const SOI = 0xD8
 const SOS = 0xDA
@@ -28,6 +32,17 @@ const TAG_COLOR_SPACE = 0xA001
 const TAG_EXIF_IFD = 0x8769
 const TAG_PIXEL_WIDTH = 0xA002
 const TAG_PIXEL_HEIGHT = 0xA003
+
+/** The TIFF type of a tag holding one 16-bit number, which orientation is */
+const TYPE_SHORT = 3
+
+/**
+ * A tag the format requires every directory of a JPEG to carry, so one
+ * written from nothing has to include it. Centred, which is what a JPEG
+ * written by anything this decade uses.
+ */
+const TAG_YCBCR_POSITIONING = 0x0213
+const YCBCR_CENTERED = 1
 
 /** Where a thumbnail's pixels live, compressed or as strips */
 const TAG_STRIP_OFFSETS = 0x0111
@@ -501,5 +516,291 @@ export function withMetadata(
 		write += segment.length
 	}
 	out.set(encoded.subarray(at), write)
+	return out
+}
+
+/**
+ * Where the Exif block of a JPEG is, if it has one.
+ *
+ * Only the first one counts: a reader takes the first Exif APP1 after the
+ * start marker and ignores anything claiming to be a second.
+ *
+ * @param bytes the whole file
+ * @return the offset of the marker and the segment's own length field
+ */
+function findExif(bytes: Uint8Array): { at: number, length: number } | null {
+	if (bytes[0] !== 0xFF || bytes[1] !== SOI) {
+		return null
+	}
+	let at = 2
+	while (at + 3 < bytes.length && bytes[at] === 0xFF) {
+		const marker = bytes[at + 1]!
+		if (marker === SOS || marker === EOI) {
+			return null
+		}
+		const length = (bytes[at + 2]! << 8) | bytes[at + 3]!
+		if (marker === APP1 && ascii(bytes, at + 4, 6) === EXIF_HEADER) {
+			return { at, length }
+		}
+		at += 2 + length
+	}
+	return null
+}
+
+/**
+ * Everything needed to read or write the first directory of a TIFF block.
+ *
+ * @param bytes the whole file
+ * @param tiff where the TIFF header starts within it
+ * @param end where the block ends, so a directory outside it is refused
+ */
+function readIfd0(bytes: Uint8Array, tiff: number, end: number): {
+	little: boolean
+	view: DataView
+	/** Where the entry count sits */
+	start: number
+	count: number
+} | null {
+	if (tiff + 8 > end) {
+		return null
+	}
+	const order = ascii(bytes, tiff, 2)
+	if (order !== 'II' && order !== 'MM') {
+		return null
+	}
+	const little = order === 'II'
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+	const start = tiff + view.getUint32(tiff + 4, little)
+	if (start < tiff + 8 || start + 2 > end) {
+		return null
+	}
+	const count = view.getUint16(start, little)
+	// A table running past the block is not one to walk, and one with no
+	// entries has no next-directory pointer to carry either
+	if (count === 0 || start + 2 + count * 12 + 4 > end) {
+		return null
+	}
+	return { little, view, start, count }
+}
+
+/**
+ * Where the orientation entry of a TIFF block sits, if it has one that
+ * can be written in place.
+ *
+ * The tag is specified as a SHORT. One stored as anything else is left to
+ * the slower path, which writes a fresh entry of the right type rather
+ * than overwriting bytes whose meaning it has guessed.
+ *
+ * @param bytes the whole file
+ * @param tiff where the TIFF header starts within it
+ * @param end where the block ends
+ */
+function findOrientationEntry(bytes: Uint8Array, tiff: number, end: number): number | null {
+	const ifd0 = readIfd0(bytes, tiff, end)
+	if (ifd0 === null) {
+		return null
+	}
+	const { little, view, start, count } = ifd0
+	for (let i = 0; i < count; i++) {
+		const entry = start + 2 + i * 12
+		// A single SHORT is held in the entry itself. Any other count puts
+		// the value elsewhere and those four bytes are a pointer, not a
+		// number to overwrite
+		if (view.getUint16(entry, little) === TAG_ORIENTATION
+			&& view.getUint16(entry + 2, little) === TYPE_SHORT
+			&& view.getUint32(entry + 4, little) === 1) {
+			return entry
+		}
+	}
+	return null
+}
+
+/**
+ * The orientation a JPEG carries, or the default where it carries none.
+ *
+ * @param bytes the file to read
+ */
+export function readJpegOrientation(bytes: Uint8Array): Orientation {
+	const exif = findExif(bytes)
+	if (exif === null) {
+		return DEFAULT_ORIENTATION
+	}
+	const tiff = exif.at + 10
+	const entry = findOrientationEntry(bytes, tiff, exif.at + 2 + exif.length)
+	if (entry === null) {
+		return DEFAULT_ORIENTATION
+	}
+	const little = ascii(bytes, tiff, 2) === 'II'
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+	const value = view.getUint16(entry + 8, little)
+	return isOrientation(value) ? value : DEFAULT_ORIENTATION
+}
+
+/**
+ * An Exif block holding an orientation, for a file that had none to amend.
+ *
+ * It carries the positioning tag beside it because a directory without
+ * that one does not validate, and a block a validator rejects is one some
+ * reader will eventually reject too.
+ *
+ * @param orientation the value to record
+ */
+function newExifSegment(orientation: Orientation): Uint8Array {
+	// marker, length, "Exif\0\0", TIFF header, two-entry directory, no next
+	const segment = new Uint8Array(4 + 6 + 8 + 2 + 24 + 4)
+	const view = new DataView(segment.buffer)
+	segment[0] = 0xFF
+	segment[1] = APP1
+	view.setUint16(2, segment.length - 2)
+	for (let i = 0; i < EXIF_HEADER.length; i++) {
+		segment[4 + i] = EXIF_HEADER.charCodeAt(i)
+	}
+	const tiff = 10
+	// "MM", the big-endian marker, then the answer to everything and the
+	// offset of the first directory, which follows the header directly
+	view.setUint16(tiff, 0x4D4D)
+	view.setUint16(tiff + 2, 0x002A)
+	view.setUint32(tiff + 4, 8)
+	// Two entries, in the ascending tag order a reader is entitled to
+	view.setUint16(tiff + 8, 2)
+	writeShortEntry(view, tiff + 10, false, TAG_ORIENTATION, orientation)
+	writeShortEntry(view, tiff + 22, false, TAG_YCBCR_POSITIONING, YCBCR_CENTERED)
+	return segment
+}
+
+/**
+ * Write a directory that has the entries of the old one plus an
+ * orientation, at the end of the block rather than over the old one.
+ *
+ * Every offset in a TIFF block is measured from its header, so growing a
+ * directory in place would move the values that follow it out from under
+ * the tags pointing at them. Appending a whole new directory and pointing
+ * the header at it moves nothing: the old entries keep their offsets, the
+ * old table is left behind as a few dead bytes, and only the header's one
+ * pointer changes.
+ *
+ * @param bytes the whole file
+ * @param exif where the Exif segment is and how long it says it is
+ * @param exif.at the offset of the segment's marker
+ * @param exif.length the segment's own length field
+ * @param orientation the value to record
+ */
+function withOrientationEntry(
+	bytes: Uint8Array,
+	exif: { at: number, length: number },
+	orientation: Orientation,
+): Uint8Array | null {
+	const tiff = exif.at + 10
+	const end = exif.at + 2 + exif.length
+	const ifd0 = readIfd0(bytes, tiff, end)
+	if (ifd0 === null) {
+		return null
+	}
+	const { little, view, start, count } = ifd0
+
+	const added = 2 + (count + 1) * 12 + 4
+	// The length field counts itself and is 16 bits, so a block already
+	// near the limit has no room for another directory
+	if (exif.length + added > 0xFFFF) {
+		return null
+	}
+
+	const out = new Uint8Array(bytes.length + added)
+	out.set(bytes.subarray(0, end), 0)
+	out.set(bytes.subarray(end), end + added)
+
+	const write = new DataView(out.buffer)
+	write.setUint16(exif.at + 2, exif.length + added)
+	// The new directory sits where the block used to end
+	write.setUint32(tiff + 4, end - tiff, little)
+	write.setUint16(end, count + 1, little)
+
+	// Entries are held in ascending tag order, so the new one goes where
+	// the old table first runs past it
+	let at = end + 2
+	let written = false
+	for (let i = 0; i < count; i++) {
+		const entry = start + 2 + i * 12
+		if (!written && view.getUint16(entry, little) > TAG_ORIENTATION) {
+			at = writeShortEntry(write, at, little, TAG_ORIENTATION, orientation)
+			written = true
+		}
+		out.set(bytes.subarray(entry, entry + 12), at)
+		at += 12
+	}
+	if (!written) {
+		at = writeShortEntry(write, at, little, TAG_ORIENTATION, orientation)
+	}
+	// Whatever the old directory pointed at next, the new one points at too
+	write.setUint32(at, view.getUint32(start + 2 + count * 12, little), little)
+	return out
+}
+
+/**
+ * Write one entry holding a single SHORT and say where the next one goes.
+ *
+ * @param view the buffer being written
+ * @param at where the entry starts
+ * @param little whether the block is little-endian
+ * @param tag the tag to record
+ * @param value its value
+ */
+function writeShortEntry(
+	view: DataView,
+	at: number,
+	little: boolean,
+	tag: number,
+	value: number,
+): number {
+	view.setUint16(at, tag, little)
+	view.setUint16(at + 2, TYPE_SHORT, little)
+	view.setUint32(at + 4, 1, little)
+	// One SHORT fits in the four bytes an entry keeps for its value, and
+	// sits at the front of them; the rest stay zero
+	view.setUint16(at + 8, value, little)
+	view.setUint16(at + 10, 0, little)
+	return at + 12
+}
+
+/**
+ * The same JPEG, recorded as being oriented some other way.
+ *
+ * Only the tag is touched. The scan is copied across byte for byte, so
+ * the picture is not decoded, not re-encoded, and loses nothing: turning
+ * an image this way costs the same whether it is done once or a hundred
+ * times. Where the file already names an orientation this is a two-byte
+ * write and the file does not even change length.
+ *
+ * @param bytes the file to amend
+ * @param orientation the value to record
+ * @return the amended file, or null where it could not be written
+ */
+export function setJpegOrientation(bytes: Uint8Array, orientation: Orientation): Uint8Array | null {
+	if (!isOrientation(orientation)) {
+		return null
+	}
+	if (bytes[0] !== 0xFF || bytes[1] !== SOI) {
+		return null
+	}
+
+	const exif = findExif(bytes)
+	if (exif === null) {
+		// Exif has to be the first thing after the start marker
+		const segment = newExifSegment(orientation)
+		const out = new Uint8Array(bytes.length + segment.length)
+		out.set(bytes.subarray(0, 2), 0)
+		out.set(segment, 2)
+		out.set(bytes.subarray(2), 2 + segment.length)
+		return out
+	}
+
+	const entry = findOrientationEntry(bytes, exif.at + 10, exif.at + 2 + exif.length)
+	if (entry === null) {
+		return withOrientationEntry(bytes, exif, orientation)
+	}
+
+	const out = new Uint8Array(bytes)
+	const little = ascii(bytes, exif.at + 10, 2) === 'II'
+	new DataView(out.buffer).setUint16(entry + 8, orientation, little)
 	return out
 }
