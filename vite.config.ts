@@ -26,6 +26,9 @@ const translations = readdirSync('./l10n')
 export default defineConfig((env) => {
 	return createLibConfig({
 		index: 'lib/index.ts',
+		// Turning a JPEG, without the editor and so without Konva or a
+		// stylesheet: importable from a main bundle, and from Node
+		jpeg: 'lib/jpeg.ts',
 	}, {
 		libraryFormats: ['es', 'cjs'],
 		nodeExternalsOptions: {
