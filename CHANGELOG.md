@@ -4,6 +4,26 @@
 -->
 # Changelog
 
+## 1.0.0-beta.6 – 2026-09-18
+
+### Added
+
+- `@nextcloud/image-editor/jpeg`, an entry point carrying the turning API
+  alone. The main entry brings the editor component, and behind it Konva
+  and a stylesheet, which a host that only wants to turn a picture should
+  not have to load and which cannot be loaded at all from Node. The new
+  entry is 14 kB against the main entry's 259 kB, imports nothing else,
+  and shares the main entry's chunk so a host using both loads it once
+  (#71)
+
+### Fixed
+
+- `setJpegOrientation` was declared as returning `Uint8Array`, which
+  since TypeScript 5.7 means `Uint8Array<ArrayBufferLike>` and does not
+  satisfy `BlobPart`, so a caller could not hand the result to a `Blob`
+  without casting or copying it. Every path builds its result with
+  `new Uint8Array`, so the narrow type was the true one (#71)
+
 ## 1.0.0-beta.5 – 2026-09-18
 
 ### Added
