@@ -4,6 +4,43 @@
 -->
 # Changelog
 
+## 1.0.0-beta.5 – 2026-09-18
+
+### Added
+
+- `setJpegOrientation`, `readJpegOrientation` and `rotateOrientation`,
+  for a host that wants to offer a rotation without opening the editor.
+  The Exif tag is rewritten and the scan is copied byte for byte, so the
+  picture is never decoded and nothing is lost however many times it
+  runs; where the file already names an orientation it is a two-byte
+  write and the length does not change. JPEG only: PNG and WebP carry no
+  orientation that browsers or Nextcloud's preview generator honour
+  (#69)
+
+### Fixed
+
+- A Display P3 photo came back a visible step more saturated. The centre
+  pixel of the fixture reads 217, 69, 51 in the source and exported as
+  235, 51, 37, because the export carried the source's APP2 profile over
+  pixels that were no longer in that space. Chromium converts a
+  wide-gamut image into sRGB on decode, so the carried profile made a
+  reader convert it twice; Firefox hands the samples over untouched, so
+  there the same profile is what makes the file readable. The browser is
+  now asked which it is, and the profile is carried only where the
+  pixels are still in the space it describes (#68)
+- An annotation placed in the margin around the picture was committed
+  and then dropped by the export, which renders the visible area alone,
+  so it vanished on save with nothing said. Every point is held to the
+  picture now, the crop where there is one. A gesture may still start
+  outside it, which is how a redaction covers a corner; one whose box
+  never meets the picture is dropped rather than committed against the
+  edge. A sticker or a caption is placed by a click, so in the margin it
+  is refused outright (#67)
+- Over a white picture the mode rail's backing measured
+  rgb(114, 114, 115), 4.31:1 against its labels, under the 4.5:1 normal
+  text needs. At 85% of the chrome background the same picture leaves it
+  at 8.99:1 (#67)
+
 ## 1.0.0-beta.4 – 2026-09-17
 
 ### Added
