@@ -645,7 +645,7 @@ export function readJpegOrientation(bytes: Uint8Array): Orientation {
  *
  * @param orientation the value to record
  */
-function newExifSegment(orientation: Orientation): Uint8Array {
+function newExifSegment(orientation: Orientation): Uint8Array<ArrayBuffer> {
 	// marker, length, "Exif\0\0", TIFF header, two-entry directory, no next
 	const segment = new Uint8Array(4 + 6 + 8 + 2 + 24 + 4)
 	const view = new DataView(segment.buffer)
@@ -689,7 +689,7 @@ function withOrientationEntry(
 	bytes: Uint8Array,
 	exif: { at: number, length: number },
 	orientation: Orientation,
-): Uint8Array | null {
+): Uint8Array<ArrayBuffer> | null {
 	const tiff = exif.at + 10
 	const end = exif.at + 2 + exif.length
 	const ifd0 = readIfd0(bytes, tiff, end)
@@ -773,9 +773,10 @@ function writeShortEntry(
  *
  * @param bytes the file to amend
  * @param orientation the value to record
- * @return the amended file, or null where it could not be written
+ * @return the amended file, backed by its own buffer so it can be handed
+ * straight to a `Blob`, or null where it could not be written
  */
-export function setJpegOrientation(bytes: Uint8Array, orientation: Orientation): Uint8Array | null {
+export function setJpegOrientation(bytes: Uint8Array, orientation: Orientation): Uint8Array<ArrayBuffer> | null {
 	if (!isOrientation(orientation)) {
 		return null
 	}
