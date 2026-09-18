@@ -153,7 +153,7 @@ is pushed must not be mutated afterwards.
 ### Turning a JPEG without re-encoding it
 
 ```ts
-import { readJpegOrientation, rotateOrientation, setJpegOrientation } from '@nextcloud/image-editor'
+import { readJpegOrientation, rotateOrientation, setJpegOrientation } from '@nextcloud/image-editor/jpeg'
 
 const bytes = new Uint8Array(await file.arrayBuffer())
 const turned = setJpegOrientation(bytes, rotateOrientation(readJpegOrientation(bytes), 'left'))
@@ -176,6 +176,13 @@ with what the file already says. The eight Exif values are the four turns
 each also available mirrored, so this is a lookup and not an addition: a
 mirrored picture stays mirrored, and four turns the same way come back to
 the start.
+
+These live behind their own entry point. The package's main entry carries
+the editor component, and with it Konva and a stylesheet, which a host that
+only wants to turn a picture should not have to load, and which cannot be
+loaded at all outside a browser. `@nextcloud/image-editor/jpeg` is 14 kB
+against the main entry's 259 kB, imports nothing else, and shares its chunk
+with the main entry so a host using both loads it once.
 
 Only JPEG. PNG and WebP carry no orientation that browsers and Nextcloud's
 preview generator honour, so turning one of those means a hard rotation

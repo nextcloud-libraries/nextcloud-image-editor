@@ -695,6 +695,15 @@ describe('setJpegOrientation', () => {
 		expect(setJpegOrientation(new Uint8Array([1, 2, 3, 4]), 6)).toBeNull()
 	})
 
+	it('hands back something a caller can upload as it is', () => {
+		// The typechecker is the half of this that matters: an array the
+		// compiler thinks might be backed by a SharedArrayBuffer cannot go
+		// into a Blob, and a caller writing the file back would have to
+		// copy it or cast around the type
+		const blob = new Blob([setJpegOrientation(fixture, 6)!], { type: 'image/jpeg' })
+		expect(blob.size).toBe(fixture.length)
+	})
+
 	it('refuses a value that is not an orientation', () => {
 		for (const value of [0, 9, 1.5]) {
 			expect(setJpegOrientation(fixture, value as 1)).toBeNull()
