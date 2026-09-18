@@ -150,6 +150,37 @@ exported for standalone use. Each step carries an optional label, and
 and move to any step in it. Snapshots are held by reference: whatever
 is pushed must not be mutated afterwards.
 
+### Turning a JPEG without re-encoding it
+
+```ts
+import { readJpegOrientation, rotateOrientation, setJpegOrientation } from '@nextcloud/image-editor'
+
+const bytes = new Uint8Array(await file.arrayBuffer())
+const turned = setJpegOrientation(bytes, rotateOrientation(readJpegOrientation(bytes), 'left'))
+```
+
+`setJpegOrientation(bytes, orientation)` rewrites the Exif orientation tag
+and copies the scan across byte for byte, so the picture is never decoded
+and nothing is lost however many times it is called. Where the file already
+names an orientation it is a two-byte write and the length does not change;
+where it does not, a block is added. It returns `null` for anything that is
+not a JPEG, for a value outside 1–8, and for a block already too close to
+the 64KB segment limit to grow.
+
+`readJpegOrientation(bytes)` reads the tag back, returning
+`DEFAULT_ORIENTATION` (1) where there is none or where the file names a
+value no reader would understand.
+
+`rotateOrientation(orientation, 'left' | 'right')` composes a quarter turn
+with what the file already says. The eight Exif values are the four turns
+each also available mirrored, so this is a lookup and not an addition: a
+mirrored picture stays mirrored, and four turns the same way come back to
+the start.
+
+Only JPEG. PNG and WebP carry no orientation that browsers and Nextcloud's
+preview generator honour, so turning one of those means a hard rotation
+through `<ImageEditor>` and a re-encode.
+
 ## Development
 
 ```sh

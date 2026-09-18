@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { estimateJpegQuality, readMetadataSegments, withMetadata } from '../lib/utils/jpeg.ts'
+import { estimateJpegQuality, readJpegOrientation, readMetadataSegments, setJpegOrientation, withMetadata } from '../lib/utils/jpeg.ts'
+import { rotateOrientation } from '../lib/utils/orientation.ts'
 import { jpegAtQuality } from './jpeg-fixture.ts'
 
 /** The playground's 64x48 JPEG carrying EXIF, GPS and XMP, made with exiftool */
@@ -492,5 +493,222 @@ describe('a thumbnail stored as strips', () => {
 		const source = withThumbnail('CAMERAFRAME')
 		const out = withMetadata(encoded(), readMetadataSegments(source), { width: 64, height: 48 })
 		expect(String.fromCharCode(...out)).toContain('Exif')
+	})
+})
+
+/** The tag every test here is about */
+const ORIENTATION = 0x0112
+
+/** The compressed pixels the fixtures below carry, two bytes of them */
+const scan = Uint8Array.from('ffda0008010100003f00aabbffd9'.match(/../g)!.map((byte) => Number.parseInt(byte, 16)))
+
+/**
+ * A JPEG whose Exif block holds exactly the given tags, each a SHORT, so
+ * a test can point the writer at a block it knows every byte of.
+ *
+ * @param tags the tags to write, as pairs of tag number and value
+ * @param order the byte order to write the block in
+ */
+function exifJpeg(tags: Array<[number, number]>, order: 'II' | 'MM' = 'MM'): Uint8Array {
+	const little = order === 'II'
+	const segment = new Uint8Array(4 + 6 + 8 + 2 + tags.length * 12 + 4)
+	const view = new DataView(segment.buffer)
+	segment[0] = 0xFF
+	segment[1] = 0xE1
+	view.setUint16(2, segment.length - 2)
+	segment.set([...'Exif\0\0'].map((char) => char.charCodeAt(0)), 4)
+
+	const tiff = 10
+	view.setUint16(tiff, little ? 0x4949 : 0x4D4D)
+	view.setUint16(tiff + 2, 0x2A, little)
+	view.setUint32(tiff + 4, 8, little)
+	view.setUint16(tiff + 8, tags.length, little)
+	tags.forEach(([tag, value], index) => {
+		const entry = tiff + 10 + index * 12
+		view.setUint16(entry, tag, little)
+		view.setUint16(entry + 2, 3, little)
+		view.setUint32(entry + 4, 1, little)
+		view.setUint16(entry + 8, value, little)
+	})
+	view.setUint32(tiff + 10 + tags.length * 12, 0, little)
+
+	const out = new Uint8Array(2 + segment.length + scan.length)
+	out.set([0xFF, 0xD8], 0)
+	out.set(segment, 2)
+	out.set(scan, 2 + segment.length)
+	return out
+}
+
+/**
+ * Everything from the start of the scan onwards, which is the picture.
+ *
+ * @param bytes a JPEG
+ */
+function pixelsOf(bytes: Uint8Array): Uint8Array {
+	for (let at = bytes.length - 2; at >= 0; at--) {
+		if (bytes[at] === 0xFF && bytes[at + 1] === 0xDA) {
+			return bytes.subarray(at)
+		}
+	}
+	return bytes
+}
+
+/**
+ * Walk the first directory of a file's Exif block without going through
+ * the module under test, so the tests agree with a second reader and not
+ * only with themselves.
+ *
+ * @param bytes a JPEG carrying an Exif block
+ */
+function directory(bytes: Uint8Array): Array<{ tag: number, type: number, value: number }> {
+	const at = bytes.findIndex((byte, i) => byte === 0xFF && bytes[i + 1] === 0xE1)
+	const tiff = at + 10
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+	const little = String.fromCharCode(bytes[tiff]!, bytes[tiff + 1]!) === 'II'
+	const start = tiff + view.getUint32(tiff + 4, little)
+	const count = view.getUint16(start, little)
+	const entries = []
+	for (let i = 0; i < count; i++) {
+		const entry = start + 2 + i * 12
+		entries.push({
+			tag: view.getUint16(entry, little),
+			type: view.getUint16(entry + 2, little),
+			value: view.getUint16(entry + 8, little),
+		})
+	}
+	return entries
+}
+
+describe('readJpegOrientation', () => {
+	it('is the default for a file that carries no Exif at all', () => {
+		expect(readJpegOrientation(encoded())).toBe(1)
+	})
+
+	it('is the default for something that is not a JPEG', () => {
+		expect(readJpegOrientation(new Uint8Array([1, 2, 3, 4]))).toBe(1)
+	})
+
+	it('reads the tag whichever way round the block is written', () => {
+		for (const order of ['II', 'MM'] as const) {
+			expect(readJpegOrientation(exifJpeg([[ORIENTATION, 6]], order))).toBe(6)
+		}
+	})
+
+	it('reads the block the fixture carries', () => {
+		expect(readJpegOrientation(fixture)).toBe(1)
+	})
+
+	it('falls back to the default for a value no reader would understand', () => {
+		// Turning a picture some way nobody chose is worse than not turning it
+		expect(readJpegOrientation(exifJpeg([[ORIENTATION, 99]]))).toBe(1)
+	})
+})
+
+describe('setJpegOrientation', () => {
+	it('writes the value over the one the file had', () => {
+		const out = setJpegOrientation(fixture, 8)!
+		expect(readJpegOrientation(out)).toBe(8)
+		expect(directory(out).find((entry) => entry.tag === ORIENTATION)?.value).toBe(8)
+	})
+
+	it('does not change the length of a file that already named an orientation', () => {
+		// The whole point of writing the tag rather than the pixels: two
+		// bytes move and nothing else in the file does
+		expect(setJpegOrientation(fixture, 8)!.length).toBe(fixture.length)
+	})
+
+	it('leaves the pixels exactly as they were', () => {
+		for (const source of [fixture, exifJpeg([[ORIENTATION, 1]]), encoded()]) {
+			expect(pixelsOf(setJpegOrientation(source, 6)!)).toEqual(pixelsOf(source))
+		}
+	})
+
+	it('keeps every other block the camera wrote', () => {
+		const before = readMetadataSegments(fixture).map(head)
+		expect(readMetadataSegments(setJpegOrientation(fixture, 3)!).map(head)).toEqual(before)
+	})
+
+	it('keeps the other tags of the directory it wrote into', () => {
+		const source = exifJpeg([[0x010E, 42], [ORIENTATION, 1], [0x0128, 7]])
+		const out = setJpegOrientation(source, 5)!
+		expect(directory(out)).toEqual([
+			{ tag: 0x010E, type: 3, value: 42 },
+			{ tag: ORIENTATION, type: 3, value: 5 },
+			{ tag: 0x0128, type: 3, value: 7 },
+		])
+	})
+
+	it('gives a file that had no Exif a block holding the orientation', () => {
+		const out = setJpegOrientation(encoded(), 6)!
+		expect(readJpegOrientation(out)).toBe(6)
+		// Beside the positioning tag, which a directory has to carry for
+		// the block to validate
+		expect(directory(out)).toEqual([
+			{ tag: ORIENTATION, type: 3, value: 6 },
+			{ tag: 0x0213, type: 3, value: 1 },
+		])
+	})
+
+	it('puts that block where a reader looks for it, right after the start', () => {
+		// Exif has to be the first segment of the file, ahead of the JFIF
+		// block the encoder wrote
+		const out = setJpegOrientation(encoded(), 6)!
+		expect([out[0], out[1], out[2], out[3]]).toEqual([0xFF, 0xD8, 0xFF, 0xE1])
+	})
+
+	it('adds the tag to a block that has every other one', () => {
+		for (const order of ['II', 'MM'] as const) {
+			const source = exifJpeg([[0x010E, 42], [0x0128, 7]], order)
+			const out = setJpegOrientation(source, 7)!
+			expect(readJpegOrientation(out)).toBe(7)
+			// The old entries keep their values, which is the point of
+			// appending a new directory rather than growing the old one
+			expect(directory(out)).toEqual([
+				{ tag: 0x010E, type: 3, value: 42 },
+				{ tag: ORIENTATION, type: 3, value: 7 },
+				{ tag: 0x0128, type: 3, value: 7 },
+			])
+		}
+	})
+
+	it('keeps that directory in tag order', () => {
+		// A reader is entitled to assume the entries ascend
+		const source = exifJpeg([[0x0100, 1], [0x0101, 2], [0x0213, 3], [0x8298, 4]])
+		const tags = directory(setJpegOrientation(source, 2)!).map((entry) => entry.tag)
+		expect(tags).toEqual([...tags].sort((a, b) => a - b))
+		expect(tags).toContain(ORIENTATION)
+	})
+
+	it('refuses a block with no room left for another directory', () => {
+		// The length field is sixteen bits, so a block already at the limit
+		// cannot be grown and the caller has to be told
+		const filler = (count: number): Array<[number, number]> => (
+			Array.from({ length: count }, (_, i) => [0x0200 + i, 1])
+		)
+		// The same block small enough to grow is written without complaint,
+		// so the refusal below is about room and not about shape
+		expect(setJpegOrientation(exifJpeg(filler(10)), 6)).not.toBeNull()
+		expect(setJpegOrientation(exifJpeg(filler(5400)), 6)).toBeNull()
+	})
+
+	it('refuses something that is not a JPEG', () => {
+		expect(setJpegOrientation(new Uint8Array([1, 2, 3, 4]), 6)).toBeNull()
+	})
+
+	it('refuses a value that is not an orientation', () => {
+		for (const value of [0, 9, 1.5]) {
+			expect(setJpegOrientation(fixture, value as 1)).toBeNull()
+		}
+	})
+
+	it('survives being turned a full circle, tag and pixels both', () => {
+		let orientation = readJpegOrientation(fixture)
+		let out: Uint8Array<ArrayBufferLike> = fixture
+		for (let i = 0; i < 4; i++) {
+			orientation = rotateOrientation(orientation, 'left')
+			out = setJpegOrientation(out, orientation)!
+		}
+		expect(readJpegOrientation(out)).toBe(readJpegOrientation(fixture))
+		expect(out).toEqual(fixture)
 	})
 })
