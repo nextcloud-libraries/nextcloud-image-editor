@@ -4,6 +4,15 @@
 -->
 # Changelog
 
+## 1.0.0-beta.7 – 2026-10-02
+
+### Added
+
+- Saving a copy, for a host that asks for it with `canSaveAs`: the save
+  button is split in two, and the menu beside it holds "Save as copy",
+  which hands the same export to a `saveAs` event for the host to store
+  somewhere new. Without the prop nothing changes (#73)
+
 ## 1.0.0-beta.6 – 2026-09-18
 
 ### Added
