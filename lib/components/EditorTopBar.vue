@@ -12,7 +12,9 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
+import ChevronDown from 'vue-material-design-icons/ChevronDown.vue'
 import Close from 'vue-material-design-icons/Close.vue'
+import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import History from 'vue-material-design-icons/History.vue'
 import MagnifyMinusOutline from 'vue-material-design-icons/MagnifyMinusOutline.vue'
 import MagnifyPlusOutline from 'vue-material-design-icons/MagnifyPlusOutline.vue'
@@ -37,10 +39,13 @@ defineProps<{
 	 * rather than a bulleted list.
 	 */
 	popoverContainer?: HTMLElement | null
+	/** Whether the save button offers saving a copy too */
+	canSaveAs?: boolean
 }>()
 
 const emit = defineEmits<{
 	save: []
+	saveAs: []
 	cancel: []
 }>()
 
@@ -56,6 +61,8 @@ const labels = {
 	zoomOut: t('Zoom out'),
 	resetZoom: t('Reset zoom'),
 	save: t('Save'),
+	saveOptions: t('More ways to save'),
+	saveAs: t('Save as copy'),
 	cancel: t('Cancel'),
 	close: t('Close the editor'),
 	unsaved: t('Save your edits before closing?'),
@@ -247,19 +254,44 @@ async function onRevert() {
 		</div>
 
 		<div class="editor-topbar__actions">
-			<NcButton
-				data-test="save"
-				variant="primary"
-				:disabled="!loaded || saving"
-				@click="emit('save')">
-				<!-- Rendering at natural resolution and encoding takes
-					long enough on a photo to need saying, and the host's
-					upload afterwards takes longer still -->
-				<template v-if="saving" #icon>
-					<NcLoadingIcon :size="20" data-test="saving" />
-				</template>
-				{{ labels.save }}
-			</NcButton>
+			<div class="editor-topbar__save" :class="{ 'editor-topbar__save--split': canSaveAs }">
+				<NcButton
+					data-test="save"
+					variant="primary"
+					:disabled="!loaded || saving"
+					@click="emit('save')">
+					<!-- Rendering at natural resolution and encoding takes
+						long enough on a photo to need saying, and the host's
+						upload afterwards takes longer still -->
+					<template v-if="saving" #icon>
+						<NcLoadingIcon :size="20" data-test="saving" />
+					</template>
+					{{ labels.save }}
+				</NcButton>
+				<!-- The other way to save, kept out of the way of the one
+					most edits end with -->
+				<NcActions
+					v-if="canSaveAs"
+					data-test="save-menu"
+					forceMenu
+					variant="primary"
+					:aria-label="labels.saveOptions"
+					:container="popoverContainer ?? 'body'"
+					:disabled="!loaded || saving">
+					<template #icon>
+						<ChevronDown :size="20" />
+					</template>
+					<NcActionButton
+						data-test="save-as"
+						closeAfterClick
+						@click="emit('saveAs')">
+						<template #icon>
+							<ContentCopy :size="20" />
+						</template>
+						{{ labels.saveAs }}
+					</NcActionButton>
+				</NcActions>
+			</div>
 			<NcButton
 				data-test="cancel"
 				:aria-label="labels.close"
@@ -388,6 +420,25 @@ async function onRevert() {
 
 	&__actions {
 		justify-content: flex-end;
+	}
+
+	&__save {
+		display: flex;
+	}
+
+	// Save and the menu beside it read as one button, split down the middle
+	&__save--split {
+		gap: 1px;
+
+		> :deep(.button-vue) {
+			border-start-end-radius: 0;
+			border-end-end-radius: 0;
+		}
+
+		:deep(.action-item__menutoggle) {
+			border-start-start-radius: 0;
+			border-end-start-radius: 0;
+		}
 	}
 
 	@container editor (max-width: 600px) {

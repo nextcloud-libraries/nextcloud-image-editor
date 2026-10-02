@@ -15,7 +15,7 @@ import { expectColor, save, setInputValue, waitLoaded } from './utils.ts'
  */
 async function openPhoto(page: Page): Promise<void> {
 	await page.goto('/?src=metadata')
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 }
 
 test('an edited photo keeps what the camera recorded', async ({ page }) => {

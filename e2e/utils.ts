@@ -47,7 +47,7 @@ export interface SavedProbe {
  */
 export async function waitLoaded(page: Page, src: 'test' | 'large' | 'noise' | 'quality' | 'wide-gamut' = 'test'): Promise<void> {
 	await page.goto(`/?src=${src}`)
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 }
 
 /**
@@ -58,7 +58,7 @@ export async function waitLoaded(page: Page, src: 'test' | 'large' | 'noise' | '
 export async function save(page: Page): Promise<SavedProbe> {
 	const saved = page.locator('[data-test="saved"]')
 	const before = await saved.innerText()
-	await page.getByRole('button', { name: 'Save' }).click()
+	await page.getByRole('button', { name: 'Save', exact: true }).click()
 	await expect(saved).not.toHaveText(before)
 	return JSON.parse(await saved.innerText())
 }

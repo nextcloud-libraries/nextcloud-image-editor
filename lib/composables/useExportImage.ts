@@ -43,8 +43,11 @@ export interface ExportImage {
 	 * @param options target format, quality and size bound
 	 */
 	exportImage(options?: ExportOptions): Promise<ExportResult>
-	/** Export and hand the result to the save callback */
-	save(): Promise<void>
+	/**
+	 * Export and hand the result to the save callback, or to the one given,
+	 * as for saving a copy
+	 */
+	save(onSaved?: (result: ExportResult) => void): Promise<void>
 }
 
 /**
@@ -251,10 +254,12 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 
 	/**
 	 * Export and hand the result to the save callback.
+	 *
+	 * @param onSaved what to hand it to instead, as for saving a copy
 	 */
-	async function save(): Promise<void> {
+	async function save(onSaved = deps.onSaved): Promise<void> {
 		try {
-			deps.onSaved(await exportImage(deps.saveOptions()))
+			onSaved(await exportImage(deps.saveOptions()))
 		} catch (error) {
 			deps.onError(error instanceof Error ? error : new Error(String(error)))
 		}
