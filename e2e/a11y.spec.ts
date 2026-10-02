@@ -139,7 +139,7 @@ test('the chrome is one text size throughout', async ({ page }) => {
 	})
 
 	const tab = await font(page.locator('[data-test="aspect-free"]'))
-	expect(await font(page.getByRole('button', { name: 'Save' }))).toBe(tab)
+	expect(await font(page.getByRole('button', { name: 'Save', exact: true }))).toBe(tab)
 	expect(await font(page.locator('[data-test="zoom-reset"]'))).toBe(tab)
 
 	await page.getByRole('button', { name: 'Adjust' }).click()
@@ -184,7 +184,7 @@ test('the top bar keeps a phone-sized pointer target off the top edge', async ({
 	// A phone gives the pointer target the height of the whole header,
 	// which left the save button against the top edge of the editor
 	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
-	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save', exact: true }).boundingBox())!
 	expect(save.y - bar.y).toBeGreaterThanOrEqual(2)
 	expect(bar.y + bar.height - (save.y + save.height)).toBeGreaterThanOrEqual(2)
 })
@@ -196,7 +196,7 @@ test('the top bar fits a phone, with the pill clear of the save button', async (
 
 	const bar = (await page.locator('.image-editor__topbar').boundingBox())!
 	const pill = (await page.locator('.editor-topbar__history').boundingBox())!
-	const save = (await page.getByRole('button', { name: 'Save' }).boundingBox())!
+	const save = (await page.getByRole('button', { name: 'Save', exact: true }).boundingBox())!
 	const close = (await page.locator('[data-test="cancel"]').boundingBox())!
 
 	// Everything inside the bar: the close button used to be cut off by

@@ -70,10 +70,16 @@ const props = defineProps<{
 	 * blob over, not when the upload finished.
 	 */
 	saving?: boolean
+	/**
+	 * Offer saving a copy next to saving over the original, from a menu on
+	 * the save button. The host says where the copy goes, on `saveAs`.
+	 */
+	canSaveAs?: boolean
 }>()
 
 const emit = defineEmits<{
 	save: [result: ExportResult]
+	saveAs: [result: ExportResult]
 	cancel: []
 	error: [error: Error]
 	change: [state: EditorState]
@@ -790,7 +796,9 @@ defineExpose({
 					:loaded="loaded"
 					:popoverContainer="root"
 					:saving="exporting || saving === true"
-					@save="onSave"
+					:canSaveAs="canSaveAs === true"
+					@save="onSave()"
+					@saveAs="onSave((result) => emit('saveAs', result))"
 					@cancel="emit('cancel')" />
 
 				<EditorPanel

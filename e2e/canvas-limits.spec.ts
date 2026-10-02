@@ -48,7 +48,7 @@ test('closing the warning leaves the editor instead of shrinking', async ({ page
 	// The library asks to be closed rather than closing itself, and it
 	// never loads the image it was not allowed to shrink
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('1')
-	await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
 })
 
 test('continuing opens the image at a size the browser can hold', async ({ page }) => {
@@ -56,7 +56,7 @@ test('continuing opens the image at a size the browser can hold', async ({ page 
 	await page.goto('/?src=large')
 	await page.getByRole('button', { name: 'Continue with a smaller copy' }).click()
 
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('0')
 })
 
@@ -64,6 +64,6 @@ test('an image within the cap opens without asking anything', async ({ page }) =
 	await capCanvasAt(page, 4096 * 4096)
 	await page.goto('/?src=test')
 
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 	await expect(page.getByRole('dialog')).toHaveCount(0)
 })

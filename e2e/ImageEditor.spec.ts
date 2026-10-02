@@ -35,7 +35,7 @@ test('closing an edited image offers to save it', async ({ page }) => {
 
 	// Saving from the dialog is the save button
 	await page.getByRole('button', { name: 'Close the editor' }).click()
-	await dialog.getByRole('button', { name: 'Save' }).click()
+	await dialog.getByRole('button', { name: 'Save', exact: true }).click()
 	await expect(page.locator('[data-test="saved"]')).not.toHaveText('')
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('0')
 })
@@ -48,6 +48,17 @@ test('discarding from the close dialog leaves the editor', async ({ page }) => {
 	await page.getByRole('button', { name: 'Close the editor' }).click()
 	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
 	await expect(page.locator('[data-test="cancelled"]')).toHaveText('1')
+})
+
+test('saves a copy from the menu beside Save, and not over the original', async ({ page }) => {
+	await waitLoaded(page)
+	const saved = await page.locator('[data-test="saved"]').innerText()
+
+	await page.getByRole('button', { name: 'More ways to save' }).click()
+	await page.getByRole('menuitem', { name: 'Save as copy' }).click()
+
+	await expect(page.locator('[data-test="saved-as"]')).toContainText('"type":"image/')
+	await expect(page.locator('[data-test="saved"]')).toHaveText(saved)
 })
 
 test('exports the unedited image faithfully', async ({ page }) => {
@@ -64,7 +75,7 @@ test('exports the unedited image faithfully', async ({ page }) => {
 test('emits error for an undecodable source', async ({ page }) => {
 	await page.goto('/?src=broken')
 	await expect(page.locator('[data-test="errors"]')).toHaveText('Image could not be decoded')
-	await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
 })
 
 test('a failed load says so and offers another attempt', async ({ page }) => {
@@ -283,7 +294,7 @@ test('renders a state stored before the newer adjustments existed', async ({ pag
 	// adjustment is not zero: it reads as work to do, is divided into
 	// NaN, and paints the whole image black.
 	await page.goto('/?src=test&restore=1')
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 
 	const result = await save(page)
 	// The fixture is red over blue, rotated a quarter turn by the state
@@ -292,7 +303,7 @@ test('renders a state stored before the newer adjustments existed', async ({ pag
 
 test('opens on a state the host hands over', async ({ page }) => {
 	await page.goto('/?src=test&restore=1')
-	await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 
 	// The stored edit is in place before the user has touched anything
 	const state = await readState(page)
@@ -312,7 +323,7 @@ test('opens on a state the host hands over', async ({ page }) => {
 test('the save button reports progress until the host is done', async ({ page }) => {
 	await waitLoaded(page)
 	const spinner = page.locator('[data-test="saving"]')
-	const button = page.getByRole('button', { name: 'Save' })
+	const button = page.getByRole('button', { name: 'Save', exact: true })
 	await expect(spinner).toBeHidden()
 
 	await button.click()

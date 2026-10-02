@@ -138,6 +138,19 @@ describe('useExportImage', () => {
 		expect(api.saved[0]!.blob).toBe(source)
 	})
 
+	// Saving a copy is the same export, handed to whoever stores the copy
+	it('hands a save to the callback it is given, rather than the save one', async () => {
+		const source = new Blob(['original bytes'], { type: 'image/png' })
+		const api = setup(source, createInitialState(), { format: 'image/png' })
+		const copies: ExportResult[] = []
+
+		await api.save((result) => copies.push(result))
+
+		expect(api.saved).toEqual([])
+		expect(copies).toHaveLength(1)
+		expect(copies[0]!.blob).toBe(source)
+	})
+
 	it('reports progress across a render that holds the thread', async () => {
 		const source = new Blob(['original bytes'], { type: 'image/jpeg' })
 		const edited = { ...createInitialState(), rotation: 90 as const }

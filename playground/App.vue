@@ -230,6 +230,17 @@ function nextPhoto() {
 }
 
 const saved = ref('')
+// What a host saving a copy is handed, kept apart from the saves over the original
+const savedAs = ref('')
+
+/**
+ * Record a copy being saved, as a host would store it somewhere new.
+ *
+ * @param result the exported image
+ */
+function onSaveAs(result: ExportResult) {
+	savedAs.value = JSON.stringify({ type: result.blob.type, size: result.blob.size })
+}
 const stateJson = ref('')
 const changes = ref(0)
 const saving = ref(false)
@@ -343,7 +354,9 @@ function onChange(state: EditorState) {
 			:src="src"
 			:initialState="restored"
 			:saving="saving"
+			canSaveAs
 			@save="onSave"
+			@saveAs="onSaveAs"
 			@cancel="cancelled++"
 			@error="onError"
 			@change="onChange" />
@@ -364,6 +377,7 @@ function onChange(state: EditorState) {
 			default demo page -->
 		<template v-if="requested !== null">
 			<output data-test="saved">{{ saved }}</output>
+			<output data-test="saved-as">{{ savedAs }}</output>
 			<output data-test="state">{{ stateJson }}</output>
 			<output data-test="changes">{{ changes }}</output>
 			<output data-test="source-size">{{ sourceSize }}</output>
