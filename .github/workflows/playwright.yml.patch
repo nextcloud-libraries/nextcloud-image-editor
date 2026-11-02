@@ -1,0 +1,24 @@
+diff --git a/.github/workflows/playwright.yml b/.github/workflows/playwright.yml
+index 5af7cf2..7ef708a 100644
+--- a/.github/workflows/playwright.yml
++++ b/.github/workflows/playwright.yml
+@@ -24,8 +24,8 @@ jobs:
+     strategy:
+       fail-fast: false
+       matrix:
+-        shardIndex: [1, 2]
+-        shardTotal: [2]
++        shardIndex: [1, 2, 3]
++        shardTotal: [3]
+     outputs:
+       node-version: ${{ steps.versions.outputs.node-version }}
+       package-manager-version: ${{ steps.versions.outputs.package-manager-version }}
+@@ -54,7 +54,7 @@ jobs:
+       run: npx playwright install --with-deps
+ 
+     - name: Run Playwright tests
+-      run: npm run test:component -- --shard='${{ matrix.shardIndex }}/${{ matrix.shardTotal }}'
++      run: npm run test:e2e -- --shard='${{ matrix.shardIndex }}/${{ matrix.shardTotal }}'
+ 
+     - name: Upload blob report to GitHub Actions Artifacts
+       if: ${{ !cancelled() }}
