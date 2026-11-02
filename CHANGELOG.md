@@ -4,6 +4,13 @@
 -->
 # Changelog
 
+## 1.0.0-beta.8 – 2026-11-02
+
+### Changed
+
+- `@nextcloud/dialogs` 8 is accepted next to 7, so a host can move to it
+  without npm refusing to install the editor (#81)
+
 ## 1.0.0-beta.7 – 2026-10-02
 
 ### Added
