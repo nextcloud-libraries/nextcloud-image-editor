@@ -68,7 +68,7 @@
     "konva": "~10.3.2"
   },
   "devDependencies": {
-    "@nextcloud/dialogs": "^7.5.0",
+    "@nextcloud/dialogs": "^8.0.0",
     "@nextcloud/eslint-config": "^9.0.1",
     "@nextcloud/vite-config": "^2.5.4",
     "@nextcloud/vue": "^9.11.0",
@@ -90,7 +90,7 @@
     "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
-    "@nextcloud/dialogs": "^7.0.0",
+    "@nextcloud/dialogs": "^7.0.0 || ^8.0.0",
     "@nextcloud/vue": "^9.0.0",
     "vue": "^3.5.0"
   },
