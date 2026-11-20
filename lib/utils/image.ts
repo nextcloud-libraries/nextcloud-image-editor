@@ -124,6 +124,21 @@ export async function decodeImage(source: Blob | string): Promise<SourceImage> {
 }
 
 /**
+ * What to call the image in a message to the user, where the host gave
+ * no label: a File's name, or a URL as it was given. A bare Blob has
+ * no name of its own.
+ *
+ * @param source the image being edited
+ * @return the name, or null where the source carries none
+ */
+export function sourceName(source: Blob | string): string | null {
+	if (typeof source === 'string') {
+		return source
+	}
+	return source instanceof File && source.name !== '' ? source.name : null
+}
+
+/**
  * Promisified HTMLCanvasElement.toBlob.
  *
  * @param canvas the canvas to encode

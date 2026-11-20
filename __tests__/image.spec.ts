@@ -6,7 +6,7 @@ import type { ImageWorkerClient } from '../lib/utils/image-worker.ts'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { imageWorker } from '../lib/utils/image-worker.ts'
-import { canvasToBlob, decodeImage, imageSize, loadImage } from '../lib/utils/image.ts'
+import { canvasToBlob, decodeImage, imageSize, loadImage, sourceName } from '../lib/utils/image.ts'
 
 vi.mock('../lib/utils/image-worker.ts', () => ({ imageWorker: vi.fn(() => null) }))
 
@@ -151,6 +151,20 @@ describe('imageSize', () => {
 	it('reads an element by its natural size and a bitmap by its own', () => {
 		expect(imageSize({ naturalWidth: 200, naturalHeight: 100 } as HTMLImageElement)).toEqual({ width: 200, height: 100 })
 		expect(imageSize({ width: 64, height: 48 } as ImageBitmap)).toEqual({ width: 64, height: 48 })
+	})
+})
+
+describe('sourceName', () => {
+	it('names a File after itself, rather than "[object File]"', () => {
+		expect(sourceName(new File(['bytes'], 'holiday.jpg'))).toBe('holiday.jpg')
+	})
+
+	it('names a URL as it was given', () => {
+		expect(sourceName('/photos/holiday.jpg')).toBe('/photos/holiday.jpg')
+	})
+
+	it('has no name for a bare Blob', () => {
+		expect(sourceName(new Blob(['bytes']))).toBeNull()
 	})
 })
 
