@@ -124,6 +124,36 @@ export async function decodeImage(source: Blob | string): Promise<SourceImage> {
 }
 
 /**
+ * The type of an image, read from its first bytes where the Blob does
+ * not say. A Blob built without a type, or a File whose extension the
+ * browser did not recognise, still decodes, as browsers look at the
+ * bytes for that. Exporting needs the type too, to save in the format
+ * the image came in and to carry a JPEG's metadata across, so it is
+ * read the same way here. Only the formats the encoder can write are
+ * recognised; anything else stays unknown.
+ *
+ * @param blob the image bytes
+ * @return the MIME type, or an empty string where it cannot be told
+ */
+export async function sniffImageType(blob: Blob): Promise<string> {
+	if (blob.type !== '') {
+		return blob.type
+	}
+	const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+	const ascii = (from: number, to: number) => String.fromCharCode(...head.subarray(from, to))
+	if (head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF) {
+		return 'image/jpeg'
+	}
+	if (ascii(0, 8) === '\x89PNG\r\n\x1A\n') {
+		return 'image/png'
+	}
+	if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') {
+		return 'image/webp'
+	}
+	return ''
+}
+
+/**
  * What to call the image in a message to the user, where the host gave
  * no label: a File's name, or a URL as it was given. A bare Blob has
  * no name of its own.

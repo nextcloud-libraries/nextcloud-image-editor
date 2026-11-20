@@ -5,7 +5,7 @@
 import type { EditorState } from '../lib/editor/state.ts'
 import type { ExportOptions, ExportResult } from '../lib/types/export.ts'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { useExportImage } from '../lib/composables/useExportImage.ts'
 import * as render from '../lib/editor/render.ts'
 import { createInitialState } from '../lib/editor/state.ts'
@@ -52,6 +52,25 @@ function recordingCanvas(): { asked: { type?: string, quality?: number } } {
 	return { asked }
 }
 
+/**
+ * jsdom's Blob cannot hand its bytes over the way a browser's does, and
+ * reading the type of an untyped source starts there. FileReader is the
+ * one way in that jsdom does implement.
+ */
+function installBlobReading(): void {
+	Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+		configurable: true,
+		value(this: Blob) {
+			return new Promise<ArrayBuffer>((resolve, reject) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(reader.result as ArrayBuffer)
+				reader.onerror = () => reject(reader.error)
+				reader.readAsArrayBuffer(this)
+			})
+		},
+	})
+}
+
 describe('useExportImage', () => {
 	afterEach(() => vi.restoreAllMocks())
 
@@ -91,6 +110,44 @@ describe('useExportImage', () => {
 
 	it('cannot pass through a source of unknown type', async () => {
 		await expect(setup(new Blob(['bytes'])).exportImage()).rejects.toThrow()
+	})
+
+	describe('a source that came without a type', () => {
+		beforeAll(installBlobReading)
+		afterAll(() => Reflect.deleteProperty(Blob.prototype, 'arrayBuffer'))
+
+		const edited = { ...createInitialState(), rotation: 90 as const }
+
+		/**
+		 * The same JPEG bytes as a Blob that does not say what it is.
+		 *
+		 * @param quality the setting the JPEG was written at
+		 */
+		const untyped = (quality: number) => new Blob([jpegBlobAtQuality(quality)])
+
+		it('is handed back untouched, now saying it is a JPEG', async () => {
+			const source = untyped(85)
+			const result = await setup(source).exportImage()
+
+			expect(result.mimeType).toBe('image/jpeg')
+			expect(result.blob.type).toBe('image/jpeg')
+			expect(result.blob.size).toBe(source.size)
+		})
+
+		it('is saved as the JPEG it is, at the quality it was written at', async () => {
+			const { asked } = recordingCanvas()
+			const result = await setup(untyped(85), edited).exportImage()
+
+			expect(result.mimeType).toBe('image/jpeg')
+			expect(asked.type).toBe('image/jpeg')
+			expect(asked.quality).toBeCloseTo(0.85)
+		})
+
+		it('still gives way to the format the host asked for', async () => {
+			const { asked } = recordingCanvas()
+			await setup(untyped(85), edited).exportImage({ format: 'image/webp', quality: 0.6 })
+			expect(asked).toEqual({ type: 'image/webp', quality: 0.6 })
+		})
 	})
 
 	it('cannot pass through a source it never saw the bytes of', async () => {
