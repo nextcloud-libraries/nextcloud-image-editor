@@ -4,9 +4,9 @@
  */
 import type { ImageWorkerClient } from '../lib/utils/image-worker.ts'
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { imageWorker } from '../lib/utils/image-worker.ts'
-import { canvasToBlob, decodeImage, imageSize, loadImage } from '../lib/utils/image.ts'
+import { canvasToBlob, decodeImage, imageSize, loadImage, sniffImageType, sourceName } from '../lib/utils/image.ts'
 
 vi.mock('../lib/utils/image-worker.ts', () => ({ imageWorker: vi.fn(() => null) }))
 
@@ -66,6 +66,25 @@ afterEach(() => {
 	Reflect.deleteProperty(URL, 'createObjectURL')
 	Reflect.deleteProperty(URL, 'revokeObjectURL')
 })
+
+/**
+ * jsdom's Blob cannot hand its bytes over the way a browser's does, and
+ * reading the type of an untyped source starts there. FileReader is the
+ * one way in that jsdom does implement.
+ */
+function installBlobReading(): void {
+	Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+		configurable: true,
+		value(this: Blob) {
+			return new Promise<ArrayBuffer>((resolve, reject) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(reader.result as ArrayBuffer)
+				reader.onerror = () => reject(reader.error)
+				reader.readAsArrayBuffer(this)
+			})
+		},
+	})
+}
 
 describe('loadImage', () => {
 	it('leaves a relative URL alone', async () => {
@@ -151,6 +170,48 @@ describe('imageSize', () => {
 	it('reads an element by its natural size and a bitmap by its own', () => {
 		expect(imageSize({ naturalWidth: 200, naturalHeight: 100 } as HTMLImageElement)).toEqual({ width: 200, height: 100 })
 		expect(imageSize({ width: 64, height: 48 } as ImageBitmap)).toEqual({ width: 64, height: 48 })
+	})
+})
+
+describe('sniffImageType', () => {
+	beforeAll(installBlobReading)
+	afterAll(() => Reflect.deleteProperty(Blob.prototype, 'arrayBuffer'))
+
+	/**
+	 * A Blob with no type, starting with the given bytes.
+	 *
+	 * @param head the first bytes of the file
+	 */
+	const untyped = (...head: number[]) => new Blob([Uint8Array.from([...head, 0, 0, 0, 0])])
+	const ascii = (text: string) => [...text].map((char) => char.charCodeAt(0))
+
+	it('trusts a type the Blob already carries', async () => {
+		await expect(sniffImageType(new Blob(['bytes'], { type: 'image/heic' }))).resolves.toBe('image/heic')
+	})
+
+	it('reads a JPEG, a PNG and a WebP from their first bytes', async () => {
+		await expect(sniffImageType(untyped(0xFF, 0xD8, 0xFF, 0xE0))).resolves.toBe('image/jpeg')
+		await expect(sniffImageType(untyped(0x89, ...ascii('PNG\r\n'), 0x1A, 0x0A))).resolves.toBe('image/png')
+		await expect(sniffImageType(untyped(...ascii('RIFF'), 1, 2, 3, 4, ...ascii('WEBP')))).resolves.toBe('image/webp')
+	})
+
+	it('leaves anything else unknown', async () => {
+		await expect(sniffImageType(new Blob(['not an image']))).resolves.toBe('')
+		await expect(sniffImageType(new Blob([]))).resolves.toBe('')
+	})
+})
+
+describe('sourceName', () => {
+	it('names a File after itself, rather than "[object File]"', () => {
+		expect(sourceName(new File(['bytes'], 'holiday.jpg'))).toBe('holiday.jpg')
+	})
+
+	it('names a URL as it was given', () => {
+		expect(sourceName('/photos/holiday.jpg')).toBe('/photos/holiday.jpg')
+	})
+
+	it('has no name for a bare Blob', () => {
+		expect(sourceName(new Blob(['bytes']))).toBeNull()
 	})
 })
 

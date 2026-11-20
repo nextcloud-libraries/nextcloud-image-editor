@@ -10,7 +10,7 @@ import { ref } from 'vue'
 import { renderToCanvas, visibleRect } from '../editor/render.ts'
 import { isPristine } from '../editor/state.ts'
 import { convertsToSrgb } from '../utils/color-space.ts'
-import { canvasToBlob } from '../utils/image.ts'
+import { canvasToBlob, sniffImageType } from '../utils/image.ts'
 import { estimateJpegQuality, readMetadataSegments, withMetadata } from '../utils/jpeg.ts'
 import { t } from '../utils/l10n.ts'
 
@@ -98,9 +98,11 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	 * as a JPEG, which keeps the file a sensible size and leaves somewhere
 	 * for its metadata to live. Anything the encoder cannot write, such as
 	 * HEIC, falls through to the caller's default.
+	 *
+	 * @param source the source bytes, or null where there are none
 	 */
-	function sourceFormat(): string | undefined {
-		const type = deps.source()?.type
+	function sourceFormat(source: Blob | null): string | undefined {
+		const type = source?.type
 		return type !== undefined && ENCODABLE.includes(type) ? type : undefined
 	}
 
@@ -111,9 +113,9 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	 * than a URL.
 	 *
 	 * @param mimeType the format being encoded
+	 * @param source the source bytes, or null where there are none
 	 */
-	async function jpegSource(mimeType: string): Promise<Uint8Array | null> {
-		const source = deps.source()
+	async function jpegSource(mimeType: string, source: Blob | null): Promise<Uint8Array | null> {
 		if (source === null || mimeType !== 'image/jpeg' || source.type !== 'image/jpeg') {
 			return null
 		}
@@ -177,6 +179,19 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	}
 
 	/**
+	 * The source bytes with their type filled in where the Blob came
+	 * without one, read from the bytes themselves. Everything below
+	 * decides on the type, and an empty one would save a JPEG as a PNG,
+	 * drop its metadata and never hand an untouched image back.
+	 *
+	 * @param source the source bytes, without a type
+	 */
+	async function typedSource(source: Blob): Promise<Blob> {
+		const type = await sniffImageType(source)
+		return type === '' ? source : new Blob([source], { type })
+	}
+
+	/**
 	 * Render the state at natural resolution and encode it.
 	 *
 	 * @param options target format, quality and size bound
@@ -191,7 +206,10 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		// source is already the answer. Re-encoding it would cost a
 		// generation of quality and throw away the metadata, EXIF and
 		// colour profile included, for no change at all.
-		const source = deps.source()
+		const given = deps.source()
+		// Awaited only where there is something to read, so a typed source
+		// raises the progress flag in the same tick the export was asked in
+		const source = given === null || given.type !== '' ? given : await typedSource(given)
 		if (source !== null
 			&& source.type !== ''
 			&& isPristine(deps.getState())
@@ -205,7 +223,7 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 		exporting.value = true
 		await painted()
 		try {
-			return await encode(oriented, options)
+			return await encode(oriented, options, source)
 		} finally {
 			exporting.value = false
 		}
@@ -217,15 +235,16 @@ export function useExportImage(deps: ExportDeps): ExportImage {
 	 *
 	 * @param oriented the orientation-baked source canvas
 	 * @param options target format, quality and size bound
+	 * @param source the source bytes, or null where there are none
 	 */
-	async function encode(oriented: HTMLCanvasElement, options: ExportOptions): Promise<ExportResult> {
+	async function encode(oriented: HTMLCanvasElement, options: ExportOptions, source: Blob | null): Promise<ExportResult> {
 		const canvas = renderToCanvas(oriented, deps.getState(), options.maxSize)
-		const mimeType = options.format ?? sourceFormat() ?? 'image/png'
+		const mimeType = options.format ?? sourceFormat(source) ?? 'image/png'
 		try {
-			const source = await jpegSource(mimeType)
-			const quality = options.quality ?? (mimeType === 'image/jpeg' ? qualityFor(source) : undefined)
+			const jpeg = await jpegSource(mimeType, source)
+			const quality = options.quality ?? (mimeType === 'image/jpeg' ? qualityFor(jpeg) : undefined)
 			let blob = await canvasToBlob(canvas, mimeType, quality)
-			blob = await carryMetadata(blob, canvas, source)
+			blob = await carryMetadata(blob, canvas, jpeg)
 			const visible = visibleRect(deps.getState(), { width: oriented.width, height: oriented.height })
 			const wanted = options.maxSize === undefined
 				? Math.max(visible.width, visible.height)

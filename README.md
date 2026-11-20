@@ -105,6 +105,79 @@ async function onSave({ blob, mimeType }: ExportResult) {
 </template>
 ```
 
+### Editing a local file
+
+The editor needs no server: hand it a `File` from an `<input type="file">`,
+or any `Blob`, and it hands the edited image back as a `Blob`. Nothing is
+uploaded or stored anywhere. The playground has a working version of this
+at `?demo=local-file` (`playground/LocalFileDemo.vue`).
+
+```vue
+<script setup lang="ts">
+import type { ExportResult } from '@nextcloud/image-editor'
+import { shallowRef } from 'vue'
+import { ImageEditor } from '@nextcloud/image-editor'
+
+const file = shallowRef<File | null>(null)
+const preview = shallowRef<string | null>(null)
+
+function onPick(event: Event) {
+	file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+}
+
+function onSave({ blob, mimeType }: ExportResult) {
+	// An object URL keeps its Blob alive: revoke the old one first,
+	// and the last one when the component goes away
+	if (preview.value !== null) {
+		URL.revokeObjectURL(preview.value)
+	}
+	preview.value = URL.createObjectURL(blob)
+	file.value = null
+}
+
+function onError(error: Error) {
+	// The image could not be decoded or exported. The editor stays
+	// open, so tell the user and let them cancel or try again.
+	console.error(error)
+}
+</script>
+
+<template>
+	<ImageEditor
+		v-if="file"
+		:src="file"
+		:label="file.name"
+		@save="onSave"
+		@cancel="file = null"
+		@error="onError" />
+	<template v-else>
+		<input type="file" accept="image/*" @change="onPick">
+		<a v-if="preview" :href="preview" download="edited">
+			<img :src="preview" alt="The edited image">
+		</a>
+	</template>
+</template>
+```
+
+A few things to know when the source is a `Blob` or `File`:
+
+- The editor saves in the format the image came in: a JPEG as a JPEG,
+  with its EXIF, XMP and colour profile carried over; a PNG or WebP as
+  the same. Ask for another with `exportOptions`, e.g.
+  `{ format: 'image/webp', quality: 0.8 }`.
+- Saving an image that was not edited hands the source bytes back as
+  they are.
+- A `Blob` without a `type` (`new Blob([bytes])`, or a `File` with an
+  extension the browser does not know) still works. The editor reads
+  the format from the first bytes of the image, for JPEG, PNG and WebP.
+  For any other format the type stays unknown, and the editor saves a
+  PNG unless `exportOptions.format` says otherwise.
+- Object URLs the editor makes to decode the image are revoked as soon
+  as the image is decoded. Object URLs you make for the result are
+  yours to revoke.
+- A file that is not an image, or is corrupt, fires `error` and shows
+  a retry. It never leaves the editor waiting.
+
 ## API
 
 ### `<ImageEditor>`

@@ -43,7 +43,7 @@ import { clampRect, createInitialState, duplicateAnnotation, flipHorizontal, fli
 import { attachPointerTools } from '../editor/tools.ts'
 import { clampPan, panBounds, VIEW_MARGIN } from '../editor/view.ts'
 import { fitContain } from '../utils/geometry.ts'
-import { decodeImage, imageSize } from '../utils/image.ts'
+import { decodeImage, imageSize, sourceName } from '../utils/image.ts'
 import { t } from '../utils/l10n.ts'
 
 const props = defineProps<{
@@ -92,6 +92,7 @@ const labels = {
 	tooLarge: t('This image is larger than this browser can edit'),
 	tooLargeConfirm: t('Continue with a smaller copy'),
 	tooLargeReject: t('Close the editor'),
+	unnamed: t('This image'),
 }
 
 /**
@@ -109,7 +110,7 @@ function confirmDownscale(full: Size, fit: number): Promise<boolean> {
 		text: t(
 			'{name} is {source} megapixels and this browser can only edit {limit}. Continuing means the saved image is {width} by {height} pixels instead, and the detail beyond that is lost.',
 			{
-				name: props.label ?? props.src.toString(),
+				name: props.label ?? sourceName(props.src) ?? labels.unnamed,
 				source: String(megapixels(full)),
 				limit: String(megapixels({ width: full.width * fit, height: full.height * fit })),
 				width: String(Math.floor(full.width * fit)),
